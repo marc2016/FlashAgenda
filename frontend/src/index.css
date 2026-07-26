@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@300;400;500;600;700&display=swap');
 
 body {
   margin: 0;
@@ -73,4 +73,97 @@ body {
 .p-button.bg-yellow-500:hover {
   background-color: #facc15 !important;
   border-color: #facc15 !important;
+}
+
+/* Comic Book Styles */
+.comic-font {
+  font-family: 'Bangers', cursive;
+  letter-spacing: 2px;
+}
+
+.comic-text-shadow {
+  text-shadow: 3px 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+.comic-button {
+  box-shadow: 4px 4px 0px #000 !important;
+  border: 3px solid #000 !important;
+  border-radius: 8px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: bold !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+  background-color: #facc15 !important;
+  color: #000 !important;
+}
+
+.comic-button:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 6px 6px 0px #000 !important;
+  background-color: #fde047 !important;
+}
+
+.comic-button:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0px #000 !important;
+}
+
+.comic-panel-dark {
+  background-color: #1f2937 !important; /* dark gray */
+  border: 3px solid #000 !important;
+  box-shadow: 6px 6px 0px #000 !important;
+  border-radius: 12px !important;
+}
+
+/* Global button override for PrimeReact warning buttons (which are the yellow ones used) */
+.p-button.p-button-warning, .p-button.p-button-outlined.p-button-warning {
+  background-color: #facc15 !important;
+  color: #000 !important;
+  border: 3px solid #000 !important;
+  box-shadow: 4px 4px 0px #000 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: bold !important;
+  border-radius: 8px !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+}
+.p-button.p-button-warning:hover, .p-button.p-button-outlined.p-button-warning:hover {
+  background-color: #fde047 !important;
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 6px 6px 0px #000 !important;
+}
+.p-button.p-button-warning:active, .p-button.p-button-outlined.p-button-warning:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0px #000 !important;
+}
+
+.bg-comic-red {
+  background-color: #b71c1c !important;
+}
+
+/* Global override for body background to red */
+body {
+  background-color: #b71c1c;
+  color: #f9fafb;
+}
+
+/* CSS Logo */
+.css-logo-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.css-logo-bolt {
+  position: absolute;
+  font-size: 10rem !important;
+  color: #facc15;
+  text-shadow: 4px 4px 0 #000;
+  z-index: 0;
+  opacity: 0.8;
+}
+.css-logo-text {
+  position: relative;
+  z-index: 1;
+  font-size: 6rem;
+  color: #ffffff;
+  margin: 0;
 }

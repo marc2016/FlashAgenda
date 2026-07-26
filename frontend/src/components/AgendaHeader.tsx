@@ -4,6 +4,13 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
 import { format, parseISO } from 'date-fns';
+import { GoogleMap, useLoadScript, Marker } from '@react-google-maps/api';
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '200px',
+  borderRadius: '8px'
+};
 
 interface LocationObj {
   name?: string;
@@ -27,6 +34,10 @@ interface Props {
 export default function AgendaHeader({ agenda, onUpdate }: Props) {
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
+
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+  });
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -72,29 +83,34 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
         <Button icon="pi pi-pencil" rounded text aria-label="Edit Title" onClick={() => openEdit('title', agenda.title)} className="text-gray-400 hover:text-yellow-400" />
       </div>
 
-      <div className="flex align-items-center gap-2 mb-4 bg-gray-800 p-2 border-round-lg border-1 border-gray-700 max-w-max">
-        <span className="text-gray-400 text-sm overflow-hidden text-overflow-ellipsis white-space-nowrap" style={{ maxWidth: '200px' }}>
+      <div className="flex align-items-center gap-2 mb-4 max-w-max">
+        <a href={window.location.href} className="text-yellow-400 font-bold text-lg overflow-hidden text-overflow-ellipsis white-space-nowrap" style={{ maxWidth: '300px', textDecoration: 'none' }}>
           {window.location.href}
-        </span>
-        <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} tooltip="Link kopieren" />
-        <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} tooltip="Teilen" />
+        </a>
+        <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} tooltip="Link kopieren" className="text-gray-400 hover:text-yellow-400" />
+        <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} tooltip="Teilen" className="text-gray-400 hover:text-yellow-400" />
       </div>
 
       <div className="flex flex-wrap gap-4 mb-3">
         <div className="flex align-items-center">
-          <i className="pi pi-calendar text-yellow-500 mr-2 text-xl"></i>
-          <h2 className="text-2xl m-0 font-medium mr-2">
-            {agenda.date ? format(parseISO(agenda.date), 'dd.MM.yyyy') : 'Kein Datum'}
-          </h2>
-          <Button icon="pi pi-pencil" rounded text onClick={() => openEdit('date', agenda.date ? parseISO(agenda.date) : null)} className="text-gray-400 hover:text-yellow-400" />
-        </div>
-        
-        <div className="flex align-items-center">
-          <i className="pi pi-clock text-yellow-500 mr-2 text-xl"></i>
-          <h2 className="text-2xl m-0 font-medium mr-2">
-            {agenda.time || 'Keine Uhrzeit'}
-          </h2>
-          <Button icon="pi pi-pencil" rounded text onClick={() => openEdit('time', agenda.time)} className="text-gray-400 hover:text-yellow-400" />
+          <i className="pi pi-calendar-plus text-yellow-500 mr-2 text-xl"></i>
+          <Calendar 
+            value={agenda.date ? parseISO(agenda.date) : null} 
+            onChange={async (e) => {
+              if (e.value) {
+                const newDate = e.value as Date;
+                // Save as ISO string containing both date and time
+                await onUpdate({ date: newDate.toISOString() });
+              }
+            }} 
+            showTime 
+            hourFormat="24"
+            dateFormat="dd.mm.yy" 
+            placeholder="Datum & Uhrzeit wählen"
+            className="w-full comic-panel-dark text-white font-bold" 
+            inputClassName="bg-transparent text-white font-bold text-xl border-none p-2"
+            panelClassName="comic-panel-dark"
+          />
         </div>
       </div>
 
@@ -108,11 +124,24 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
         </div>
         
         {agenda.location?.name && (
-          <div className="mt-3 bg-gray-800 border-round-xl p-3 border-1 border-gray-700 max-w-sm">
-            <div className="h-8rem bg-gray-700 border-round-lg mb-3 flex flex-column align-items-center justify-content-center text-gray-500">
-              <i className="pi pi-map text-3xl mb-2"></i>
-              <span className="block text-sm">Kartenvorschau</span>
-            </div>
+          <div className="mt-3 comic-panel-dark p-3 max-w-sm">
+            {isLoaded && agenda.location.lat && agenda.location.lng ? (
+              <div className="mb-3">
+                <GoogleMap
+                  mapContainerStyle={mapContainerStyle}
+                  center={{ lat: agenda.location.lat, lng: agenda.location.lng }}
+                  zoom={14}
+                  options={{ disableDefaultUI: true }}
+                >
+                  <Marker position={{ lat: agenda.location.lat, lng: agenda.location.lng }} />
+                </GoogleMap>
+              </div>
+            ) : (
+              <div className="h-8rem bg-gray-700 border-round-lg mb-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold">
+                <i className="pi pi-map text-3xl mb-2"></i>
+                <span className="block text-sm">Kein API-Key oder Koordinaten</span>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button label="Google Maps" icon="pi pi-google" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
               <Button label="Apple Maps" icon="pi pi-apple" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
@@ -130,16 +159,10 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
       >
         <div className="flex flex-column gap-3 pt-3">
           {editField === 'title' && (
-            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus className="bg-gray-800 text-white" />
+            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus className="comic-panel-dark text-white" />
           )}
           {editField === 'location' && (
-            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="Ort eingeben..." className="bg-gray-800 text-white" />
-          )}
-          {editField === 'time' && (
-            <InputText type="time" value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus className="bg-gray-800 text-white" />
-          )}
-          {editField === 'date' && (
-            <Calendar value={tempValue} onChange={(e) => setTempValue(e.value)} dateFormat="dd.mm.yy" className="w-full" inputClassName="bg-gray-800 text-white" panelClassName="bg-gray-800" />
+            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="Ort eingeben..." className="comic-panel-dark text-white" />
           )}
           <Button label="Speichern" icon="pi pi-check" onClick={saveEdit} className="p-button-warning mt-2" />
         </div>

@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IAttendee {
   _id?: string;
   name: string;
+  joinedAt?: Date;
+  lastSeen?: Date;
 }
 
 export interface ILocation {
@@ -28,7 +30,9 @@ export interface IAgenda extends Document {
 }
 
 const AttendeeSchema = new Schema<IAttendee>({
-  name: { type: String, required: true }
+  name: { type: String, required: true },
+  joinedAt: { type: Date, default: Date.now },
+  lastSeen: { type: Date, default: Date.now }
 });
 
 const LocationSchema = new Schema<ILocation>({

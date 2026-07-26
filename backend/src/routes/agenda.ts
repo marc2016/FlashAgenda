@@ -66,6 +66,27 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
   }
 });
 
+// Ping to update lastSeen for an attendee
+router.put('/:id/attendees/:attendeeId/ping', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const agenda = await Agenda.findById(req.params.id);
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    const attendee = agenda.attendees.find((a: any) => a._id.toString() === req.params.attendeeId);
+    if (!attendee) {
+      res.status(404).json({ message: 'Attendee not found' });
+      return;
+    }
+    attendee.lastSeen = new Date();
+    await agenda.save();
+    res.json({ message: 'lastSeen updated', lastSeen: attendee.lastSeen });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update lastSeen' });
+  }
+});
+
 // Add an agenda item
 router.post('/:id/items', async (req: Request, res: Response): Promise<void> => {
   try {
