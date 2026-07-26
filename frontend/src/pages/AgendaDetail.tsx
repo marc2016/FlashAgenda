@@ -35,14 +35,52 @@ export default function AgendaDetail() {
     }
   }, [agenda?.title]);
 
+  // Periodic polling to fetch fresh agenda data (e.g. attendee online status updates)
   useEffect(() => {
-    if (currentUser && agenda) {
-      // Ping to update lastSeen
-      fetch(`/api/agendas/${id}/attendees/${currentUser.id}/ping`, {
-        method: 'PUT'
-      }).catch(err => console.error('Failed to ping lastSeen', err));
-    }
-  }, [currentUser, id, agenda]);
+    if (!id) return;
+    const pollInterval = setInterval(() => {
+      fetchAgenda();
+    }, 10000);
+    return () => clearInterval(pollInterval);
+  }, [id]);
+
+  // Ping server periodically to update current user's lastSeen timestamp
+  useEffect(() => {
+    const userId = currentUser?._id || currentUser?.id;
+    if (!userId || !id) return;
+
+    const pingServer = async () => {
+      try {
+        const response = await fetch(`/api/agendas/${id}/attendees/${userId}/ping`, {
+          method: 'PUT'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.lastSeen) {
+            setAgenda((prev: any) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                attendees: (prev.attendees || []).map((att: any) => {
+                  const attId = att._id || att.id;
+                  if (attId === userId || att.name === currentUser.name) {
+                    return { ...att, lastSeen: data.lastSeen };
+                  }
+                  return att;
+                })
+              };
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to ping lastSeen', err);
+      }
+    };
+
+    pingServer();
+    const interval = setInterval(pingServer, 15000);
+    return () => clearInterval(interval);
+  }, [currentUser, id]);
 
   const handleUpdateAgenda = async (updates: any) => {
     try {
@@ -59,8 +97,24 @@ export default function AgendaDetail() {
   };
 
   const handleAddAttendee = async (newAttendee: any) => {
-    const updatedAttendees = [...(agenda.attendees || []), newAttendee];
-    await handleUpdateAgenda({ attendees: updatedAttendees });
+    try {
+      const response = await fetch(`/api/agendas/${id}/attendees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAttendee),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAgenda(data);
+        const added = (data.attendees || []).find((a: any) => a.name === newAttendee.name || a.id === newAttendee.id);
+        return added || newAttendee;
+      }
+    } catch (err) {
+      console.error('Failed to add attendee', err);
+      // Fallback
+      const updatedAttendees = [...(agenda.attendees || []), newAttendee];
+      await handleUpdateAgenda({ attendees: updatedAttendees });
+    }
   };
 
   const handleUpdateItems = async (newItems: any[]) => {

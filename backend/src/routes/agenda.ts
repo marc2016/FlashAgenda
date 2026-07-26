@@ -58,10 +58,22 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
       res.status(404).json({ message: 'Agenda not found' });
       return;
     }
-    agenda.attendees.push({ name: req.body?.name || 'Unbekannt' });
+    const name = req.body?.name || 'Unbekannt';
+    const customId = req.body?.id;
+    const now = new Date();
+    const newAttendee: any = {
+      name,
+      joinedAt: now,
+      lastSeen: now
+    };
+    if (customId) {
+      newAttendee.id = customId;
+    }
+    agenda.attendees.push(newAttendee);
     const savedAgenda = await agenda.save();
     res.status(201).json(savedAgenda);
   } catch (error) {
+    console.error('Error adding attendee:', error);
     res.status(500).json({ message: 'Failed to add attendee' });
   }
 });
@@ -74,7 +86,12 @@ router.put('/:id/attendees/:attendeeId/ping', async (req: Request, res: Response
       res.status(404).json({ message: 'Agenda not found' });
       return;
     }
-    const attendee = agenda.attendees.find((a: any) => a._id.toString() === req.params.attendeeId);
+    const targetId = req.params.attendeeId;
+    const attendee = agenda.attendees.find((a: any) => 
+      (a._id && a._id.toString() === targetId) ||
+      (a.id && a.id.toString() === targetId) ||
+      (a.name && a.name === targetId)
+    );
     if (!attendee) {
       res.status(404).json({ message: 'Attendee not found' });
       return;
@@ -83,6 +100,7 @@ router.put('/:id/attendees/:attendeeId/ping', async (req: Request, res: Response
     await agenda.save();
     res.json({ message: 'lastSeen updated', lastSeen: attendee.lastSeen });
   } catch (error) {
+    console.error('Error updating lastSeen:', error);
     res.status(500).json({ message: 'Failed to update lastSeen' });
   }
 });

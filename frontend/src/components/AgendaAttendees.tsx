@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Attendee {
@@ -41,12 +41,40 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
     ).length;
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Unbekannt';
+  const formatDate = (dateInput?: string | Date) => {
+    if (!dateInput) return 'Unbekannt';
     try {
-      return format(parseISO(dateString), 'dd.MM.yyyy HH:mm');
+      const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+      if (isNaN(date.getTime())) return 'Unbekannt';
+
+      const diffSec = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (diffSec < 60 && diffSec >= -5) {
+        return 'Jetzt online';
+      }
+      if (diffSec < 3600 && diffSec >= 60) {
+        const mins = Math.floor(diffSec / 60);
+        return `Vor ${mins} Min.`;
+      }
+      if (diffSec < 86400 && diffSec >= 3600) {
+        const hours = Math.floor(diffSec / 3600);
+        return `Vor ${hours} Std.`;
+      }
+
+      return format(date, 'dd.MM.yyyy HH:mm');
     } catch {
       return 'Unbekannt';
+    }
+  };
+
+  const isUserOnline = (lastSeen?: string | Date) => {
+    if (!lastSeen) return false;
+    try {
+      const date = typeof lastSeen === 'string' ? new Date(lastSeen) : lastSeen;
+      if (isNaN(date.getTime())) return false;
+      const diffSec = (Date.now() - date.getTime()) / 1000;
+      return diffSec >= -5 && diffSec < 120;
+    } catch {
+      return false;
     }
   };
 
@@ -70,9 +98,11 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
           const cardColor = colors[index % colors.length];
           const isSelf = currentUser && (
             (att.id && currentUser.id === att.id) ||
+            (att._id && currentUser._id === att._id) ||
             (att._id && currentUser.id === att._id) ||
             currentUser.name === att.name
           );
+          const online = isUserOnline(att.lastSeen);
           
           return (
             <div 
@@ -96,10 +126,17 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
               <div className="flex h-full text-white p-4 align-items-center">
                 
                 {/* Left: Profile Icon (MDI account-circle SVG) */}
-                <div className="flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-4 mr-4">
+                <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-4 mr-4">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '6rem', height: '6rem' }} className="text-white-alpha-90">
                     <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
                   </svg>
+                  {online && (
+                    <span 
+                      className="absolute bg-green-500 border-circle border-2 border-black" 
+                      style={{ width: '1.25rem', height: '1.25rem', bottom: '0.25rem', right: '1.25rem' }}
+                      title="Jetzt online"
+                    />
+                  )}
                 </div>
 
                 {/* Right: Details */}
@@ -115,7 +152,9 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                     </div>
                     <div>
                       <strong className="block text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Zuletzt online</strong>
-                      <span className="m-0 p-0 line-height-1">{formatDate(att.lastSeen)}</span>
+                      <span className={`m-0 p-0 line-height-1 ${online ? 'text-green-300 font-bold' : ''}`}>
+                        {formatDate(att.lastSeen)}
+                      </span>
                     </div>
                     <div>
                       <strong className="block text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Punkte</strong>
