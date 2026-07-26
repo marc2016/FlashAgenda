@@ -184,3 +184,90 @@ body {
   padding-left: 1rem !important;
 }
 
+/* MDX Editor White Background Customization */
+.mdxeditor {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 2px solid #000000 !important;
+  border-radius: 8px !important;
+  font-family: inherit !important;
+  min-height: 380px;
+}
+
+.mdxeditor-toolbar-container {
+  background-color: #f3f4f6 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  color: #111827 !important;
+}
+
+.mdxeditor-toolbar-container button {
+  color: #111827 !important;
+}
+
+.mdxeditor-toolbar-container button:hover {
+  background-color: #e5e7eb !important;
+  color: #ca8a04 !important;
+}
+
+.mdxeditor-toolbar-container button[aria-pressed="true"] {
+  background-color: #facc15 !important;
+  color: #111827 !important;
+}
+
+.mdxeditor-content-editable {
+  color: #111827 !important;
+  min-height: 320px;
+  padding: 12px !important;
+}
+
+.mdxeditor-content-editable p,
+.mdxeditor-content-editable h1,
+.mdxeditor-content-editable h2,
+.mdxeditor-content-editable h3,
+.mdxeditor-content-editable h4,
+.mdxeditor-content-editable li,
+.mdxeditor-content-editable span,
+.mdxeditor-content-editable td,
+.mdxeditor-content-editable th,
+.mdxeditor-content-editable blockquote {
+  color: #111827 !important;
+}
+
+.mdxeditor-popup-container {
+  z-index: 11000 !important;
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25) !important;
+}
+
+.mdxeditor-popup-container input {
+  color: #111827 !important;
+  background-color: #f9fafb !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Read-only MDX Editor inside comic-panel-dark */
+.comic-panel-dark .mdxeditor {
+  background-color: transparent !important;
+  color: #d1d5db !important;
+  border: none !important;
+  min-height: auto !important;
+}
+
+.comic-panel-dark .mdxeditor-content-editable,
+.comic-panel-dark .mdxeditor-content-editable p,
+.comic-panel-dark .mdxeditor-content-editable h1,
+.comic-panel-dark .mdxeditor-content-editable h2,
+.comic-panel-dark .mdxeditor-content-editable h3,
+.comic-panel-dark .mdxeditor-content-editable li,
+.comic-panel-dark .mdxeditor-content-editable span {
+  color: #d1d5db !important;
+  min-height: auto !important;
+  padding: 0 !important;
+}
+
+

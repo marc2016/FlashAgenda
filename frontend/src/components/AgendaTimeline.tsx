@@ -3,7 +3,23 @@ import { Timeline } from 'primereact/timeline';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
-import { InputTextarea } from 'primereact/inputtextarea';
+import {
+  MDXEditor,
+  headingsPlugin,
+  listsPlugin,
+  quotePlugin,
+  thematicBreakPlugin,
+  markdownShortcutPlugin,
+  linkPlugin,
+  linkDialogPlugin,
+  toolbarPlugin,
+  UndoRedo,
+  BoldItalicUnderlineToggles,
+  ListsToggle,
+  BlockTypeSelect,
+  CreateLink
+} from '@mdxeditor/editor';
+import '@mdxeditor/editor/style.css';
 
 interface AgendaItem {
   _id?: string;
@@ -155,7 +171,17 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
         </div>
         {hasDetails && (
           <div className="hidden mt-3 pt-3 border-top-1 border-gray-700 text-gray-300 line-height-3">
-            {item.description}
+            <MDXEditor
+              markdown={item.description || ''}
+              readOnly
+              plugins={[
+                headingsPlugin(),
+                listsPlugin(),
+                quotePlugin(),
+                thematicBreakPlugin(),
+                linkPlugin()
+              ]}
+            />
           </div>
         )}
       </div>
@@ -198,7 +224,8 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
       <Dialog 
         header={editingIndex !== null ? 'Agendapunkt bearbeiten' : 'Neuer Agendapunkt'} 
         visible={visible} 
-        style={{ width: '90vw', maxWidth: '500px' }} 
+        style={{ width: '96vw', maxWidth: '1200px' }} 
+        contentStyle={{ maxHeight: '82vh', overflowY: 'auto' }}
         onHide={() => setVisible(false)}
         className="glass-panel"
       >
@@ -207,8 +234,35 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
              <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="pi pi-bookmark"></i></span>
              <InputText placeholder="Titel" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus className="bg-gray-800 text-white border-gray-600" />
           </div>
-          <div className="p-inputgroup flex-column">
-             <InputTextarea placeholder="Details (Optional)" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} className="bg-gray-800 text-white border-gray-600 border-round-bottom-none" />
+
+          <div className="flex flex-column gap-2">
+            <label className="text-sm font-bold text-gray-300">Details (Markdown Editor):</label>
+            <MDXEditor
+              key={visible ? (editingIndex !== null ? `edit-${editingIndex}` : 'new-item') : 'closed'}
+              markdown={description}
+              onChange={(newMarkdown) => setDescription(newMarkdown)}
+              placeholder="Details eingeben..."
+              plugins={[
+                headingsPlugin(),
+                listsPlugin(),
+                quotePlugin(),
+                thematicBreakPlugin(),
+                markdownShortcutPlugin(),
+                linkPlugin(),
+                linkDialogPlugin(),
+                toolbarPlugin({
+                  toolbarContents: () => (
+                    <>
+                      <UndoRedo />
+                      <BoldItalicUnderlineToggles />
+                      <BlockTypeSelect />
+                      <ListsToggle />
+                      <CreateLink />
+                    </>
+                  )
+                })
+              ]}
+            />
           </div>
           
           <div className="flex gap-2 mt-3">
