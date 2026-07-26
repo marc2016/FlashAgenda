@@ -103,6 +103,7 @@ export default function AgendaDetail() {
         <AgendaAttendees 
           attendees={agenda.attendees || []} 
           items={agenda.items || []}
+          currentUser={currentUser}
           onAdd={handleAddAttendee} 
         />
 

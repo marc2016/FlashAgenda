@@ -270,4 +270,26 @@ body {
   padding: 0 !important;
 }
 
+/* Corner Banderole / Ribbon for current user card */
+.corner-banderole {
+  position: absolute;
+  top: 22px;
+  left: -48px;
+  width: 170px;
+  transform: rotate(-45deg);
+  background-color: #facc15;
+  color: #000000;
+  font-weight: 800;
+  font-size: 0.65rem;
+  padding: 3px 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 10;
+  border: 2px solid #000000;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 

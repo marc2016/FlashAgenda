@@ -17,10 +17,11 @@ interface Attendee {
 interface Props {
   attendees: Attendee[];
   items?: any[];
+  currentUser?: any;
   onAdd: (attendee: Attendee) => Promise<void>;
 }
 
-export default function AgendaAttendees({ attendees, items = [], onAdd }: Props) {
+export default function AgendaAttendees({ attendees, items = [], currentUser, onAdd }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
 
@@ -67,6 +68,11 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
         {attendees.map((att, index) => {
           const attendeeId = att._id || att.id || '';
           const cardColor = colors[index % colors.length];
+          const isSelf = currentUser && (
+            (att.id && currentUser.id === att.id) ||
+            (att._id && currentUser.id === att._id) ||
+            currentUser.name === att.name
+          );
           
           return (
             <div 
@@ -82,6 +88,11 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
                 borderRadius: '12px'
               }}
             >
+              {isSelf && (
+                <div className="corner-banderole">
+                  Das bist du
+                </div>
+              )}
               <div className="flex h-full text-white p-4 align-items-center">
                 
                 {/* Left: Profile Icon (MDI account-circle SVG) */}
