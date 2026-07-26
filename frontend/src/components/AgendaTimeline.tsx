@@ -164,7 +164,15 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
 
   return (
     <div className="mb-6">
-      <h3 className="text-2xl mb-4 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
+      <div className="flex justify-content-between align-items-center mb-4">
+        <h3 className="text-2xl m-0 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
+        <Button 
+          icon="pi pi-plus" 
+          label="Neuer Punkt" 
+          onClick={openNew} 
+          className="p-button-warning comic-button"
+        />
+      </div>
       
       {items && items.length > 0 ? (
         <Timeline 
@@ -178,8 +186,13 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
         <p className="text-gray-400 mb-4">Noch keine Agendapunkte vorhanden.</p>
       )}
 
-      <div className="mt-4">
-        <Button label="Neuer Agendapunkt" icon="pi pi-plus" className="p-button-outlined p-button-warning w-full py-3 border-dashed" onClick={openNew} />
+      <div className="mt-4 flex justify-content-end">
+        <Button 
+          label="Neuer Punkt" 
+          icon="pi pi-plus" 
+          onClick={openNew} 
+          className="p-button-warning comic-button" 
+        />
       </div>
 
       <Dialog 
