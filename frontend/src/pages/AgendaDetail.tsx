@@ -30,6 +30,12 @@ export default function AgendaDetail() {
   }, [id]);
 
   useEffect(() => {
+    if (agenda?.title) {
+      document.title = agenda.title;
+    }
+  }, [agenda?.title]);
+
+  useEffect(() => {
     if (currentUser && agenda) {
       // Ping to update lastSeen
       fetch(`/api/agendas/${id}/attendees/${currentUser.id}/ping`, {

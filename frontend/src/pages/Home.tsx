@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
@@ -6,6 +6,10 @@ import { classNames } from 'primereact/utils';
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = 'FlashAgenda';
+  }, []);
 
   const handleStartAgenda = async () => {
     setLoading(true);
