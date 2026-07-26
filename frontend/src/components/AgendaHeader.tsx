@@ -5,6 +5,7 @@ import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
 import { format, parseISO } from 'date-fns';
 import { GoogleMap, useLoadScript, Marker } from '@react-google-maps/api';
+import { QRCodeSVG } from 'qrcode.react';
 
 const mapContainerStyle = {
   width: '100%',
@@ -34,6 +35,7 @@ interface Props {
 export default function AgendaHeader({ agenda, onUpdate }: Props) {
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
+  const [showQR, setShowQR] = useState(false);
 
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
@@ -76,19 +78,75 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
 
   return (
     <div className="mb-6">
+      {/* URL bar — fixed top-right corner */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '12px',
+          right: '16px',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          background: 'rgba(0,0,0,0.55)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          borderRadius: '999px',
+          padding: '4px 12px',
+          border: '1px solid rgba(234,179,8,0.3)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.4)'
+        }}
+      >
+        <a
+          href={window.location.href}
+          className="text-yellow-400 font-bold"
+          style={{ textDecoration: 'none', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+        >
+          {window.location.href}
+        </a>
+        <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-400 hover:text-yellow-400" style={{ width: '1.8rem', height: '1.8rem' }} />
+        <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-400 hover:text-yellow-400" style={{ width: '1.8rem', height: '1.8rem' }} />
+        <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-400 hover:text-yellow-400" style={{ width: '1.8rem', height: '1.8rem' }} />
+      </div>
+
+      {/* QR Code Dialog */}
+      <Dialog
+        header="QR-Code scannen"
+        visible={showQR}
+        onHide={() => setShowQR(false)}
+        style={{ width: 'auto' }}
+        className="glass-panel"
+        modal
+        draggable={false}
+        resizable={false}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', padding: '1rem' }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '16px',
+            padding: '20px',
+            boxShadow: '0 4px 24px rgba(234,179,8,0.25)'
+          }}>
+            <QRCodeSVG
+              value={window.location.href}
+              size={220}
+              bgColor="#ffffff"
+              fgColor="#1a1a1a"
+              level="H"
+              includeMargin={false}
+            />
+          </div>
+          <p style={{ color: '#facc15', fontSize: '0.8rem', margin: 0, maxWidth: '260px', textAlign: 'center', wordBreak: 'break-all' }}>
+            {window.location.href}
+          </p>
+        </div>
+      </Dialog>
+
       <div className="flex align-items-center mb-2 group">
         <h1 className="text-5xl font-bold m-0 mr-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
           {agenda.title}
         </h1>
         <Button icon="pi pi-pencil" rounded text aria-label="Edit Title" onClick={() => openEdit('title', agenda.title)} className="text-gray-400 hover:text-yellow-400" />
-      </div>
-
-      <div className="flex align-items-center gap-2 mb-4 max-w-max">
-        <a href={window.location.href} className="text-yellow-400 font-bold text-lg overflow-hidden text-overflow-ellipsis white-space-nowrap" style={{ maxWidth: '300px', textDecoration: 'none' }}>
-          {window.location.href}
-        </a>
-        <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} tooltip="Link kopieren" className="text-gray-400 hover:text-yellow-400" />
-        <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} tooltip="Teilen" className="text-gray-400 hover:text-yellow-400" />
       </div>
 
       <div className="flex flex-wrap gap-4 mb-3">
