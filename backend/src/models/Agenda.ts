@@ -25,6 +25,7 @@ export interface IAgenda extends Document {
   date?: string;
   time?: string;
   location?: ILocation;
+  menuUrl?: string;
   attendees: IAttendee[];
   items: IAgendaItem[];
 }
@@ -52,6 +53,7 @@ const AgendaSchema = new Schema<IAgenda>({
   date: { type: String },
   time: { type: String },
   location: { type: LocationSchema },
+  menuUrl: { type: String },
   attendees: [AttendeeSchema],
   items: [AgendaItemSchema]
 }, { timestamps: true });
