@@ -65,7 +65,19 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
           const cardColor = colors[index % colors.length];
           
           return (
-            <div key={attendeeId} className="shadow-4 border-round-xl relative overflow-hidden" style={{ width: '340px', height: '215px', background: cardColor, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+            <div 
+              key={attendeeId} 
+              className="relative overflow-hidden" 
+              style={{ 
+                width: '340px', 
+                height: '215px', 
+                background: cardColor, 
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                border: '3px solid #000',
+                boxShadow: '6px 6px 0px #000',
+                borderRadius: '12px'
+              }}
+            >
               <div className="flex h-full text-white p-4 align-items-center">
                 
                 {/* Left: Profile Icon (MDI account-circle SVG) */}
@@ -104,8 +116,17 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
         
         {/* Plus Card */}
         <div 
-          className="text-white flex align-items-center justify-content-center cursor-pointer transition-colors shadow-2 hover:shadow-4 bg-gray-800 border-round-xl" 
-          style={{ width: '340px', height: '215px', borderStyle: 'dashed', borderWidth: '2px', borderColor: '#4b5563', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+          className="text-white flex align-items-center justify-content-center cursor-pointer transition-colors bg-gray-800" 
+          style={{ 
+            width: '340px', 
+            height: '215px', 
+            borderStyle: 'dashed', 
+            borderWidth: '3px', 
+            borderColor: '#000', 
+            boxShadow: '6px 6px 0px #000',
+            borderRadius: '12px',
+            fontFamily: 'system-ui, -apple-system, sans-serif' 
+          }}
           onClick={() => setVisible(true)}
         >
           <div className="text-center p-4">

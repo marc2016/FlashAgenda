@@ -74,7 +74,7 @@ export default function AgendaTimeline({ items, currentUser, onUpdate }: Props) 
     const hasDetails = !!item.description;
     
     return (
-      <div className="mb-4 bg-gray-800 p-4 border-round-xl border-1 border-gray-700 shadow-3">
+      <div className="mb-4 comic-panel-dark p-4">
         <div className="flex justify-content-between align-items-center">
           <div>
             <div className="text-xl font-bold mb-1">{item.title}</div>
