@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IAttendee {
   _id?: string;
+  id?: string;
   name: string;
   joinedAt?: Date;
   lastSeen?: Date;
@@ -34,6 +35,7 @@ export interface IAgenda extends Document {
 }
 
 const AttendeeSchema = new Schema<IAttendee>({
+  id: { type: String },
   name: { type: String, required: true },
   joinedAt: { type: Date, default: Date.now },
   lastSeen: { type: Date, default: Date.now }
