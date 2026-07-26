@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
 
   backend:
+    image: ghcr.io/marc2016/flashagenda-backend:latest
     build:
       context: ./backend
     container_name: flashagenda-backend
@@ -22,6 +23,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: ghcr.io/marc2016/flashagenda-frontend:latest
     build:
       context: ./frontend
     container_name: flashagenda-frontend
