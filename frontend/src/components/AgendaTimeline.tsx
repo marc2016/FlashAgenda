@@ -12,12 +12,14 @@ import {
   markdownShortcutPlugin,
   linkPlugin,
   linkDialogPlugin,
+  imagePlugin,
   toolbarPlugin,
   UndoRedo,
   BoldItalicUnderlineToggles,
   ListsToggle,
   BlockTypeSelect,
-  CreateLink
+  CreateLink,
+  InsertImage
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
 
@@ -27,6 +29,7 @@ interface AgendaItem {
   description?: string;
   author?: string;
   createdBy?: string;
+  imageUrl?: string;
   completed?: boolean;
 }
 
@@ -43,6 +46,8 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
 
   const getAuthorName = (item: AgendaItem) => {
     if (item.author) return item.author;
@@ -57,6 +62,7 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
   const openNew = () => {
     setTitle('');
     setDescription('');
+    setImageUrl('');
     setEditingIndex(null);
     setVisible(true);
   };
@@ -65,8 +71,44 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
     const item = items[index];
     setTitle(item.title);
     setDescription(item.description || '');
+    setImageUrl(item.imageUrl || '');
     setEditingIndex(index);
     setVisible(true);
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const rawData = evt.target?.result as string;
+        if (!rawData) return;
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1200;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setImageUrl(compressedDataUrl);
+        };
+        img.src = rawData;
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const toggleCompleted = async (index: number, e?: React.MouseEvent) => {
@@ -93,7 +135,8 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
       updatedItems[editingIndex] = {
         ...updatedItems[editingIndex],
         title,
-        description
+        description,
+        imageUrl
       };
     } else {
       const authorName = currentUser?.name || 'Unbekannt';
@@ -101,6 +144,7 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
       updatedItems.push({
         title,
         description,
+        imageUrl,
         author: authorName,
         createdBy: createdById,
         completed: false
@@ -130,12 +174,12 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
   };
 
   const customizedContent = (item: AgendaItem, index: number) => {
-    const hasDetails = !!item.description;
+    const hasDetails = !!item.description || !!item.imageUrl;
     const isCompleted = !!item.completed;
     
     return (
       <div className={`mb-4 comic-panel-dark p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
-        <div className="flex justify-content-between align-items-center">
+        <div className="flex justify-content-between align-items-center mb-2">
           <div>
             <div className={`text-xl font-bold mb-1 ${isCompleted ? 'line-through text-gray-400' : ''}`}>
               {item.title}
@@ -153,35 +197,60 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
             />
             <Button icon="pi pi-pencil" rounded text className="text-gray-400 hover:text-yellow-400" title="Bearbeiten" onClick={() => openEdit(index)} />
             <Button icon="pi pi-trash" rounded text className="text-gray-400 hover:text-red-400" title="Löschen" onClick={(e) => deleteItem(index, e)} />
-            {hasDetails && (
-              <Button 
-                icon="pi pi-angle-down" 
-                rounded 
-                text 
-                className="text-gray-400 hover:text-yellow-400"
-                onClick={(e) => {
-                  const target = e.currentTarget.parentElement?.parentElement?.nextElementSibling;
-                  if (target) {
-                     target.classList.toggle('hidden');
-                  }
-                }}
-              />
-            )}
+            <Button 
+              icon="pi pi-angle-down" 
+              rounded 
+              text 
+              disabled={!hasDetails}
+              className={hasDetails ? "text-gray-400 hover:text-yellow-400" : "text-gray-600 opacity-40"}
+              title={hasDetails ? "Details anzeigen/einklappen" : "Keine Details vorhanden"}
+              onClick={(e) => {
+                if (!hasDetails) return;
+                const cardEl = e.currentTarget.closest('.comic-panel-dark');
+                const detailsEl = cardEl?.querySelector('.agenda-details-container');
+                if (detailsEl) {
+                   detailsEl.classList.toggle('hidden');
+                }
+              }}
+            />
           </div>
         </div>
+
         {hasDetails && (
-          <div className="hidden mt-3 pt-3 border-top-1 border-gray-700 text-gray-300 line-height-3">
-            <MDXEditor
-              markdown={item.description || ''}
-              readOnly
-              plugins={[
-                headingsPlugin(),
-                listsPlugin(),
-                quotePlugin(),
-                thematicBreakPlugin(),
-                linkPlugin()
-              ]}
-            />
+          <div className="agenda-details-container hidden mt-3 pt-3 border-top-1 border-gray-700 text-gray-300 line-height-3">
+            <div className="flex flex-column md:flex-row gap-4 align-items-start justify-content-between">
+              {/* Links: Details-Text */}
+              {item.description && (
+                <div className="flex-1 min-w-0">
+                  <MDXEditor
+                    markdown={item.description}
+                    readOnly
+                    plugins={[
+                      headingsPlugin(),
+                      listsPlugin(),
+                      quotePlugin(),
+                      thematicBreakPlugin(),
+                      linkPlugin(),
+                      imagePlugin()
+                    ]}
+                  />
+                </div>
+              )}
+
+              {/* Rechts: Bild (unverzerrt & skaliert) */}
+              {item.imageUrl && (
+                <div className="border-round-lg overflow-hidden flex-shrink-0 bg-black-alpha-40 border-1 border-gray-700 w-full md:w-auto p-1 self-center md:self-start">
+                  <img 
+                    src={item.imageUrl} 
+                    alt={item.title} 
+                    className="h-auto border-round cursor-pointer hover:opacity-90 transition-opacity"
+                    style={{ maxHeight: '220px', maxWidth: '280px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                    onClick={() => setSelectedPreviewImage(item.imageUrl || null)}
+                    title="Klicken zum Vergrößern"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -221,6 +290,7 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
         />
       </div>
 
+      {/* Edit / New Item Dialog */}
       <Dialog 
         header={editingIndex !== null ? 'Agendapunkt bearbeiten' : 'Neuer Agendapunkt'} 
         visible={visible} 
@@ -233,6 +303,49 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
           <div className="p-inputgroup">
              <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="pi pi-bookmark"></i></span>
              <InputText placeholder="Titel" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus className="bg-gray-800 text-white border-gray-600" />
+          </div>
+
+          {/* Bild Upload / URL Feld */}
+          <div className="flex flex-column gap-2">
+            <label className="text-sm font-bold text-gray-300">Bild hinzufügen (Optional):</label>
+            <div className="flex gap-2 align-items-center flex-wrap">
+              <input
+                type="file"
+                accept="image/*"
+                id="agenda-image-upload"
+                className="hidden"
+                onChange={handleImageFileChange}
+              />
+              <label
+                htmlFor="agenda-image-upload"
+                className="p-button p-button-outlined p-button-warning cursor-pointer flex align-items-center gap-2 text-sm py-2 px-3 border-round"
+              >
+                <i className="pi pi-upload"></i>
+                <span>Bild von Gerät hochladen</span>
+              </label>
+              <span className="text-gray-400 text-xs">oder URL:</span>
+              <InputText
+                placeholder="https://..."
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                className="bg-gray-800 text-white flex-1 text-sm p-2 border-gray-600"
+              />
+              {imageUrl && (
+                <Button
+                  icon="pi pi-times"
+                  rounded
+                  text
+                  className="text-red-400"
+                  title="Bild entfernen"
+                  onClick={() => setImageUrl('')}
+                />
+              )}
+            </div>
+            {imageUrl && (
+              <div className="mt-2 border-round overflow-hidden max-h-12rem bg-black-alpha-40 flex justify-content-center p-2 border-1 border-gray-700 relative">
+                <img src={imageUrl} alt="Vorschau" className="max-h-10rem object-contain border-round" />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-column gap-2">
@@ -250,6 +363,7 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
                 markdownShortcutPlugin(),
                 linkPlugin(),
                 linkDialogPlugin(),
+                imagePlugin(),
                 toolbarPlugin({
                   toolbarContents: () => (
                     <>
@@ -258,6 +372,7 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
                       <BlockTypeSelect />
                       <ListsToggle />
                       <CreateLink />
+                      <InsertImage />
                     </>
                   )
                 })
@@ -280,6 +395,22 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
             <Button label="Speichern" icon="pi pi-check" onClick={saveItem} className="p-button-warning flex-1" disabled={!title.trim()} />
           </div>
         </div>
+      </Dialog>
+
+      {/* Lightbox Modal for enlarged image */}
+      <Dialog
+        visible={!!selectedPreviewImage}
+        onHide={() => setSelectedPreviewImage(null)}
+        header="Bildansicht"
+        style={{ width: '90vw', maxWidth: '1000px' }}
+        className="glass-panel"
+        modal
+      >
+        {selectedPreviewImage && (
+          <div className="flex justify-content-center p-2">
+            <img src={selectedPreviewImage} alt="Vorschau" className="w-full h-full object-contain max-h-80vh border-round-lg" />
+          </div>
+        )}
       </Dialog>
     </div>
   );

@@ -100,6 +100,7 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
       description: req.body?.description,
       createdBy: req.body?.createdBy,
       author: req.body?.author || req.body?.createdBy,
+      imageUrl: req.body?.imageUrl,
       completed: req.body?.completed || false
     });
     const savedAgenda = await agenda.save();
@@ -127,6 +128,7 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.description !== undefined) item.description = req.body.description;
     if (req.body?.createdBy !== undefined) item.createdBy = req.body.createdBy;
     if (req.body?.author !== undefined) item.author = req.body.author;
+    if (req.body?.imageUrl !== undefined) item.imageUrl = req.body.imageUrl;
     if (req.body?.completed !== undefined) item.completed = req.body.completed;
     
     const savedAgenda = await agenda.save();

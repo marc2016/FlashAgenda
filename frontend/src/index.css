@@ -250,22 +250,21 @@ body {
   border: 1px solid #d1d5db !important;
 }
 
-/* Read-only MDX Editor inside comic-panel-dark */
+/* Read-only MDX Editor inside comic-panel-dark / details container */
+.comic-panel-dark .agenda-details-container,
+.comic-panel-dark .agenda-details-container *,
+.comic-panel-dark .mdxeditor,
+.comic-panel-dark .mdxeditor * {
+  color: #ffffff !important;
+}
+
 .comic-panel-dark .mdxeditor {
   background-color: transparent !important;
-  color: #d1d5db !important;
   border: none !important;
   min-height: auto !important;
 }
 
-.comic-panel-dark .mdxeditor-content-editable,
-.comic-panel-dark .mdxeditor-content-editable p,
-.comic-panel-dark .mdxeditor-content-editable h1,
-.comic-panel-dark .mdxeditor-content-editable h2,
-.comic-panel-dark .mdxeditor-content-editable h3,
-.comic-panel-dark .mdxeditor-content-editable li,
-.comic-panel-dark .mdxeditor-content-editable span {
-  color: #d1d5db !important;
+.comic-panel-dark .mdxeditor-content-editable {
   min-height: auto !important;
   padding: 0 !important;
 }

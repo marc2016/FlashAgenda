@@ -19,6 +19,7 @@ export interface IAgendaItem {
   description?: string;
   createdBy?: string; // Attendee ID
   author?: string; // Attendee Name
+  imageUrl?: string;
   completed?: boolean;
 }
 
@@ -49,6 +50,7 @@ const AgendaItemSchema = new Schema<IAgendaItem>({
   description: { type: String },
   createdBy: { type: String },
   author: { type: String },
+  imageUrl: { type: String },
   completed: { type: Boolean, default: false }
 });
 
