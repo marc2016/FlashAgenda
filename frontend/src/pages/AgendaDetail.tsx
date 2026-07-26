@@ -104,6 +104,7 @@ export default function AgendaDetail() {
 
         <AgendaTimeline 
           items={agenda.items || []} 
+          attendees={agenda.attendees || []}
           currentUser={currentUser}
           onUpdate={handleUpdateItems} 
         />

@@ -32,8 +32,12 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
     }
   };
 
-  const getItemsCount = (attendeeId: string) => {
-    return items.filter(item => item.createdBy === attendeeId).length;
+  const getItemsCount = (attendeeId: string, attendeeName: string) => {
+    return items.filter(item => 
+      item.createdBy === attendeeId || 
+      item.createdBy === attendeeName || 
+      item.author === attendeeName
+    ).length;
   };
 
   const formatDate = (dateString?: string) => {
@@ -104,7 +108,7 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
                     </div>
                     <div>
                       <strong className="block text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Punkte</strong>
-                      <span className="m-0 p-0 line-height-1">{getItemsCount(attendeeId)} Agenda Punkte</span>
+                      <span className="m-0 p-0 line-height-1">{getItemsCount(attendeeId, att.name)} Agenda Punkte</span>
                     </div>
                   </div>
                 </div>

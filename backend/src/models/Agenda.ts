@@ -18,6 +18,8 @@ export interface IAgendaItem {
   title: string;
   description?: string;
   createdBy?: string; // Attendee ID
+  author?: string; // Attendee Name
+  completed?: boolean;
 }
 
 export interface IAgenda extends Document {
@@ -45,7 +47,9 @@ const LocationSchema = new Schema<ILocation>({
 const AgendaItemSchema = new Schema<IAgendaItem>({
   title: { type: String, required: true },
   description: { type: String },
-  createdBy: { type: String }
+  createdBy: { type: String },
+  author: { type: String },
+  completed: { type: Boolean, default: false }
 });
 
 const AgendaSchema = new Schema<IAgenda>({

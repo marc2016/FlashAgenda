@@ -173,3 +173,14 @@ body {
   color: #ffffff;
   margin: 0;
 }
+
+/* PrimeReact Timeline alignment override - start from the left */
+.p-timeline.p-timeline-left .p-timeline-event-opposite {
+  flex: 0 !important;
+  padding: 0 !important;
+}
+
+.p-timeline.p-timeline-left .p-timeline-event-content {
+  padding-left: 1rem !important;
+}
+
