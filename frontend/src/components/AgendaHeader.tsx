@@ -1,17 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
-import { format, parseISO } from 'date-fns';
-import { GoogleMap, useLoadScript, Marker } from '@react-google-maps/api';
+import { parseISO } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
 
-const mapContainerStyle = {
-  width: '100%',
-  height: '200px',
-  borderRadius: '8px'
-};
+// Leaflet Marker Icon Fix (Default icons break in React bundlers)
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+});
 
 interface LocationObj {
   name?: string;
@@ -33,14 +40,31 @@ interface Props {
   onUpdate: (updates: Partial<AgendaData>) => Promise<void>;
 }
 
+interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+// Helper component to recenter map when coordinates change
+function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], 14);
+  }, [lat, lng, map]);
+  return null;
+}
+
 export default function AgendaHeader({ agenda, onUpdate }: Props) {
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
   const [showQR, setShowQR] = useState(false);
 
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
-  });
+  // OpenStreetMap / Nominatim Search State
+  const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedCoords, setSelectedCoords] = useState<{ lat?: number; lng?: number }>({});
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -63,18 +87,66 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
 
   const openEdit = (field: string, currentValue: any) => {
     setTempValue(currentValue || '');
+    setSearchResults([]);
+    setSelectedCoords({});
     setEditField(field);
+  };
+
+  const executeOSMSearch = async (queryToSearch?: string) => {
+    const q = queryToSearch !== undefined ? queryToSearch : tempValue;
+    if (!q || !q.trim()) return;
+
+    setIsSearching(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`, {
+        headers: {
+          'User-Agent': 'FlashAgendaApp/1.0'
+        }
+      });
+      if (res.ok) {
+        const data: NominatimResult[] = await res.json();
+        setSearchResults(data);
+        if (data.length > 0) {
+          // Auto select first result for map preview
+          setSelectedCoords({
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon)
+          });
+        }
+      }
+    } catch (err) {
+      console.error('OSM Search failed', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const selectOsmPlace = (place: NominatimResult) => {
+    setTempValue(place.display_name);
+    setSelectedCoords({
+      lat: parseFloat(place.lat),
+      lng: parseFloat(place.lon)
+    });
+    setSearchResults([]);
   };
 
   const saveEdit = async () => {
     if (editField) {
       if (editField === 'location') {
-         await onUpdate({ location: { name: tempValue } });
+        await onUpdate({
+          location: {
+            name: tempValue,
+            lat: selectedCoords.lat ?? agenda.location?.lat,
+            lng: selectedCoords.lng ?? agenda.location?.lng
+          }
+        });
       } else {
-         await onUpdate({ [editField]: tempValue });
+        await onUpdate({ [editField]: tempValue });
       }
     }
     setEditField(null);
+    setSelectedCoords({});
+    setSearchResults([]);
   };
 
   return (
@@ -148,51 +220,50 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
           {agenda.title}
         </h1>
         <Button icon="pi pi-pencil" rounded text aria-label="Edit Title" onClick={() => openEdit('title', agenda.title)} className="text-gray-400 hover:text-yellow-400" />
-      </div>
-
-      {/* Boxen Container */}
-      <div className="flex flex-column gap-3 mb-4 max-w-md">
-        {/* Datum */}
-        <div className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full">
-          <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
-            <i className="pi pi-calendar-plus text-yellow-500 text-2xl flex-shrink-0" />
-            <Calendar
-              value={agenda.date ? parseISO(agenda.date) : null}
-              onChange={async (e) => {
-                if (e.value) {
-                  const newDate = e.value as Date;
-                  await onUpdate({ date: newDate.toISOString() });
-                }
+      </div>      {/* Layout: Boxen links, Karte rechts */}
+      <div className="flex flex-wrap gap-4 align-items-start mb-4">
+        {/* Links: Boxen Container */}
+        <div className="flex flex-column gap-3 flex-1 min-w-18rem max-w-md">
+          {/* Datum */}
+          <div className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full">
+            <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
+              <i className="pi pi-calendar-plus text-yellow-500 text-2xl flex-shrink-0" />
+              <Calendar
+                value={agenda.date ? parseISO(agenda.date) : null}
+                onChange={async (e) => {
+                  if (e.value) {
+                    const newDate = e.value as Date;
+                    await onUpdate({ date: newDate.toISOString() });
+                  }
+                }}
+                showTime
+                hourFormat="24"
+                dateFormat="dd.mm.yy"
+                placeholder="Datum & Uhrzeit wählen"
+                className="text-white font-bold w-full"
+                inputClassName="bg-transparent text-white font-bold text-xl border-none p-0 w-full"
+                panelClassName="comic-panel-dark"
+              />
+            </div>
+            <Button
+              icon="pi pi-pencil"
+              rounded
+              text
+              aria-label="Edit Date"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEdit('date', agenda.date);
               }}
-              showTime
-              hourFormat="24"
-              dateFormat="dd.mm.yy"
-              placeholder="Datum & Uhrzeit wählen"
-              className="text-white font-bold w-full"
-              inputClassName="bg-transparent text-white font-bold text-xl border-none p-0 w-full"
-              panelClassName="comic-panel-dark"
+              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
             />
           </div>
-          <Button
-            icon="pi pi-pencil"
-            rounded
-            text
-            aria-label="Edit Date"
-            onClick={(e) => {
-              e.stopPropagation();
-              openEdit('date', agenda.date);
-            }}
-            className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
-          />
-        </div>
 
-        {/* Ort */}
-        <div>
+          {/* Ort */}
           <div
             className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full cursor-pointer"
             onClick={() => {
               if (agenda.location?.name) {
-                window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location.name)}`, '_blank');
+                window.open(`https://www.openstreetmap.org/search?query=${encodeURIComponent(agenda.location.name)}`, '_blank');
               } else {
                 openEdit('location', agenda.location?.name);
               }
@@ -216,81 +287,168 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
             />
           </div>
 
-          {agenda.location?.name && (
-            <div className="mt-3 comic-panel-dark p-4 w-full">
-              {isLoaded && agenda.location.lat && agenda.location.lng ? (
-                <div className="mb-3">
-                  <GoogleMap
-                    mapContainerStyle={mapContainerStyle}
-                    center={{ lat: agenda.location.lat, lng: agenda.location.lng }}
-                    zoom={14}
-                    options={{ disableDefaultUI: true }}
-                  >
-                    <Marker position={{ lat: agenda.location.lat, lng: agenda.location.lng }} />
-                  </GoogleMap>
-                </div>
-              ) : (
-                <div className="h-8rem bg-gray-700 border-round-lg mb-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold">
-                  <i className="pi pi-map text-3xl mb-2" />
-                  <span className="block text-sm">Kein API-Key oder Koordinaten</span>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Button label="Google Maps" icon="pi pi-google" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
-                <Button label="Apple Maps" icon="pi pi-apple" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
-              </div>
+          {/* Speisekarte */}
+          <div
+            className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full cursor-pointer"
+            onClick={() => {
+              if (agenda.menuUrl) {
+                window.open(agenda.menuUrl, '_blank');
+              } else {
+                openEdit('menuUrl', agenda.menuUrl);
+              }
+            }}
+          >
+            <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
+              <i className="pi pi-book text-yellow-500 text-2xl flex-shrink-0" />
+              <span className="text-white font-bold text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+                {agenda.menuUrl ? 'Speisekarte öffnen' : 'Speisekarte hinzufügen...'}
+              </span>
             </div>
-          )}
+            <Button
+              icon="pi pi-pencil"
+              rounded
+              text
+              onClick={(e) => {
+                e.stopPropagation();
+                openEdit('menuUrl', agenda.menuUrl);
+              }}
+              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
+            />
+          </div>
         </div>
 
-        {/* Speisekarte */}
-        <div
-          className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full cursor-pointer"
-          onClick={() => {
-            if (agenda.menuUrl) {
-              window.open(agenda.menuUrl, '_blank');
-            } else {
-              openEdit('menuUrl', agenda.menuUrl);
-            }
-          }}
-        >
-          <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
-            <i className="pi pi-book text-yellow-500 text-2xl flex-shrink-0" />
-            <span className="text-white font-bold text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
-              {agenda.menuUrl ? 'Speisekarte öffnen' : 'Speisekarte hinzufügen...'}
-            </span>
+        {/* Rechts: Karte */}
+        {agenda.location?.name && (
+          <div className="comic-panel-dark p-3 flex-1 min-w-18rem max-w-lg">
+            {agenda.location.lat && agenda.location.lng ? (
+              <div className="mb-3 border-round-lg overflow-hidden" style={{ height: '220px' }}>
+                <MapContainer
+                  center={[agenda.location.lat, agenda.location.lng]}
+                  zoom={14}
+                  scrollWheelZoom={false}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <Marker position={[agenda.location.lat, agenda.location.lng]} />
+                  <RecenterMap lat={agenda.location.lat} lng={agenda.location.lng} />
+                </MapContainer>
+              </div>
+            ) : (
+              <div className="h-10rem bg-gray-700 border-round-lg mb-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold">
+                <i className="pi pi-map text-3xl mb-2" />
+                <span className="block text-sm">Keine Koordinaten für diesen Ort</span>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button label="OpenStreetMap" icon="pi pi-map" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`https://www.openstreetmap.org/search?query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
+              <Button label="Google Maps" icon="pi pi-google" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
+              <Button label="Apple Maps" icon="pi pi-apple" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
+            </div>
           </div>
-          <Button
-            icon="pi pi-pencil"
-            rounded
-            text
-            onClick={(e) => {
-              e.stopPropagation();
-              openEdit('menuUrl', agenda.menuUrl);
-            }}
-            className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
-          />
-        </div>
+        )}
       </div>
 
-      <Dialog 
-        header={`Bearbeite Info`} 
-        visible={!!editField} 
-        style={{ width: '90vw', maxWidth: '400px' }} 
+      {/* Edit Dialog */}
+      <Dialog
+        header="Bearbeite Info"
+        visible={!!editField}
+        style={{ width: '90vw', maxWidth: '440px', height: editField === 'location' ? '540px' : 'auto' }}
+        contentStyle={{ height: editField === 'location' ? '460px' : 'auto', display: 'flex', flexDirection: 'column' }}
         onHide={() => setEditField(null)}
         className="glass-panel"
       >
-        <div className="flex flex-column gap-3 pt-3">
+        <div className="flex flex-column gap-3 pt-3 flex-1 overflow-hidden">
           {editField === 'title' && (
             <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus className="comic-panel-dark text-white" />
           )}
+
           {editField === 'location' && (
-            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="Ort eingeben..." className="comic-panel-dark text-white" />
+            <div className="flex flex-column gap-3 flex-1 overflow-hidden">
+              {/* Search input with Button & Enter key support */}
+              <div className="flex gap-2">
+                <InputText
+                  value={tempValue}
+                  onChange={(e) => setTempValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      executeOSMSearch();
+                    }
+                  }}
+                  autoFocus
+                  placeholder="Ort oder Adresse suchen..."
+                  className="comic-panel-dark text-white flex-1"
+                />
+                <Button
+                  icon={isSearching ? "pi pi-spin pi-spinner" : "pi pi-search"}
+                  onClick={() => executeOSMSearch()}
+                  className="p-button-warning flex-shrink-0"
+                />
+              </div>
+
+              {/* Suggestions list (Scrollable) */}
+              {searchResults.length > 0 && (
+                <div
+                  className="comic-panel-dark p-2 flex flex-column gap-1 overflow-y-auto"
+                  style={{ background: '#111827', maxHeight: '120px' }}
+                >
+                  {searchResults.map((place) => (
+                    <div
+                      key={place.place_id}
+                      onClick={() => selectOsmPlace(place)}
+                      className="p-2 border-round cursor-pointer hover:bg-gray-800 text-sm text-white"
+                    >
+                      <i className="pi pi-map-marker text-yellow-500 mr-2" />
+                      {place.display_name}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Live Map Preview inside Dialog */}
+              {(selectedCoords.lat || agenda.location?.lat) ? (
+                <div className="border-round-lg overflow-hidden flex-1" style={{ minHeight: '180px' }}>
+                  <MapContainer
+                    center={[
+                      selectedCoords.lat ?? agenda.location?.lat!,
+                      selectedCoords.lng ?? agenda.location?.lng!
+                    ]}
+                    zoom={14}
+                    scrollWheelZoom={false}
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker
+                      position={[
+                        selectedCoords.lat ?? agenda.location?.lat!,
+                        selectedCoords.lng ?? agenda.location?.lng!
+                      ]}
+                    />
+                    <RecenterMap
+                      lat={selectedCoords.lat ?? agenda.location?.lat!}
+                      lng={selectedCoords.lng ?? agenda.location?.lng!}
+                    />
+                  </MapContainer>
+                </div>
+              ) : (
+                <div className="bg-gray-800 border-round-lg p-3 text-center text-gray-400 text-sm flex align-items-center justify-content-center flex-1" style={{ minHeight: '140px' }}>
+                  <span>Suche ein Ausflugsziel oder gib eine Adresse ein für die Kartenvorschau</span>
+                </div>
+              )}
+            </div>
           )}
+
           {editField === 'menuUrl' && (
             <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="https://..." className="comic-panel-dark text-white" />
           )}
-          <Button label="Speichern" icon="pi pi-check" onClick={saveEdit} className="p-button-warning mt-2" />
+
+          <Button label="Speichern" icon="pi pi-check" onClick={saveEdit} className="p-button-warning mt-auto" />
         </div>
       </Dialog>
     </div>
