@@ -321,7 +321,7 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
         {agenda.location?.name && (
           <div className="comic-panel-dark p-3 flex-1 min-w-18rem max-w-lg">
             {agenda.location.lat && agenda.location.lng ? (
-              <div className="mb-3 border-round-lg overflow-hidden" style={{ height: '220px' }}>
+              <div className="mb-3 border-round-lg overflow-hidden" style={{ height: '300px' }}>
                 <MapContainer
                   center={[agenda.location.lat, agenda.location.lng]}
                   zoom={14}
@@ -337,7 +337,7 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
                 </MapContainer>
               </div>
             ) : (
-              <div className="h-10rem bg-gray-700 border-round-lg mb-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold">
+              <div className="bg-gray-700 border-round-lg mb-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold" style={{ height: '300px' }}>
                 <i className="pi pi-map text-3xl mb-2" />
                 <span className="block text-sm">Keine Koordinaten für diesen Ort</span>
               </div>
@@ -355,8 +355,8 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
       <Dialog
         header="Bearbeite Info"
         visible={!!editField}
-        style={{ width: '90vw', maxWidth: '440px', height: editField === 'location' ? '540px' : 'auto' }}
-        contentStyle={{ height: editField === 'location' ? '460px' : 'auto', display: 'flex', flexDirection: 'column' }}
+        style={{ width: '95vw', maxWidth: editField === 'location' ? '900px' : '440px', height: editField === 'location' ? '700px' : 'auto' }}
+        contentStyle={{ height: editField === 'location' ? '620px' : 'auto', display: 'flex', flexDirection: 'column' }}
         onHide={() => setEditField(null)}
         className="glass-panel"
       >
@@ -393,7 +393,7 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
               {searchResults.length > 0 && (
                 <div
                   className="comic-panel-dark p-2 flex flex-column gap-1 overflow-y-auto"
-                  style={{ background: '#111827', maxHeight: '120px' }}
+                  style={{ background: '#111827', maxHeight: '180px' }}
                 >
                   {searchResults.map((place) => (
                     <div
@@ -410,7 +410,7 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
 
               {/* Live Map Preview inside Dialog */}
               {(selectedCoords.lat || agenda.location?.lat) ? (
-                <div className="border-round-lg overflow-hidden flex-1" style={{ minHeight: '180px' }}>
+                <div className="border-round-lg overflow-hidden flex-1" style={{ minHeight: '320px' }}>
                   <MapContainer
                     center={[
                       selectedCoords.lat ?? agenda.location?.lat!,
@@ -437,7 +437,7 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
                   </MapContainer>
                 </div>
               ) : (
-                <div className="bg-gray-800 border-round-lg p-3 text-center text-gray-400 text-sm flex align-items-center justify-content-center flex-1" style={{ minHeight: '140px' }}>
+                <div className="bg-gray-800 border-round-lg p-3 text-center text-gray-400 text-sm flex align-items-center justify-content-center flex-1" style={{ minHeight: '260px' }}>
                   <span>Suche ein Ausflugsziel oder gib eine Adresse ein für die Kartenvorschau</span>
                 </div>
               )}
