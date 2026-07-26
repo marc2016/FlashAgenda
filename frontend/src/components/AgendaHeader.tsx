@@ -216,7 +216,7 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
       </Dialog>
 
       <div className="flex align-items-center mb-5 group">
-        <h1 className="text-5xl font-bold m-0 mr-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600">
+        <h1 className="text-5xl font-bold m-0 mr-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest">
           {agenda.title}
         </h1>
         <Button icon="pi pi-pencil" rounded text aria-label="Edit Title" onClick={() => openEdit('title', agenda.title)} className="text-gray-400 hover:text-yellow-400" />

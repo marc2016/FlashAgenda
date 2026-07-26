@@ -57,7 +57,7 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
 
   return (
     <div className="mb-6">
-      <h3 className="text-2xl mb-3 text-yellow-500 font-medium">Personen</h3>
+      <h3 className="text-2xl mb-3 text-yellow-500 font-medium font-luckiest">Personen</h3>
       
       <div className="flex flex-wrap gap-4">
         {attendees.map((att, index) => {
@@ -89,7 +89,7 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
 
                 {/* Right: Details */}
                 <div className="flex flex-column flex-1 justify-content-center m-0 p-0">
-                  <div className="font-bold text-2xl mb-2 overflow-hidden text-overflow-ellipsis white-space-nowrap text-white">
+                  <div className="font-bold text-2xl mb-2 overflow-hidden text-overflow-ellipsis white-space-nowrap text-white font-luckiest">
                     {att.name}
                   </div>
                   
@@ -131,7 +131,7 @@ export default function AgendaAttendees({ attendees, items = [], onAdd }: Props)
         >
           <div className="text-center p-4">
             <i className="pi pi-plus text-4xl text-gray-400 mb-2"></i>
-            <div className="font-bold text-gray-400">Person hinzufügen</div>
+            <div className="font-bold text-gray-400 font-luckiest">Person hinzufügen</div>
           </div>
         </div>
       </div>

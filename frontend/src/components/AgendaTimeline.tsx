@@ -77,7 +77,7 @@ export default function AgendaTimeline({ items, currentUser, onUpdate }: Props) 
       <div className="mb-4 comic-panel-dark p-4">
         <div className="flex justify-content-between align-items-center">
           <div>
-            <div className="text-xl font-bold mb-1">{item.title}</div>
+            <div className="text-xl font-bold mb-1 font-luckiest">{item.title}</div>
             <div className="text-sm text-gray-400">Erstellt von: {item.author}</div>
           </div>
           <div className="flex gap-2">
@@ -109,7 +109,7 @@ export default function AgendaTimeline({ items, currentUser, onUpdate }: Props) 
 
   return (
     <div className="mb-6">
-      <h3 className="text-2xl mb-4 text-yellow-500 font-medium">Agendapunkte</h3>
+      <h3 className="text-2xl mb-4 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
       
       {items && items.length > 0 ? (
         <Timeline value={items} content={(item) => customizedContent(item, items.indexOf(item))} marker={customizedMarker} className="w-full" />
@@ -118,7 +118,7 @@ export default function AgendaTimeline({ items, currentUser, onUpdate }: Props) 
       )}
 
       <div className="mt-4">
-        <Button label="Neuer Agendapunkt" icon="pi pi-plus" className="p-button-outlined p-button-warning w-full py-3 border-dashed" onClick={openNew} />
+        <Button label="Neuer Agendapunkt" icon="pi pi-plus" className="p-button-outlined p-button-warning w-full py-3 border-dashed font-luckiest" onClick={openNew} />
       </div>
 
       <Dialog 

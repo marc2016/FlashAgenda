@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@300;400;500;600;700&family=Luckiest+Guy&display=swap');
 @import 'leaflet/dist/leaflet.css';
 
 body {
@@ -77,8 +77,13 @@ body {
 }
 
 /* Comic Book Styles */
+.font-luckiest {
+  font-family: 'Luckiest Guy', cursive, sans-serif;
+  letter-spacing: 1px;
+}
+
 .comic-font {
-  font-family: 'Bangers', cursive;
+  font-family: 'Luckiest Guy', cursive;
   letter-spacing: 2px;
 }
 
