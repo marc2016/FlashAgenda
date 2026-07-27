@@ -298,9 +298,10 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
           onClick={() => setVisible(true)}
           className="flex flex-column align-items-center justify-content-center cursor-pointer transition-transform hover:scale-102 w-full md:w-auto"
           style={{ 
-            maxWidth: '340px', 
+            maxWidth: '340px',
+            minWidth: '280px',
             height: '215px', 
-            border: '3px dashed #000',
+            border: '3px solid #000',
             boxShadow: '6px 6px 0px #000',
             borderRadius: '12px',
             backgroundColor: '#b71c1c'
