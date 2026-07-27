@@ -182,11 +182,14 @@ body {
 }
 .css-logo-bolt {
   position: absolute;
-  font-size: 10rem !important;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28rem !important;
   color: #facc15;
-  text-shadow: 4px 4px 0 #000;
+  text-shadow: 8px 8px 0 #000;
   z-index: 0;
-  opacity: 0.8;
+  opacity: 1;
 }
 .css-logo-text {
   position: relative;

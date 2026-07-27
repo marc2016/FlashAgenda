@@ -40,14 +40,10 @@ export default function Home() {
       </div>
 
       <div className="z-1 text-center p-6 flex flex-column align-items-center">
-        <div className="mb-6 css-logo-container">
+        <div className="mb-8 css-logo-container">
           <i className="pi pi-bolt css-logo-bolt"></i>
           <h1 className="comic-font comic-text-shadow css-logo-text">FlashAgenda</h1>
         </div>
-
-        <p className="text-white text-xl mb-6 max-w-sm line-height-3 font-bold" style={{ textShadow: '1px 1px 0 #000' }}>
-          Schnell, einfach und ohne Account. Erstellen Sie Ihre Agenda in Sekundenbruchteilen.
-        </p>
 
         <Button 
           label="AGENDA STARTEN!" 
@@ -59,6 +55,7 @@ export default function Home() {
             "text-2xl px-5 py-3",
             "bg-yellow-500 text-white comic-button"
           )}
+          style={{ marginTop: '7rem' }}
         />
       </div>
     </div>

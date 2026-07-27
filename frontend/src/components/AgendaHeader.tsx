@@ -209,11 +209,20 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
         </div>
       </div>
 
-      <div className="flex align-items-center mb-3 group flex-wrap">
-        <h1 className="text-3xl md:text-5xl font-bold m-0 mr-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest line-height-1">
+      <div className="flex align-items-center mb-4 group flex-wrap gap-2 pt-2 md:pt-4">
+        <i className="pi pi-bolt text-yellow-400 text-3xl md:text-5xl flex-shrink-0" />
+        <h1 className="text-3xl md:text-5xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest line-height-1">
           {agenda.title}
         </h1>
-        <Button icon="pi pi-pencil" rounded text aria-label="Edit Title" onClick={() => openEdit('title', agenda.title)} className="text-gray-400 hover:text-yellow-400" />
+        <Button
+          icon="pi pi-pencil"
+          rounded
+          text
+          aria-label="Edit Title"
+          onClick={() => openEdit('title', agenda.title)}
+          className="text-gray-400 hover:text-yellow-400 p-0"
+          style={{ width: '2.5rem', height: '2.5rem' }}
+        />
       </div>
 
       {/* Mobile: Action buttons under the title (right-aligned) */}
