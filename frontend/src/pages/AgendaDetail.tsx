@@ -190,6 +190,7 @@ export default function AgendaDetail() {
           items={agenda.items || []}
           currentUser={currentUser}
           onAdd={handleAddAttendee} 
+          onUpdateAgenda={handleUpdateAgenda}
         />
 
         <div className="border-top-1 border-gray-700 my-6"></div>

@@ -119,6 +119,9 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
     if (customId) {
       newAttendee.id = customId;
     }
+    if (req.body?.avatarUrl) {
+      newAttendee.avatarUrl = req.body.avatarUrl;
+    }
     agenda.attendees.push(newAttendee);
     const savedAgenda = await agenda.save();
     res.status(201).json(savedAgenda);

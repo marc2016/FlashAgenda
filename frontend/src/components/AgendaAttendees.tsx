@@ -10,6 +10,7 @@ interface Attendee {
   _id?: string;
   id?: string;
   name: string;
+  avatarUrl?: string;
   joinedAt?: string;
   lastSeen?: string;
 }
@@ -19,11 +20,14 @@ interface Props {
   items?: any[];
   currentUser?: any;
   onAdd: (attendee: Attendee) => Promise<void>;
+  onUpdateAgenda?: (updates: any) => Promise<void>;
 }
 
-export default function AgendaAttendees({ attendees, items = [], currentUser, onAdd }: Props) {
+export default function AgendaAttendees({ attendees, items = [], currentUser, onAdd, onUpdateAgenda }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
+  const [avatarModalVisible, setAvatarModalVisible] = useState(false);
+  const [avatarUrlInput, setAvatarUrlInput] = useState('');
 
   const handleAdd = async () => {
     if (newName.trim()) {
@@ -31,6 +35,38 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
       setNewName('');
       setVisible(false);
     }
+  };
+
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          setAvatarUrlInput(reader.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveAvatar = async () => {
+    const updated = attendees.map(a => {
+      const isThisUser = currentUser && (
+        (a.id && currentUser.id === a.id) ||
+        (a._id && currentUser._id === a._id) ||
+        (a._id && currentUser.id === a._id) ||
+        currentUser.name === a.name
+      );
+      if (isThisUser) {
+        return { ...a, avatarUrl: avatarUrlInput };
+      }
+      return a;
+    });
+    if (onUpdateAgenda) {
+      await onUpdateAgenda({ attendees: updated });
+    }
+    setAvatarModalVisible(false);
   };
 
   const getItemsCount = (attendeeId: string, attendeeName: string) => {
@@ -126,11 +162,36 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
               )}
               <div className="flex h-full text-white p-4 align-items-center">
                 
-                {/* Left: Profile Icon (MDI account-circle SVG) */}
-                <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-4 mr-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '6rem', height: '6rem' }} className="text-white-alpha-90">
-                    <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
-                  </svg>
+                {/* Left: Profile Icon or Custom Avatar */}
+                <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-4 mr-4 flex-shrink-0">
+                  {att.avatarUrl ? (
+                    <img 
+                      src={att.avatarUrl} 
+                      alt={att.name} 
+                      style={{ width: '6rem', height: '6rem', objectFit: 'cover' }} 
+                      className="border-circle border-2 border-white-alpha-40" 
+                    />
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '6rem', height: '6rem' }} className="text-white-alpha-90">
+                      <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
+                    </svg>
+                  )}
+
+                  {/* Camera button only for current user's card */}
+                  {isSelf && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAvatarUrlInput(att.avatarUrl || '');
+                        setAvatarModalVisible(true);
+                      }}
+                      className="absolute bottom-0 right-0 bg-yellow-500 text-black border-circle border-1 border-black p-1 flex align-items-center justify-content-center cursor-pointer hover:scale-110 transition-transform shadow-2"
+                      style={{ width: '2rem', height: '2rem', margin: '0 0.5rem -0.25rem 0' }}
+                      title="Profilbild ändern"
+                    >
+                      <i className="pi pi-camera text-xs font-bold" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Right: Details */}
@@ -151,8 +212,10 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                       </span>
                     </div>
                     <div>
-                      <strong className="block text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Punkte</strong>
-                      <span className="m-0 p-0 line-height-1">{getItemsCount(attendeeId, att.name)} Agenda Punkte</span>
+                      <strong className="block text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Erstellte Punkte</strong>
+                      <span className="m-0 p-0 line-height-1 font-bold text-yellow-300">
+                        {getItemsCount(attendeeId, att.name)} Punkte
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -162,29 +225,26 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
           );
         })}
         
-        {/* Plus Card */}
+        {/* Person hinzufügen Card */}
         <div 
-          className="text-white flex align-items-center justify-content-center cursor-pointer transition-colors bg-gray-800" 
+          onClick={() => setVisible(true)}
+          className="flex flex-column align-items-center justify-content-center cursor-pointer transition-transform hover:scale-102"
           style={{ 
             width: '100%',
             maxWidth: '340px', 
             height: '215px', 
-            borderStyle: 'dashed', 
-            borderWidth: '3px', 
-            borderColor: '#000', 
+            border: '3px dashed #000',
             boxShadow: '6px 6px 0px #000',
             borderRadius: '12px',
-            fontFamily: 'system-ui, -apple-system, sans-serif' 
+            backgroundColor: '#b71c1c'
           }}
-          onClick={() => setVisible(true)}
         >
-          <div className="text-center p-4">
-            <i className="pi pi-plus text-4xl text-gray-400 mb-2"></i>
-            <div className="font-bold text-gray-400">Person hinzufügen</div>
-          </div>
+          <i className="pi pi-plus text-4xl text-white mb-2" />
+          <span className="font-bold text-white text-lg">Person hinzufügen</span>
         </div>
       </div>
 
+      {/* Add Attendee Dialog */}
       <Dialog 
         header="Person hinzufügen" 
         visible={visible} 
@@ -193,15 +253,82 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
         className="glass-panel"
       >
         <div className="flex flex-column gap-3 pt-3">
-          <InputText 
-            value={newName} 
-            onChange={(e) => setNewName(e.target.value)} 
-            placeholder="Name eingeben" 
-            autoFocus 
-            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            className="bg-gray-800 text-white"
-          />
+          <div className="p-inputgroup">
+            <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="pi pi-user"></i></span>
+            <InputText 
+              placeholder="Name der Person" 
+              value={newName} 
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              autoFocus
+              className="bg-gray-800 text-white border-gray-600"
+            />
+          </div>
           <Button label="Hinzufügen" icon="pi pi-check" onClick={handleAdd} className="p-button-warning" disabled={!newName.trim()} />
+        </div>
+      </Dialog>
+
+      {/* Avatar Modal (Only for current user) */}
+      <Dialog
+        header="Profilbild ändern"
+        visible={avatarModalVisible}
+        style={{ width: '90vw', maxWidth: '450px' }}
+        onHide={() => setAvatarModalVisible(false)}
+        className="glass-panel"
+      >
+        <div className="flex flex-column gap-3 pt-3">
+          <label className="text-sm font-bold text-gray-300">Profilbild von Gerät wählen oder Bild-URL eingeben:</label>
+          
+          <div className="flex gap-2 align-items-center flex-wrap">
+            <input
+              type="file"
+              accept="image/*"
+              id="attendee-avatar-upload"
+              className="hidden"
+              onChange={handleAvatarFileChange}
+            />
+            <label
+              htmlFor="attendee-avatar-upload"
+              className="p-button p-button-outlined p-button-warning cursor-pointer flex align-items-center gap-2 text-sm py-2 px-3 border-round"
+            >
+              <i className="pi pi-upload"></i>
+              <span>Bild hochladen</span>
+            </label>
+          </div>
+
+          <div className="p-inputgroup">
+            <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="pi pi-image"></i></span>
+            <InputText
+              placeholder="https://..."
+              value={avatarUrlInput}
+              onChange={(e) => setAvatarUrlInput(e.target.value)}
+              className="bg-gray-800 text-white border-gray-600"
+            />
+          </div>
+
+          {avatarUrlInput && (
+            <div className="flex flex-column align-items-center gap-2 mt-2">
+              <span className="text-xs text-gray-400">Vorschau:</span>
+              <img src={avatarUrlInput} alt="Vorschau" style={{ width: '5.5rem', height: '5.5rem', objectFit: 'cover' }} className="border-circle border-2 border-yellow-500" />
+            </div>
+          )}
+
+          <div className="flex gap-2 mt-3">
+            {avatarUrlInput && (
+              <Button
+                label="Entfernen"
+                icon="pi pi-trash"
+                className="p-button-danger p-button-outlined flex-1"
+                onClick={() => setAvatarUrlInput('')}
+              />
+            )}
+            <Button
+              label="Speichern"
+              icon="pi pi-check"
+              className="p-button-warning flex-1"
+              onClick={handleSaveAvatar}
+            />
+          </div>
         </div>
       </Dialog>
     </div>
