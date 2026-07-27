@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
@@ -59,7 +60,8 @@ function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
-export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Props) {
+export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator }: Props) {
+  const navigate = useNavigate();
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
   const [showQR, setShowQR] = useState(false);
@@ -85,6 +87,28 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
       }
     } else {
       handleCopyLink();
+    }
+  };
+
+  const handleCreateNewFromCurrent = async () => {
+    try {
+      const response = await fetch('/api/agendas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: agenda.title,
+          attendees: (agenda as any).attendees || [],
+          createdBy: currentUser?.id || currentUser?._id || currentUser?.name
+        })
+      });
+      if (!response.ok) throw new Error('Failed to create agenda');
+      const data = await response.json();
+      if (data?._id) {
+        localStorage.setItem(`flashagenda_created_${data._id}`, 'true');
+        navigate(`/agenda/${data._id}`);
+      }
+    } catch (err) {
+      console.error('Error copying agenda:', err);
     }
   };
 
@@ -203,30 +227,16 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
           }}
         >
+          <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-plus" rounded text size="small" onClick={handleCreateNewFromCurrent} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code anzeigen" style={{ width: '2.2rem', height: '2.2rem' }} />
         </div>
       </div>
 
-      <div className="flex align-items-center mb-4 group flex-wrap gap-2 pt-2 md:pt-4">
-        <i className="pi pi-bolt text-yellow-400 text-3xl md:text-5xl flex-shrink-0" />
-        <h1 className="text-3xl md:text-5xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest line-height-1">
-          {agenda.title}
-        </h1>
-        <Button
-          icon="pi pi-pencil"
-          rounded
-          text
-          aria-label="Edit Title"
-          onClick={() => openEdit('title', agenda.title)}
-          className="text-gray-400 hover:text-yellow-400 p-0"
-          style={{ width: '2.5rem', height: '2.5rem' }}
-        />
-      </div>
-
-      {/* Mobile: Action buttons under the title (right-aligned) */}
-      <div className="flex md:hidden mb-5 justify-content-end">
+      {/* Mobile: Action buttons above the title (right-aligned) */}
+      <div className="flex md:hidden mb-3 justify-content-end">
         <div
           className="flex align-items-center gap-1"
           style={{
@@ -239,10 +249,28 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
           }}
         >
+          <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-plus" rounded text size="small" onClick={handleCreateNewFromCurrent} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code anzeigen" style={{ width: '2.2rem', height: '2.2rem' }} />
         </div>
+      </div>
+
+      <div className="flex align-items-center mb-4 group flex-wrap gap-2 pt-2 md:pt-4">
+        <i className="pi pi-bolt text-yellow-400 text-4xl md:text-6xl flex-shrink-0" />
+        <h1 className="text-4xl md:text-6xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest line-height-1">
+          {agenda.title}
+        </h1>
+        <Button
+          icon="pi pi-pencil"
+          rounded
+          text
+          aria-label="Edit Title"
+          onClick={() => openEdit('title', agenda.title)}
+          className="text-gray-400 hover:text-yellow-400 p-0"
+          style={{ width: '2.5rem', height: '2.5rem' }}
+        />
       </div>
 
       {/* Layout: Boxen links, Karte rechts */}

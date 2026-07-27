@@ -28,7 +28,9 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const newAgenda = new Agenda({
-      title: req.body?.title || 'Neue Agenda'
+      title: req.body?.title || 'Neue Agenda',
+      attendees: req.body?.attendees || [],
+      createdBy: req.body?.createdBy || undefined
     });
     const savedAgenda = await newAgenda.save();
     res.status(201).json(savedAgenda);
