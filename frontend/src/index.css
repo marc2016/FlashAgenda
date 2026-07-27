@@ -242,6 +242,15 @@ body {
   color: #111827 !important;
   min-height: 320px;
   padding: 12px !important;
+  cursor: text !important;
+}
+
+.mdxeditor-content-editable > div,
+.mdxeditor [contenteditable="true"],
+.mdxeditor-root-contenteditable {
+  min-height: 290px !important;
+  cursor: text !important;
+  outline: none !important;
 }
 
 .mdxeditor-content-editable p,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Timeline } from 'primereact/timeline';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -50,11 +50,13 @@ interface Props {
 export default function AgendaTimeline({ agenda, items, attendees = [], currentUser, isCreator = true, onUpdate, onUpdateAgenda }: Props) {
   const [visible, setVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const getAuthorName = (item: AgendaItem) => {
     if (item.author) return item.author;
@@ -84,6 +86,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
     setDescription('');
     setImageUrl('');
     setEditingIndex(null);
+    setShowDetails(false);
     setVisible(true);
   };
 
@@ -93,6 +96,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
     setDescription(item.description || '');
     setImageUrl(item.imageUrl || '');
     setEditingIndex(index);
+    setShowDetails(!!(item.description || item.imageUrl));
     setVisible(true);
   };
 
@@ -150,15 +154,15 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
     let updatedItems = [...items];
     const item = { ...updatedItems[index] };
     const upvotes = item.upvotes || [];
-    
+
     if (upvotes.includes(userId)) {
       item.upvotes = upvotes.filter((id: string) => id !== userId);
     } else {
       item.upvotes = [...upvotes, userId];
     }
-    
+
     item.updatedAt = new Date().toISOString();
-    
+
     updatedItems[index] = item;
     await onUpdate(updatedItems);
   };
@@ -226,9 +230,9 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
   const customizedMarker = (item: AgendaItem, index: number) => {
     const isCompleted = !!item.completed;
     return (
-      <span 
+      <span
         onClick={(e) => toggleCompleted(index, e)}
-        className="flex w-2rem h-2rem align-items-center justify-content-center border-circle z-1 shadow-1 cursor-pointer transition-transform hover:scale-110" 
+        className="flex w-2rem h-2rem align-items-center justify-content-center border-circle z-1 shadow-1 cursor-pointer transition-transform hover:scale-110"
         style={{ backgroundColor: '#eab308' }}
         title={isCompleted ? "Als noch nicht besprochen markieren" : "Als besprochen markieren"}
       >
@@ -247,7 +251,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
     const currentUserId = currentUser?.id || currentUser?._id || currentUser?.name;
     const hasUpvoted = (item.upvotes || []).includes(currentUserId);
     const upvoteCount = item.upvotes?.length || 0;
-    
+
     return (
       <div className={`mb-4 comic-panel-dark p-3 sm:p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
         <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-center mb-2 gap-2">
@@ -272,8 +276,8 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
             <div className="text-sm text-gray-400">Erstellt von: {getAuthorName(item)}</div>
           </div>
           <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
-            <Button 
-              text 
+            <Button
+              text
               rounded
               className={`p-button-sm ${hasUpvoted ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}`}
               title="Daumen hoch"
@@ -284,20 +288,20 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
                 <Badge value={upvoteCount} severity="warning" className="ml-2"></Badge>
               )}
             </Button>
-            <Button 
-              icon={isCompleted ? "pi pi-check-circle" : "pi pi-circle"} 
-              rounded 
-              text 
-              className={isCompleted ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"} 
+            <Button
+              icon={isCompleted ? "pi pi-check-circle" : "pi pi-circle"}
+              rounded
+              text
+              className={isCompleted ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}
               title={isCompleted ? "Als noch nicht besprochen markieren" : "Als besprochen markieren"}
-              onClick={(e) => toggleCompleted(index, e)} 
+              onClick={(e) => toggleCompleted(index, e)}
             />
             <Button icon="pi pi-pencil" rounded text className="text-gray-400 hover:text-yellow-400" title="Bearbeiten" onClick={() => openEdit(index)} />
             <Button icon="pi pi-trash" rounded text className="text-gray-400 hover:text-red-400" title="Löschen" onClick={(e) => deleteItem(index, e)} />
-            <Button 
-              icon="pi pi-angle-down" 
-              rounded 
-              text 
+            <Button
+              icon="pi pi-angle-down"
+              rounded
+              text
               disabled={!hasDetails}
               className={hasDetails ? "text-gray-400 hover:text-yellow-400" : "text-gray-600 opacity-40"}
               title={hasDetails ? "Details anzeigen/einklappen" : "Keine Details vorhanden"}
@@ -306,7 +310,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
                 const cardEl = e.currentTarget.closest('.comic-panel-dark');
                 const detailsEl = cardEl?.querySelector('.agenda-details-container');
                 if (detailsEl) {
-                   detailsEl.classList.toggle('hidden');
+                  detailsEl.classList.toggle('hidden');
                 }
               }}
             />
@@ -347,9 +351,9 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
               {/* Rechts: Bild (unverzerrt & skaliert) */}
               {item.imageUrl && (
                 <div className="border-round-lg overflow-hidden flex-shrink-0 bg-black-alpha-40 border-1 border-gray-700 w-full md:w-auto p-1 self-center md:self-start">
-                  <img 
-                    src={item.imageUrl} 
-                    alt={item.title} 
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
                     className="h-auto border-round cursor-pointer hover:opacity-90 transition-opacity"
                     style={{ maxHeight: '220px', maxWidth: '280px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
                     onClick={() => setSelectedPreviewImage(item.imageUrl || null)}
@@ -368,7 +372,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
     <div className="mb-6">
       <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-4 gap-3">
         <h3 className="text-2xl m-0 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
-        
+
         <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">
           {items && items.length > 1 && (
             <div className="flex gap-2 align-items-center">
@@ -377,16 +381,16 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
               <Button icon="mdi mdi-dice-multiple" onClick={sortRandomly} className="comic-button-secondary flex-shrink-0" title="Zufällig sortieren" />
             </div>
           )}
-          
+
           {items && items.length > 1 && isCreator && (
             <div className="border-left-2 border-gray-600 mx-1 align-self-center" style={{ height: '2.2rem' }} />
           )}
 
           {isCreator && (
             <div className="flex gap-2 flex-wrap ml-auto md:ml-0">
-              <Button 
-                icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"} 
-                onClick={toggleManualClose} 
+              <Button
+                icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"}
+                onClick={toggleManualClose}
                 className="comic-button-secondary flex-shrink-0"
                 title={agenda?.isManuallyClosed ? "Agenda öffnen" : "Agenda schließen"}
               />
@@ -394,7 +398,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
           )}
         </div>
       </div>
-      
+
       {isClosed && (
         <div className="p-3 mb-4 border-round-xl border-3 border-black text-center" style={{ backgroundColor: 'var(--gray-800)', boxShadow: '4px 4px 0px #000' }}>
           <i className="pi pi-lock text-yellow-500 text-3xl mb-2"></i>
@@ -404,12 +408,12 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
       )}
 
       {items && items.length > 0 ? (
-        <Timeline 
-          align="left" 
-          value={items} 
-          content={(item) => customizedContent(item, items.indexOf(item))} 
-          marker={(item) => customizedMarker(item, items.indexOf(item))} 
-          className="w-full" 
+        <Timeline
+          align="left"
+          value={items}
+          content={(item) => customizedContent(item, items.indexOf(item))}
+          marker={(item) => customizedMarker(item, items.indexOf(item))}
+          className="w-full"
         />
       ) : (
         <p className="text-gray-400 mb-4">Noch keine Agendapunkte vorhanden.</p>
@@ -420,10 +424,10 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
       {/* Floating Action Button (FAB) */}
       {!isClosed && (
         <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
-          <Button 
-            icon="pi pi-plus text-2xl font-bold" 
-            onClick={openNew} 
-            className="p-button-warning comic-button border-circle flex align-items-center justify-content-center p-0 shadow-none" 
+          <Button
+            icon="pi pi-plus text-2xl font-bold"
+            onClick={openNew}
+            className="p-button-warning comic-button border-circle flex align-items-center justify-content-center p-0 shadow-none"
             style={{ width: '3.75rem', height: '3.75rem' }}
             title="Neuen Agendapunkt hinzufügen"
           />
@@ -431,105 +435,125 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
       )}
 
       {/* Edit / New Item Dialog */}
-      <Dialog 
-        header={editingIndex !== null ? 'Agendapunkt bearbeiten' : 'Neuer Agendapunkt'} 
-        visible={visible} 
-        style={{ width: '96vw', maxWidth: '1200px' }} 
+      <Dialog
+        header={editingIndex !== null ? 'Agendapunkt bearbeiten' : 'Neuer Agendapunkt'}
+        visible={visible}
+        style={{ width: '96vw', maxWidth: '1200px' }}
         contentStyle={{ maxHeight: '82vh', overflowY: 'auto' }}
         onHide={() => setVisible(false)}
+        onShow={() => {
+          setTimeout(() => {
+            titleInputRef.current?.focus();
+          }, 50);
+        }}
         className="glass-panel"
       >
         <div className="flex flex-column gap-3 pt-3">
           <div className="p-inputgroup">
-             <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="pi pi-bookmark"></i></span>
-             <InputText placeholder="Titel" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus className="bg-gray-800 text-white border-gray-600" />
+            <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="pi pi-bookmark"></i></span>
+            <InputText ref={titleInputRef} placeholder="Titel" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus className="bg-gray-800 text-white border-gray-600" />
           </div>
 
-          {/* Bild Upload / URL Feld */}
-          <div className="flex flex-column gap-2">
-            <label className="text-sm font-bold text-gray-300">Bild hinzufügen (Optional):</label>
-            <div className="flex gap-2 align-items-center flex-wrap">
-              <input
-                type="file"
-                accept="image/*"
-                id="agenda-image-upload"
-                className="hidden"
-                onChange={handleImageFileChange}
-              />
-              <label
-                htmlFor="agenda-image-upload"
-                className="p-button p-button-outlined p-button-warning cursor-pointer flex align-items-center gap-2 text-sm py-2 px-3 border-round"
-              >
-                <i className="pi pi-upload"></i>
-                <span>Bild von Gerät hochladen</span>
-              </label>
-              <span className="text-gray-400 text-xs">oder URL:</span>
-              <InputText
-                placeholder="https://..."
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                className="bg-gray-800 text-white flex-1 text-sm p-2 border-gray-600"
-              />
-              {imageUrl && (
-                <Button
-                  icon="pi pi-times"
-                  rounded
-                  text
-                  className="text-red-400"
-                  title="Bild entfernen"
-                  onClick={() => setImageUrl('')}
-                />
-              )}
-            </div>
-            {imageUrl && (
-              <div className="mt-2 border-round overflow-hidden max-h-12rem bg-black-alpha-40 flex justify-content-center p-2 border-1 border-gray-700 relative">
-                <img src={imageUrl} alt="Vorschau" className="max-h-10rem object-contain border-round" />
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-column gap-2">
-            <label className="text-sm font-bold text-gray-300">Details (Markdown Editor):</label>
-            <MDXEditor
-              key={visible ? (editingIndex !== null ? `edit-${editingIndex}` : 'new-item') : 'closed'}
-              markdown={description}
-              onChange={(newMarkdown) => setDescription(newMarkdown)}
-              placeholder="Details eingeben..."
-              plugins={[
-                headingsPlugin(),
-                listsPlugin(),
-                quotePlugin(),
-                thematicBreakPlugin(),
-                markdownShortcutPlugin(),
-                linkPlugin(),
-                linkDialogPlugin(),
-                imagePlugin(),
-                toolbarPlugin({
-                  toolbarContents: () => (
-                    <>
-                      <UndoRedo />
-                      <BoldItalicUnderlineToggles />
-                      <BlockTypeSelect />
-                      <ListsToggle />
-                      <CreateLink />
-                      <InsertImage />
-                    </>
-                  )
-                })
-              ]}
+          {/* Toggle Button for Details & Bild */}
+          <div className="border-top-1 border-gray-700 pt-2 flex align-items-center">
+            <Button
+              icon={showDetails ? "pi pi-chevron-up" : "pi pi-chevron-down"}
+              label={showDetails ? "Details & Bild einklappen" : "Details & Bild hinzufügen..."}
+              text
+              className="text-gray-400 hover:text-yellow-400 p-0 text-sm font-bold"
+              onClick={() => setShowDetails(!showDetails)}
             />
           </div>
-          
+
+          {showDetails && (
+            <div className="flex flex-column gap-3">
+              {/* Bild Upload / URL Feld */}
+              <div className="flex flex-column gap-2">
+                <label className="text-sm font-bold text-gray-300">Bild hinzufügen:</label>
+                <div className="flex gap-2 align-items-center flex-wrap">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id="agenda-image-upload"
+                    className="hidden"
+                    onChange={handleImageFileChange}
+                  />
+                  <label
+                    htmlFor="agenda-image-upload"
+                    className="p-button p-button-outlined p-button-warning cursor-pointer flex align-items-center gap-2 text-sm py-2 px-3 border-round"
+                  >
+                    <i className="pi pi-upload"></i>
+                    <span>Bild von Gerät hochladen</span>
+                  </label>
+                  <span className="text-gray-400 text-xs">oder URL:</span>
+                  <InputText
+                    placeholder="https://..."
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    className="bg-gray-800 text-white flex-1 text-sm p-2 border-gray-600"
+                  />
+                  {imageUrl && (
+                    <Button
+                      icon="pi pi-times"
+                      rounded
+                      text
+                      className="text-red-400"
+                      title="Bild entfernen"
+                      onClick={() => setImageUrl('')}
+                    />
+                  )}
+                </div>
+                {imageUrl && (
+                  <div className="mt-2 border-round overflow-hidden max-h-12rem bg-black-alpha-40 flex justify-content-center p-2 border-1 border-gray-700 relative">
+                    <img src={imageUrl} alt="Vorschau" className="max-h-10rem object-contain border-round" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-column gap-2">
+                <label className="text-sm font-bold text-gray-300">Details:</label>
+                <MDXEditor
+                  key={visible ? (editingIndex !== null ? `edit-${editingIndex}` : 'new-item') : 'closed'}
+                  markdown={description}
+                  onChange={(newMarkdown) => setDescription(newMarkdown)}
+                  placeholder="Details eingeben..."
+                  plugins={[
+                    headingsPlugin(),
+                    listsPlugin(),
+                    quotePlugin(),
+                    thematicBreakPlugin(),
+                    markdownShortcutPlugin(),
+                    linkPlugin(),
+                    linkDialogPlugin(),
+                    imagePlugin(),
+                    toolbarPlugin({
+                      toolbarContents: () => (
+                        <>
+                          <UndoRedo />
+                          <BoldItalicUnderlineToggles />
+                          <BlockTypeSelect />
+                          <ListsToggle />
+                          <CreateLink />
+                          <InsertImage />
+                        </>
+                      )
+                    })
+                  ]}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2 mt-3">
             {editingIndex !== null && (
-              <Button 
-                label="Löschen" 
-                icon="pi pi-trash" 
+              <Button
+                label="Löschen"
+                icon="pi pi-trash"
                 onClick={async () => {
                   await deleteItem(editingIndex);
                   setVisible(false);
-                }} 
-                className="p-button-danger p-button-outlined flex-1" 
+                }}
+                className="p-button-danger p-button-outlined flex-1"
               />
             )}
             <Button label="Speichern" icon="pi pi-check" onClick={saveItem} className="p-button-warning flex-1" disabled={!title.trim()} />

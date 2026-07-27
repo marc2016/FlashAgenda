@@ -255,7 +255,7 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
                 showTime
                 hourFormat="24"
                 dateFormat="dd.mm.yy"
-                placeholder="Datum & Uhrzeit wählen"
+                placeholder="Datum & Uhrzeit hinzufügen..."
                 className="text-white font-bold w-full"
                 inputClassName="bg-transparent text-white font-bold text-base sm:text-xl border-none p-0 w-full"
                 panelClassName="comic-panel-dark"
@@ -287,7 +287,7 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-map-marker text-yellow-500 text-2xl flex-shrink-0" />
-              <span className={`text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-gray-400'}`}>
+              <span className={`text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-white-alpha-60'}`}>
                 {agenda.location?.name || 'Ort hinzufügen...'}
               </span>
             </div>
@@ -316,7 +316,7 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-book text-yellow-500 text-2xl flex-shrink-0" />
-              <span className={`text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-gray-400'}`}>
+              <span className={`text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-white-alpha-60'}`}>
                 {agenda.menuUrl ? 'Speisekarte öffnen' : 'Speisekarte hinzufügen...'}
               </span>
             </div>
