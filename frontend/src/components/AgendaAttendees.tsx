@@ -210,9 +210,8 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
           return (
             <div 
               key={attendeeId} 
-              className="relative overflow-hidden" 
+              className="relative overflow-hidden w-full md:w-auto"
               style={{ 
-                width: '100%',
                 maxWidth: '340px', 
                 height: '215px', 
                 background: cardColor, 
@@ -295,9 +294,8 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
         {/* Person hinzufügen Card */}
         <div 
           onClick={() => setVisible(true)}
-          className="flex flex-column align-items-center justify-content-center cursor-pointer transition-transform hover:scale-102"
+          className="flex flex-column align-items-center justify-content-center cursor-pointer transition-transform hover:scale-102 w-full md:w-auto"
           style={{ 
-            width: '100%',
             maxWidth: '340px', 
             height: '215px', 
             border: '3px dashed #000',
