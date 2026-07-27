@@ -6,6 +6,7 @@ import { InputText } from 'primereact/inputtext';
 import { Badge } from 'primereact/badge';
 import {
   MDXEditor,
+  type MDXEditorMethods,
   headingsPlugin,
   listsPlugin,
   quotePlugin,
@@ -23,6 +24,38 @@ import {
   InsertImage
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
+
+const EDITOR_PLUGINS = [
+  headingsPlugin(),
+  listsPlugin(),
+  quotePlugin(),
+  thematicBreakPlugin(),
+  markdownShortcutPlugin(),
+  linkPlugin(),
+  linkDialogPlugin(),
+  imagePlugin(),
+  toolbarPlugin({
+    toolbarContents: () => (
+      <>
+        <UndoRedo />
+        <BoldItalicUnderlineToggles />
+        <BlockTypeSelect />
+        <ListsToggle />
+        <CreateLink />
+        <InsertImage />
+      </>
+    )
+  })
+];
+
+const READONLY_PLUGINS = [
+  headingsPlugin(),
+  listsPlugin(),
+  quotePlugin(),
+  thematicBreakPlugin(),
+  linkPlugin(),
+  imagePlugin()
+];
 
 interface AgendaItem {
   _id?: string;
@@ -57,6 +90,8 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
   const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<MDXEditorMethods>(null);
+  const [editorKey, setEditorKey] = useState(0);
 
   const getAuthorName = (item: AgendaItem) => {
     if (item.createdBy) {
@@ -92,16 +127,27 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
     setImageUrl('');
     setEditingIndex(null);
     setShowDetails(false);
+    if (editorRef.current) {
+      editorRef.current.setMarkdown('');
+    } else {
+      setEditorKey(k => k + 1);
+    }
     setVisible(true);
   };
 
   const openEdit = (index: number) => {
     const item = items[index];
+    const newDesc = item.description || '';
     setTitle(item.title);
-    setDescription(item.description || '');
+    setDescription(newDesc);
     setImageUrl(item.imageUrl || '');
     setEditingIndex(index);
     setShowDetails(!!(item.description || item.imageUrl));
+    if (editorRef.current) {
+      editorRef.current.setMarkdown(newDesc);
+    } else {
+      setEditorKey(k => k + 1);
+    }
     setVisible(true);
   };
 
@@ -331,14 +377,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
                   <MDXEditor
                     markdown={item.description}
                     readOnly
-                    plugins={[
-                      headingsPlugin(),
-                      listsPlugin(),
-                      quotePlugin(),
-                      thematicBreakPlugin(),
-                      linkPlugin(),
-                      imagePlugin()
-                    ]}
+                    plugins={READONLY_PLUGINS}
                   />
                 )}
                 {item.upvotes && item.upvotes.length > 0 && (
@@ -518,32 +557,12 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
               <div className="flex flex-column gap-2">
                 <label className="text-sm font-bold text-gray-300">Details:</label>
                 <MDXEditor
-                  key={visible ? (editingIndex !== null ? `edit-${editingIndex}` : 'new-item') : 'closed'}
+                  key={editorKey}
+                  ref={editorRef}
                   markdown={description}
                   onChange={(newMarkdown) => setDescription(newMarkdown)}
                   placeholder="Details eingeben..."
-                  plugins={[
-                    headingsPlugin(),
-                    listsPlugin(),
-                    quotePlugin(),
-                    thematicBreakPlugin(),
-                    markdownShortcutPlugin(),
-                    linkPlugin(),
-                    linkDialogPlugin(),
-                    imagePlugin(),
-                    toolbarPlugin({
-                      toolbarContents: () => (
-                        <>
-                          <UndoRedo />
-                          <BoldItalicUnderlineToggles />
-                          <BlockTypeSelect />
-                          <ListsToggle />
-                          <CreateLink />
-                          <InsertImage />
-                        </>
-                      )
-                    })
-                  ]}
+                  plugins={EDITOR_PLUGINS}
                 />
               </div>
             </div>
