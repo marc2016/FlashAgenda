@@ -249,10 +249,10 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
     const upvoteCount = item.upvotes?.length || 0;
     
     return (
-      <div className={`mb-4 comic-panel-dark p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
-        <div className="flex justify-content-between align-items-center mb-2">
-          <div>
-            <div className="flex gap-3 text-xs text-gray-500 mb-2">
+      <div className={`mb-4 comic-panel-dark p-3 sm:p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
+        <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-center mb-2 gap-2">
+          <div className="flex-1 min-w-0 w-full sm:w-auto">
+            <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
               {item.createdAt && (
                 <span className="flex align-items-center gap-1" title="Erstellt am">
                   <i className="pi pi-calendar-plus" style={{ fontSize: '0.7rem' }}></i>
@@ -266,12 +266,12 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
                 </span>
               )}
             </div>
-            <div className={`text-xl font-bold mb-1 ${isCompleted ? 'line-through text-gray-400' : ''}`}>
+            <div className={`text-xl font-bold mb-1 word-break-break-word ${isCompleted ? 'line-through text-gray-400' : ''}`}>
               {item.title}
             </div>
             <div className="text-sm text-gray-400">Erstellt von: {getAuthorName(item)}</div>
           </div>
-          <div className="flex gap-2 align-items-center">
+          <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
             <Button 
               text 
               rounded
@@ -369,33 +369,35 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
       <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-4 gap-3">
         <h3 className="text-2xl m-0 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
         
-        <div className="flex gap-2 flex-wrap align-items-center w-full md:w-auto">
+        <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">
           {items && items.length > 1 && (
-            <div className="flex gap-2 flex-1 md:flex-none">
+            <div className="flex gap-2">
               <Button icon="pi pi-calendar" onClick={sortByDate} className="comic-button-secondary flex-shrink-0" title="Nach Datum sortieren" />
               <Button icon="pi pi-thumbs-up" onClick={sortByRating} className="comic-button-secondary flex-shrink-0" title="Nach Bewertung sortieren" />
               <Button icon="mdi mdi-dice-multiple" onClick={sortRandomly} className="comic-button-secondary flex-shrink-0" title="Zufällig sortieren" />
             </div>
           )}
           
-          {isCreator && (
-            <Button 
-              icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"} 
-              label={agenda?.isManuallyClosed ? "Öffnen" : "Schließen"} 
-              onClick={toggleManualClose} 
-              className="p-button-secondary p-button-outlined comic-button-secondary flex-shrink-0"
-              title="Agenda manuell öffnen/schließen"
-            />
-          )}
+          <div className="flex gap-2 flex-wrap ml-auto md:ml-0">
+            {isCreator && (
+              <Button 
+                icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"} 
+                label={agenda?.isManuallyClosed ? "Öffnen" : "Schließen"} 
+                onClick={toggleManualClose} 
+                className="p-button-secondary p-button-outlined comic-button-secondary flex-shrink-0"
+                title="Agenda manuell öffnen/schließen"
+              />
+            )}
 
-          {!isClosed && (
-            <Button 
-              icon="pi pi-plus" 
-              label="Neuer Punkt" 
-              onClick={openNew} 
-              className="p-button-warning comic-button flex-shrink-0"
-            />
-          )}
+            {!isClosed && (
+              <Button 
+                icon="pi pi-plus" 
+                label="Neuer Punkt" 
+                onClick={openNew} 
+                className="p-button-warning comic-button flex-shrink-0"
+              />
+            )}
+          </div>
         </div>
       </div>
       

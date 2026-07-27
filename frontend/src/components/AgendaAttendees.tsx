@@ -109,7 +109,8 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
               key={attendeeId} 
               className="relative overflow-hidden" 
               style={{ 
-                width: '340px', 
+                width: '100%',
+                maxWidth: '340px', 
                 height: '215px', 
                 background: cardColor, 
                 fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -172,7 +173,8 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
         <div 
           className="text-white flex align-items-center justify-content-center cursor-pointer transition-colors bg-gray-800" 
           style={{ 
-            width: '340px', 
+            width: '100%',
+            maxWidth: '340px', 
             height: '215px', 
             borderStyle: 'dashed', 
             borderWidth: '3px', 

@@ -154,36 +154,7 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
 
   return (
     <div className="mb-6">
-      {/* URL bar — fixed top-right corner */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '12px',
-          right: '16px',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          background: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          borderRadius: '999px',
-          padding: '4px 12px',
-          border: '1px solid rgba(234,179,8,0.3)',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.4)'
-        }}
-      >
-        <a
-          href={window.location.href}
-          className="text-yellow-400 font-bold"
-          style={{ textDecoration: 'none', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-        >
-          {window.location.href}
-        </a>
-        <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-400 hover:text-yellow-400" style={{ width: '1.8rem', height: '1.8rem' }} />
-        <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-400 hover:text-yellow-400" style={{ width: '1.8rem', height: '1.8rem' }} />
-        <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-400 hover:text-yellow-400" style={{ width: '1.8rem', height: '1.8rem' }} />
-      </div>
+
 
       {/* QR Code Dialog */}
       <Dialog
@@ -218,12 +189,54 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
         </div>
       </Dialog>
 
-      <div className="flex align-items-center mb-5 group">
-        <h1 className="text-5xl font-bold m-0 mr-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest">
+      {/* Desktop: Action buttons fixed top-right */}
+      <div className="hidden md:flex fixed top-0 right-0 p-4 z-5 align-items-center gap-1" style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 1000 }}>
+        <div
+          className="flex align-items-center gap-1"
+          style={{
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            borderRadius: '999px',
+            padding: '4px 10px',
+            border: '1px solid rgba(234,179,8,0.3)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
+          }}
+        >
+          <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code anzeigen" style={{ width: '2.2rem', height: '2.2rem' }} />
+        </div>
+      </div>
+
+      <div className="flex align-items-center mb-3 group flex-wrap">
+        <h1 className="text-3xl md:text-5xl font-bold m-0 mr-3 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest line-height-1">
           {agenda.title}
         </h1>
         <Button icon="pi pi-pencil" rounded text aria-label="Edit Title" onClick={() => openEdit('title', agenda.title)} className="text-gray-400 hover:text-yellow-400" />
-      </div>      {/* Layout: Boxen links, Karte rechts */}
+      </div>
+
+      {/* Mobile: Action buttons under the title (right-aligned) */}
+      <div className="flex md:hidden mb-5 justify-content-end">
+        <div
+          className="flex align-items-center gap-1"
+          style={{
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            borderRadius: '999px',
+            padding: '4px 10px',
+            border: '1px solid rgba(234,179,8,0.3)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
+          }}
+        >
+          <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code anzeigen" style={{ width: '2.2rem', height: '2.2rem' }} />
+        </div>
+      </div>
+
+      {/* Layout: Boxen links, Karte rechts */}
       <div className="flex flex-wrap gap-4 align-items-start mb-4">
         {/* Links: Boxen Container */}
         <div className="flex flex-column gap-3 flex-1 min-w-18rem max-w-md">
