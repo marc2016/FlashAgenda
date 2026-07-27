@@ -120,12 +120,17 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
     }
   };
 
-  const getItemsCount = (attendeeId: string, attendeeName: string) => {
-    return items.filter(item => 
-      item.createdBy === attendeeId || 
-      item.createdBy === attendeeName || 
-      item.author === attendeeName
-    ).length;
+  const getItemsCount = (att: Attendee) => {
+    return items.filter(item => {
+      if (!item) return false;
+      const matchId = (att.id && item.createdBy === att.id) ||
+                      (att._id && item.createdBy === att._id);
+      const matchName = att.name && (
+        (item.createdBy && item.createdBy.trim().toLowerCase() === att.name.trim().toLowerCase()) ||
+        (item.author && item.author.trim().toLowerCase() === att.name.trim().toLowerCase())
+      );
+      return matchId || matchName;
+    }).length;
   };
 
   const formatDate = (dateInput?: string | Date) => {
@@ -265,7 +270,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                     <div>
                       <strong className="block text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Erstellte Punkte</strong>
                       <span className="m-0 p-0 line-height-1 font-bold text-yellow-300">
-                        {getItemsCount(attendeeId, att.name)} Punkte
+                        {getItemsCount(att)} Punkte
                       </span>
                     </div>
                   </div>

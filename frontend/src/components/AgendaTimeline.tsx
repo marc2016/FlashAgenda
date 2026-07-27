@@ -59,13 +59,18 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const getAuthorName = (item: AgendaItem) => {
-    if (item.author) return item.author;
     if (item.createdBy) {
-      const attendee = attendees.find((a: any) => a.id === item.createdBy || a._id === item.createdBy || a.name === item.createdBy);
+      const attendee = attendees.find((a: any) =>
+        (a.id && a.id === item.createdBy) ||
+        (a._id && a._id === item.createdBy) ||
+        (a.name && a.name.trim().toLowerCase() === item.createdBy.trim().toLowerCase())
+      );
       if (attendee) return attendee.name;
-      return item.createdBy;
     }
-    return 'Unbekannt';
+    if (item.author && item.author !== 'Unbekannt') {
+      return item.author;
+    }
+    return item.createdBy || item.author || 'Unbekannt';
   };
 
   let isClosed = !!(agenda && agenda.isManuallyClosed);
