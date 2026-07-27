@@ -98,7 +98,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
       const attendee = attendees.find((a: any) =>
         (a.id && a.id === item.createdBy) ||
         (a._id && a._id === item.createdBy) ||
-        (a.name && a.name.trim().toLowerCase() === item.createdBy.trim().toLowerCase())
+        (a.name && a.name.trim().toLowerCase() === item.createdBy?.trim().toLowerCase())
       );
       if (attendee) return attendee.name;
     }
