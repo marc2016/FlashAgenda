@@ -371,33 +371,27 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
         
         <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">
           {items && items.length > 1 && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 align-items-center">
               <Button icon="pi pi-calendar" onClick={sortByDate} className="comic-button-secondary flex-shrink-0" title="Nach Datum sortieren" />
               <Button icon="pi pi-thumbs-up" onClick={sortByRating} className="comic-button-secondary flex-shrink-0" title="Nach Bewertung sortieren" />
               <Button icon="mdi mdi-dice-multiple" onClick={sortRandomly} className="comic-button-secondary flex-shrink-0" title="Zufällig sortieren" />
             </div>
           )}
           
-          <div className="flex gap-2 flex-wrap ml-auto md:ml-0">
-            {isCreator && (
+          {items && items.length > 1 && isCreator && (
+            <div className="border-left-2 border-gray-600 mx-1 align-self-center" style={{ height: '2.2rem' }} />
+          )}
+
+          {isCreator && (
+            <div className="flex gap-2 flex-wrap ml-auto md:ml-0">
               <Button 
                 icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"} 
-                label={agenda?.isManuallyClosed ? "Öffnen" : "Schließen"} 
                 onClick={toggleManualClose} 
-                className="p-button-secondary p-button-outlined comic-button-secondary flex-shrink-0"
-                title="Agenda manuell öffnen/schließen"
+                className="comic-button-secondary flex-shrink-0"
+                title={agenda?.isManuallyClosed ? "Agenda öffnen" : "Agenda schließen"}
               />
-            )}
-
-            {!isClosed && (
-              <Button 
-                icon="pi pi-plus" 
-                label="Neuer Punkt" 
-                onClick={openNew} 
-                className="p-button-warning comic-button flex-shrink-0"
-              />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
       
@@ -421,13 +415,17 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
         <p className="text-gray-400 mb-4">Noch keine Agendapunkte vorhanden.</p>
       )}
 
+
+
+      {/* Floating Action Button (FAB) */}
       {!isClosed && (
-        <div className="mt-4 flex justify-content-end">
+        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
           <Button 
-            label="Neuer Punkt" 
-            icon="pi pi-plus" 
+            icon="pi pi-plus text-2xl font-bold" 
             onClick={openNew} 
-            className="p-button-warning comic-button" 
+            className="p-button-warning comic-button border-circle flex align-items-center justify-content-center p-0 shadow-none" 
+            style={{ width: '3.75rem', height: '3.75rem' }}
+            title="Neuen Agendapunkt hinzufügen"
           />
         </div>
       )}
