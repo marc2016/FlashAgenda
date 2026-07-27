@@ -53,6 +53,21 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Validation: Only creator can change closeBeforeHours or isManuallyClosed
+    const isClosingSettingUpdate = req.body.closeBeforeHours !== undefined || req.body.isManuallyClosed !== undefined;
+    if (isClosingSettingUpdate && existingAgenda.createdBy) {
+      const requestingUser = req.body.userId;
+      if (!requestingUser || requestingUser !== existingAgenda.createdBy) {
+        res.status(403).json({ message: 'Nur der Ersteller kann die Agenda schließen/öffnen oder die Einstellungen dafür ändern.' });
+        return;
+      }
+    }
+
+    // Set createdBy if not present and passed in request
+    if (!existingAgenda.createdBy && req.body.createdBy) {
+      existingAgenda.createdBy = req.body.createdBy;
+    }
+
     // Validation: Check if adding new items after deadline
     if (req.body.items && Array.isArray(req.body.items)) {
       const hasNewItem = req.body.items.some((item: any) => !item._id);

@@ -82,12 +82,41 @@ export default function AgendaDetail() {
     return () => clearInterval(interval);
   }, [currentUser, id]);
 
+  const userId = currentUser?._id || currentUser?.id;
+
+  const isCreator = !!(
+    currentUser && agenda && (
+      (agenda.createdBy && (
+        agenda.createdBy === currentUser.id ||
+        agenda.createdBy === currentUser._id ||
+        agenda.createdBy === currentUser.name
+      )) ||
+      localStorage.getItem(`flashagenda_created_${id}`) === 'true' ||
+      (!agenda.createdBy && agenda.attendees && agenda.attendees.length > 0 && (
+        agenda.attendees[0].id === currentUser.id ||
+        agenda.attendees[0]._id === currentUser._id ||
+        agenda.attendees[0].name === currentUser.name
+      ))
+    )
+  );
+
+  useEffect(() => {
+    if (agenda && currentUser && !agenda.createdBy && isCreator) {
+      const creatorId = currentUser.id || currentUser._id || currentUser.name;
+      handleUpdateAgenda({ createdBy: creatorId });
+    }
+  }, [agenda?.createdBy, currentUser, isCreator]);
+
   const handleUpdateAgenda = async (updates: any) => {
     try {
+      const payload = { ...updates };
+      if (userId && !payload.userId) {
+        payload.userId = userId;
+      }
       const response = await fetch(`/api/agendas/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       setAgenda(data);
@@ -149,7 +178,9 @@ export default function AgendaDetail() {
         
         <AgendaHeader 
           agenda={agenda} 
-          onUpdate={handleUpdateAgenda} 
+          onUpdate={handleUpdateAgenda}
+          currentUser={currentUser}
+          isCreator={isCreator}
         />
 
         <div className="border-top-1 border-gray-700 my-6"></div>
@@ -168,6 +199,7 @@ export default function AgendaDetail() {
           items={agenda.items || []} 
           attendees={agenda.attendees || []}
           currentUser={currentUser}
+          isCreator={isCreator}
           onUpdate={handleUpdateItems}
           onUpdateAgenda={handleUpdateAgenda}
         />

@@ -42,11 +42,12 @@ interface Props {
   items: AgendaItem[];
   attendees?: any[];
   currentUser: any;
+  isCreator?: boolean;
   onUpdate: (items: AgendaItem[]) => Promise<void>;
   onUpdateAgenda?: (updates: any) => Promise<void>;
 }
 
-export default function AgendaTimeline({ agenda, items, attendees = [], currentUser, onUpdate, onUpdateAgenda }: Props) {
+export default function AgendaTimeline({ agenda, items, attendees = [], currentUser, isCreator = true, onUpdate, onUpdateAgenda }: Props) {
   const [visible, setVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   
@@ -377,13 +378,15 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
             </div>
           )}
           
-          <Button 
-            icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"} 
-            label={agenda?.isManuallyClosed ? "Öffnen" : "Schließen"} 
-            onClick={toggleManualClose} 
-            className="p-button-secondary p-button-outlined comic-button-secondary flex-shrink-0"
-            title="Agenda manuell öffnen/schließen"
-          />
+          {isCreator && (
+            <Button 
+              icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"} 
+              label={agenda?.isManuallyClosed ? "Öffnen" : "Schließen"} 
+              onClick={toggleManualClose} 
+              className="p-button-secondary p-button-outlined comic-button-secondary flex-shrink-0"
+              title="Agenda manuell öffnen/schließen"
+            />
+          )}
 
           {!isClosed && (
             <Button 

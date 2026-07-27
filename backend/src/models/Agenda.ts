@@ -35,6 +35,7 @@ export interface IAgenda extends Document {
   menuUrl?: string;
   closeBeforeHours?: number;
   isManuallyClosed?: boolean;
+  createdBy?: string;
   attendees: IAttendee[];
   items: IAgendaItem[];
 }
@@ -72,6 +73,7 @@ const AgendaSchema = new Schema<IAgenda>({
   menuUrl: { type: String },
   closeBeforeHours: { type: Number, default: 12 },
   isManuallyClosed: { type: Boolean, default: false },
+  createdBy: { type: String },
   attendees: [AttendeeSchema],
   items: [AgendaItemSchema]
 }, { timestamps: true });

@@ -24,6 +24,7 @@ export default function Home() {
       if (!data?._id) {
         throw new Error('No agenda ID returned from server');
       }
+      localStorage.setItem(`flashagenda_created_${data._id}`, 'true');
       navigate(`/agenda/${data._id}`);
     } catch (error) {
       console.error('Failed to create agenda', error);

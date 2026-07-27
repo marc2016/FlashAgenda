@@ -39,6 +39,8 @@ interface AgendaData {
 interface Props {
   agenda: AgendaData;
   onUpdate: (updates: Partial<AgendaData>) => Promise<void>;
+  currentUser?: any;
+  isCreator?: boolean;
 }
 
 interface NominatimResult {
@@ -57,7 +59,7 @@ function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
-export default function AgendaHeader({ agenda, onUpdate }: Props) {
+export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Props) {
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
   const [showQR, setShowQR] = useState(false);
@@ -319,8 +321,8 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
 
           {/* Annahmeschluss */}
           <div
-            className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full cursor-pointer"
-            onClick={() => openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12)}
+            className={`comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full ${isCreator ? 'cursor-pointer' : ''}`}
+            onClick={() => isCreator && openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12)}
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-lock text-yellow-500 text-2xl flex-shrink-0" />
@@ -328,16 +330,18 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
                 Schluss: {agenda.closeBeforeHours !== undefined ? agenda.closeBeforeHours : 12}h vorher
               </span>
             </div>
-            <Button
-              icon="pi pi-pencil"
-              rounded
-              text
-              onClick={(e) => {
-                e.stopPropagation();
-                openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12);
-              }}
-              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
-            />
+            {isCreator && (
+              <Button
+                icon="pi pi-pencil"
+                rounded
+                text
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12);
+                }}
+                className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
+              />
+            )}
           </div>
         </div>
 
