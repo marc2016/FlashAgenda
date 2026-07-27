@@ -153,6 +153,29 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
     await onUpdate(updatedItems);
   };
 
+  const sortByDate = async () => {
+    const sorted = [...items].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateA - dateB;
+    });
+    await onUpdate(sorted);
+  };
+
+  const sortByRating = async () => {
+    const sorted = [...items].sort((a, b) => {
+      const votesA = a.upvotes?.length || 0;
+      const votesB = b.upvotes?.length || 0;
+      return votesB - votesA;
+    });
+    await onUpdate(sorted);
+  };
+
+  const sortRandomly = async () => {
+    const sorted = [...items].sort(() => Math.random() - 0.5);
+    await onUpdate(sorted);
+  };
+
   const saveItem = async () => {
     if (!title.trim()) return;
 
@@ -327,14 +350,24 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
 
   return (
     <div className="mb-6">
-      <div className="flex justify-content-between align-items-center mb-4">
+      <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-4 gap-3">
         <h3 className="text-2xl m-0 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
-        <Button 
-          icon="pi pi-plus" 
-          label="Neuer Punkt" 
-          onClick={openNew} 
-          className="p-button-warning comic-button"
-        />
+        
+        <div className="flex gap-2 flex-wrap align-items-center w-full md:w-auto">
+          {items && items.length > 1 && (
+            <div className="flex gap-2 flex-1 md:flex-none">
+              <Button icon="pi pi-calendar" onClick={sortByDate} className="comic-button-secondary flex-shrink-0" title="Nach Datum sortieren" />
+              <Button icon="pi pi-thumbs-up" onClick={sortByRating} className="comic-button-secondary flex-shrink-0" title="Nach Bewertung sortieren" />
+              <Button icon="mdi mdi-dice-multiple" onClick={sortRandomly} className="comic-button-secondary flex-shrink-0" title="Zufällig sortieren" />
+            </div>
+          )}
+          <Button 
+            icon="pi pi-plus" 
+            label="Neuer Punkt" 
+            onClick={openNew} 
+            className="p-button-warning comic-button flex-shrink-0"
+          />
+        </div>
       </div>
       
       {items && items.length > 0 ? (

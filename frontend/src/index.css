@@ -113,6 +113,28 @@ body {
   box-shadow: 2px 2px 0px #000 !important;
 }
 
+.comic-button-secondary {
+  box-shadow: 4px 4px 0px #000 !important;
+  border: 3px solid #000 !important;
+  border-radius: 8px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: bold !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+  background-color: #374151 !important; /* gray-700 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+.comic-button-secondary:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 6px 6px 0px #000 !important;
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+.comic-button-secondary:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 2px 2px 0px #000 !important;
+}
+
 .comic-panel-dark {
   background-color: #1f2937 !important; /* dark gray */
   border: 3px solid #000 !important;
