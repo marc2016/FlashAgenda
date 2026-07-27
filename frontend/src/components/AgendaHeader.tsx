@@ -237,9 +237,9 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
       </div>
 
       {/* Layout: Boxen links, Karte rechts */}
-      <div className="flex flex-wrap gap-4 align-items-start mb-4">
+      <div className="flex flex-wrap gap-4 align-items-start mb-4 w-full">
         {/* Links: Boxen Container */}
-        <div className="flex flex-column gap-3 flex-1 min-w-18rem max-w-md">
+        <div className="flex flex-column gap-3 flex-1 w-full max-w-md min-w-0">
           {/* Datum */}
           <div className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full">
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
@@ -257,7 +257,7 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
                 dateFormat="dd.mm.yy"
                 placeholder="Datum & Uhrzeit wählen"
                 className="text-white font-bold w-full"
-                inputClassName="bg-transparent text-white font-bold text-xl border-none p-0 w-full"
+                inputClassName="bg-transparent text-white font-bold text-base sm:text-xl border-none p-0 w-full"
                 panelClassName="comic-panel-dark"
               />
             </div>
@@ -287,7 +287,7 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-map-marker text-yellow-500 text-2xl flex-shrink-0" />
-              <span className={`text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-gray-400'}`}>
+              <span className={`text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-gray-400'}`}>
                 {agenda.location?.name || 'Ort hinzufügen...'}
               </span>
             </div>
@@ -316,7 +316,7 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-book text-yellow-500 text-2xl flex-shrink-0" />
-              <span className={`text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-gray-400'}`}>
+              <span className={`text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-gray-400'}`}>
                 {agenda.menuUrl ? 'Speisekarte öffnen' : 'Speisekarte hinzufügen...'}
               </span>
             </div>
@@ -339,7 +339,7 @@ export default function AgendaHeader({ agenda, onUpdate, isCreator = true }: Pro
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-lock text-yellow-500 text-2xl flex-shrink-0" />
-              <span className="text-white font-bold text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+              <span className="text-white font-bold text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
                 Schluss: {agenda.closeBeforeHours !== undefined ? agenda.closeBeforeHours : 12}h vorher
               </span>
             </div>
