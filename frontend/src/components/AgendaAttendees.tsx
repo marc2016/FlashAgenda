@@ -131,13 +131,6 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '6rem', height: '6rem' }} className="text-white-alpha-90">
                     <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
                   </svg>
-                  {online && (
-                    <span 
-                      className="absolute bg-green-500 border-circle border-2 border-black" 
-                      style={{ width: '1.25rem', height: '1.25rem', bottom: '0.25rem', right: '1.25rem' }}
-                      title="Jetzt online"
-                    />
-                  )}
                 </div>
 
                 {/* Right: Details */}
