@@ -28,6 +28,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
   const [newName, setNewName] = useState('');
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [avatarUrlInput, setAvatarUrlInput] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const handleAdd = async () => {
     if (newName.trim()) {
@@ -37,36 +38,86 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
     }
   };
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        if (reader.result) {
-          setAvatarUrlInput(reader.result as string);
-        }
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 300;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
+          } else {
+            resolve(e.target?.result as string);
+          }
+        };
+        img.src = e.target?.result as string;
       };
       reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadingAvatar(true);
+      try {
+        const compressedDataUrl = await compressImage(file);
+        setAvatarUrlInput(compressedDataUrl);
+      } catch (err) {
+        console.error('Failed to compress avatar image', err);
+      } finally {
+        setUploadingAvatar(false);
+      }
     }
   };
 
   const handleSaveAvatar = async () => {
-    const updated = attendees.map(a => {
-      const isThisUser = currentUser && (
-        (a.id && currentUser.id === a.id) ||
-        (a._id && currentUser._id === a._id) ||
-        (a._id && currentUser.id === a._id) ||
-        currentUser.name === a.name
-      );
-      if (isThisUser) {
-        return { ...a, avatarUrl: avatarUrlInput };
+    setUploadingAvatar(true);
+    try {
+      const updated = attendees.map(a => {
+        const isThisUser = currentUser && (
+          (a.id && currentUser.id === a.id) ||
+          (a._id && currentUser._id === a._id) ||
+          (a._id && currentUser.id === a._id) ||
+          (a.id && currentUser._id === a.id) ||
+          (currentUser.name && a.name && currentUser.name.trim().toLowerCase() === a.name.trim().toLowerCase())
+        );
+        if (isThisUser) {
+          return { ...a, avatarUrl: avatarUrlInput };
+        }
+        return a;
+      });
+
+      if (onUpdateAgenda) {
+        await onUpdateAgenda({ attendees: updated });
       }
-      return a;
-    });
-    if (onUpdateAgenda) {
-      await onUpdateAgenda({ attendees: updated });
+    } catch (err) {
+      console.error('Failed to save avatar', err);
+    } finally {
+      setUploadingAvatar(false);
+      setAvatarModalVisible(false);
     }
-    setAvatarModalVisible(false);
   };
 
   const getItemsCount = (attendeeId: string, attendeeName: string) => {
@@ -326,6 +377,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
               label="Speichern"
               icon="pi pi-check"
               className="p-button-warning flex-1"
+              loading={uploadingAvatar}
               onClick={handleSaveAvatar}
             />
           </div>
