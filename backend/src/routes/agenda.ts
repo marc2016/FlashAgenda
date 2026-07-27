@@ -1,4 +1,5 @@
 import express, { Request, Response, Router } from 'express';
+import mongoose from 'mongoose';
 import Agenda from '../models/Agenda';
 
 const router: Router = express.Router();
@@ -6,7 +7,12 @@ const router: Router = express.Router();
 // Get an agenda by ID
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
-    const agenda = await Agenda.findById(req.params.id);
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid agenda ID format' });
+      return;
+    }
+    const agenda = await Agenda.findById(id);
     if (!agenda) {
       res.status(404).json({ message: 'Agenda not found' });
       return;
@@ -35,8 +41,13 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 // Update agenda details (title, date, location, time)
 router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid agenda ID format' });
+      return;
+    }
     const updatedAgenda = await Agenda.findByIdAndUpdate(
-      req.params.id,
+      id,
       { $set: req.body || {} },
       { new: true }
     );

@@ -3,6 +3,7 @@ import { Timeline } from 'primereact/timeline';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
+import { Badge } from 'primereact/badge';
 import {
   MDXEditor,
   headingsPlugin,
@@ -31,6 +32,7 @@ interface AgendaItem {
   createdBy?: string;
   imageUrl?: string;
   completed?: boolean;
+  upvotes?: string[];
 }
 
 interface Props {
@@ -121,6 +123,25 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
     await onUpdate(updatedItems);
   };
 
+  const toggleUpvote = async (index: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const userId = currentUser?.id || currentUser?._id || currentUser?.name;
+    if (!userId) return;
+
+    let updatedItems = [...items];
+    const item = { ...updatedItems[index] };
+    const upvotes = item.upvotes || [];
+    
+    if (upvotes.includes(userId)) {
+      item.upvotes = upvotes.filter((id: string) => id !== userId);
+    } else {
+      item.upvotes = [...upvotes, userId];
+    }
+    
+    updatedItems[index] = item;
+    await onUpdate(updatedItems);
+  };
+
   const deleteItem = async (index: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const updatedItems = items.filter((_, i) => i !== index);
@@ -174,8 +195,11 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
   };
 
   const customizedContent = (item: AgendaItem, index: number) => {
-    const hasDetails = !!item.description || !!item.imageUrl;
+    const hasDetails = !!item.description || !!item.imageUrl || (item.upvotes && item.upvotes.length > 0);
     const isCompleted = !!item.completed;
+    const currentUserId = currentUser?.id || currentUser?._id || currentUser?.name;
+    const hasUpvoted = (item.upvotes || []).includes(currentUserId);
+    const upvoteCount = item.upvotes?.length || 0;
     
     return (
       <div className={`mb-4 comic-panel-dark p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
@@ -187,6 +211,18 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
             <div className="text-sm text-gray-400">Erstellt von: {getAuthorName(item)}</div>
           </div>
           <div className="flex gap-2 align-items-center">
+            <Button 
+              text 
+              rounded
+              className={`p-button-sm ${hasUpvoted ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}`}
+              title="Daumen hoch"
+              onClick={(e) => toggleUpvote(index, e)}
+            >
+              <i className={`pi ${hasUpvoted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'} text-xl`}></i>
+              {upvoteCount > 0 && (
+                <Badge value={upvoteCount} severity="warning" className="ml-2"></Badge>
+              )}
+            </Button>
             <Button 
               icon={isCompleted ? "pi pi-check-circle" : "pi pi-circle"} 
               rounded 
@@ -220,8 +256,8 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
           <div className="agenda-details-container hidden mt-3 pt-3 border-top-1 border-gray-700 text-gray-300 line-height-3">
             <div className="flex flex-column md:flex-row gap-4 align-items-start justify-content-between">
               {/* Links: Details-Text */}
-              {item.description && (
-                <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0">
+                {item.description && (
                   <MDXEditor
                     markdown={item.description}
                     readOnly
@@ -234,8 +270,18 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
                       imagePlugin()
                     ]}
                   />
-                </div>
-              )}
+                )}
+                {item.upvotes && item.upvotes.length > 0 && (
+                  <div className="mt-3 text-sm text-gray-400 bg-gray-800 p-2 border-round inline-block">
+                    <i className="pi pi-thumbs-up mr-2 text-yellow-500"></i>
+                    <span className="font-bold text-gray-300">Daumen hoch von: </span>
+                    {item.upvotes.map((id: string) => {
+                      const attendee = attendees.find((a: any) => a.id === id || a._id === id || a.name === id);
+                      return attendee ? attendee.name : id;
+                    }).join(', ')}
+                  </div>
+                )}
+              </div>
 
               {/* Rechts: Bild (unverzerrt & skaliert) */}
               {item.imageUrl && (

@@ -17,7 +17,13 @@ export default function Home() {
       const response = await fetch('/api/agendas', {
         method: 'POST',
       });
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
       const data = await response.json();
+      if (!data?._id) {
+        throw new Error('No agenda ID returned from server');
+      }
       navigate(`/agenda/${data._id}`);
     } catch (error) {
       console.error('Failed to create agenda', error);
