@@ -14,25 +14,36 @@ interface Props {
   attendees: Attendee[];
   onIdentified: (user: Attendee) => void;
   onAddAttendee: (user: Attendee) => Promise<void>;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function UserIdentificationModal({ agendaId, attendees, onIdentified, onAddAttendee }: Props) {
+export default function UserIdentificationModal({ agendaId, attendees, onIdentified, onAddAttendee, isOpen, onClose }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (isOpen !== undefined) {
+      setVisible(isOpen);
+      return;
+    }
     const storedUser = localStorage.getItem(`flashagenda_${agendaId}_user`);
     if (storedUser) {
       onIdentified(JSON.parse(storedUser));
     } else {
       setVisible(true);
     }
-  }, [agendaId, onIdentified]);
+  }, [agendaId, onIdentified, isOpen]);
+
+  const handleClose = () => {
+    setVisible(false);
+    if (onClose) onClose();
+  };
 
   const handleSelectExisting = (user: Attendee) => {
     localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(user));
-    setVisible(false);
+    handleClose();
     onIdentified(user);
   };
 
@@ -42,7 +53,7 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
     const newUser = { id: uuidv4(), name: newName.trim() };
     await onAddAttendee(newUser);
     localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(newUser));
-    setVisible(false);
+    handleClose();
     onIdentified(newUser);
     setLoading(false);
   };
@@ -52,10 +63,10 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
       header="Wer bist du?" 
       visible={visible} 
       style={{ width: '90vw', maxWidth: '400px' }} 
-      closable={false}
+      closable={!!onClose}
       modal
       className="p-fluid glass-panel"
-      onHide={() => {}}
+      onHide={handleClose}
     >
       <div className="flex flex-column gap-3 pt-3">
         {attendees.length > 0 && (

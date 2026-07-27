@@ -21,9 +21,10 @@ interface Props {
   currentUser?: any;
   onAdd: (attendee: Attendee) => Promise<void>;
   onUpdateAgenda?: (updates: any) => Promise<void>;
+  onSwitchUser?: () => void;
 }
 
-export default function AgendaAttendees({ attendees, items = [], currentUser, onAdd, onUpdateAgenda }: Props) {
+export default function AgendaAttendees({ attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
@@ -182,7 +183,17 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
 
   return (
     <div className="mb-6">
-      <h3 className="text-2xl mb-3 text-yellow-500 font-medium font-luckiest">Personen</h3>
+      <div className="flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <h3 className="text-2xl text-yellow-500 font-medium font-luckiest m-0">Personen</h3>
+        {onSwitchUser && (
+          <Button
+            icon="pi pi-user-edit"
+            label="Person wechseln"
+            className="p-button-outlined p-button-warning p-button-sm"
+            onClick={onSwitchUser}
+          />
+        )}
+      </div>
       
       <div className="flex flex-wrap gap-4">
         {attendees.map((att, index) => {

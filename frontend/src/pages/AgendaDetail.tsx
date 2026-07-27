@@ -10,6 +10,7 @@ export default function AgendaDetail() {
   const [agenda, setAgenda] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showUserModal, setShowUserModal] = useState<boolean | undefined>(undefined);
 
   const fetchAgenda = async () => {
     try {
@@ -191,6 +192,7 @@ export default function AgendaDetail() {
           currentUser={currentUser}
           onAdd={handleAddAttendee} 
           onUpdateAgenda={handleUpdateAgenda}
+          onSwitchUser={() => setShowUserModal(true)}
         />
 
         <div className="border-top-1 border-gray-700 my-6"></div>
@@ -212,6 +214,8 @@ export default function AgendaDetail() {
         attendees={agenda.attendees || []}
         onIdentified={setCurrentUser}
         onAddAttendee={handleAddAttendee}
+        isOpen={showUserModal}
+        onClose={() => setShowUserModal(false)}
       />
     </div>
   );
