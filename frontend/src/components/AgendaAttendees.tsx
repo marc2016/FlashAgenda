@@ -188,14 +188,16 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
         {onSwitchUser && (
           <Button
             icon="pi pi-user-edit"
-            label="Person wechseln"
-            className="p-button-outlined p-button-warning p-button-sm"
+            rounded
+            text
+            className="p-button-warning"
             onClick={onSwitchUser}
+            title="Person wechseln"
           />
         )}
       </div>
       
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap gap-4 justify-content-center md:justify-content-start">
         {attendees.map((att, index) => {
           const attendeeId = att._id || att.id || '';
           const cardColor = colors[index % colors.length];

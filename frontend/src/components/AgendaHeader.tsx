@@ -273,10 +273,10 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         />
       </div>
 
-      {/* Layout: Boxen links, Karte rechts */}
-      <div className="flex flex-wrap gap-4 align-items-start mb-4 w-full">
-        {/* Links: Boxen Container */}
-        <div className="flex flex-column gap-3 flex-1 w-full max-w-md min-w-0">
+      {/* Layout: Boxen oben/links, Karte unten/rechts */}
+      <div className="flex flex-column md:flex-row gap-4 align-items-start mb-4 w-full">
+        {/* Links/Oben: Boxen Container */}
+        <div className="flex flex-column gap-3 w-full md:flex-1 md:max-w-md min-w-0">
           {/* Datum */}
           <div className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full">
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
@@ -314,13 +314,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           {/* Ort */}
           <div
             className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full cursor-pointer"
-            onClick={() => {
-              if (agenda.location?.name) {
-                window.open(`https://www.openstreetmap.org/search?query=${encodeURIComponent(agenda.location.name)}`, '_blank');
-              } else {
-                openEdit('location', agenda.location?.name);
-              }
-            }}
+            onClick={() => openEdit('location', agenda.location?.name)}
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-map-marker text-yellow-500 text-2xl flex-shrink-0" />
@@ -395,9 +389,9 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           </div>
         </div>
 
-        {/* Rechts: Karte */}
+        {/* Unten/Rechts: Karte */}
         {agenda.location?.name && (
-          <div className="comic-panel-dark p-3 flex-1 min-w-18rem max-w-lg">
+          <div className="comic-panel-dark p-3 w-full md:flex-1 md:min-w-18rem md:max-w-lg">
             {agenda.location.lat && agenda.location.lng ? (
               <div className="mb-3 border-round-lg overflow-hidden" style={{ height: '300px' }}>
                 <MapContainer
@@ -420,8 +414,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 <span className="block text-sm">Keine Koordinaten für diesen Ort</span>
               </div>
             )}
-            <div className="flex gap-2">
-              <Button label="OpenStreetMap" icon="pi pi-map" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`https://www.openstreetmap.org/search?query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
+            <div className="flex flex-column sm:flex-row gap-2">
               <Button label="Google Maps" icon="pi pi-google" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
               <Button label="Apple Maps" icon="pi pi-apple" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
             </div>
