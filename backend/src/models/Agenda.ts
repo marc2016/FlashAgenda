@@ -23,6 +23,8 @@ export interface IAgendaItem {
   imageUrl?: string;
   completed?: boolean;
   upvotes?: string[];
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export interface IAgenda extends Document {
@@ -55,7 +57,9 @@ const AgendaItemSchema = new Schema<IAgendaItem>({
   author: { type: String },
   imageUrl: { type: String },
   completed: { type: Boolean, default: false },
-  upvotes: { type: [String], default: [] }
+  upvotes: { type: [String], default: [] },
+  createdAt: { type: Date },
+  updatedAt: { type: Date }
 });
 
 const AgendaSchema = new Schema<IAgenda>({

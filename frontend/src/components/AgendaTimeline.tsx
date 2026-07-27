@@ -33,6 +33,8 @@ interface AgendaItem {
   imageUrl?: string;
   completed?: boolean;
   upvotes?: string[];
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 interface Props {
@@ -118,7 +120,8 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
     let updatedItems = [...items];
     updatedItems[index] = {
       ...updatedItems[index],
-      completed: !updatedItems[index].completed
+      completed: !updatedItems[index].completed,
+      updatedAt: new Date().toISOString()
     };
     await onUpdate(updatedItems);
   };
@@ -137,6 +140,8 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
     } else {
       item.upvotes = [...upvotes, userId];
     }
+    
+    item.updatedAt = new Date().toISOString();
     
     updatedItems[index] = item;
     await onUpdate(updatedItems);
@@ -157,7 +162,8 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
         ...updatedItems[editingIndex],
         title,
         description,
-        imageUrl
+        imageUrl,
+        updatedAt: new Date().toISOString()
       };
     } else {
       const authorName = currentUser?.name || 'Unbekannt';
@@ -168,7 +174,9 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
         imageUrl,
         author: authorName,
         createdBy: createdById,
-        completed: false
+        completed: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       });
     }
 
@@ -205,6 +213,20 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
       <div className={`mb-4 comic-panel-dark p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
         <div className="flex justify-content-between align-items-center mb-2">
           <div>
+            <div className="flex gap-3 text-xs text-gray-500 mb-2">
+              {item.createdAt && (
+                <span className="flex align-items-center gap-1" title="Erstellt am">
+                  <i className="pi pi-calendar-plus" style={{ fontSize: '0.7rem' }}></i>
+                  {new Date(item.createdAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              {item.updatedAt && (
+                <span className="flex align-items-center gap-1" title="Zuletzt bearbeitet am">
+                  <i className="pi pi-pencil" style={{ fontSize: '0.7rem' }}></i>
+                  {new Date(item.updatedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+            </div>
             <div className={`text-xl font-bold mb-1 ${isCompleted ? 'line-through text-gray-400' : ''}`}>
               {item.title}
             </div>
