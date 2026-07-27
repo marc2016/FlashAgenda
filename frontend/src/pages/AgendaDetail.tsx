@@ -164,10 +164,12 @@ export default function AgendaDetail() {
         <div className="border-top-1 border-gray-700 my-6"></div>
 
         <AgendaTimeline 
+          agenda={agenda}
           items={agenda.items || []} 
           attendees={agenda.attendees || []}
           currentUser={currentUser}
-          onUpdate={handleUpdateItems} 
+          onUpdate={handleUpdateItems}
+          onUpdateAgenda={handleUpdateAgenda}
         />
 
       </div>

@@ -38,13 +38,15 @@ interface AgendaItem {
 }
 
 interface Props {
+  agenda?: any;
   items: AgendaItem[];
   attendees?: any[];
   currentUser: any;
   onUpdate: (items: AgendaItem[]) => Promise<void>;
+  onUpdateAgenda?: (updates: any) => Promise<void>;
 }
 
-export default function AgendaTimeline({ items, attendees = [], currentUser, onUpdate }: Props) {
+export default function AgendaTimeline({ agenda, items, attendees = [], currentUser, onUpdate, onUpdateAgenda }: Props) {
   const [visible, setVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   
@@ -61,6 +63,19 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
       return item.createdBy;
     }
     return 'Unbekannt';
+  };
+
+  let isClosed = !!(agenda && agenda.isManuallyClosed);
+  if (!isClosed && agenda && agenda.date) {
+    const agendaDate = new Date(agenda.date).getTime();
+    const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
+    isClosed = Date.now() > agendaDate - offsetMs;
+  }
+
+  const toggleManualClose = async () => {
+    if (onUpdateAgenda) {
+      await onUpdateAgenda({ isManuallyClosed: !agenda?.isManuallyClosed });
+    }
   };
 
   const openNew = () => {
@@ -361,15 +376,34 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
               <Button icon="mdi mdi-dice-multiple" onClick={sortRandomly} className="comic-button-secondary flex-shrink-0" title="Zufällig sortieren" />
             </div>
           )}
+          
           <Button 
-            icon="pi pi-plus" 
-            label="Neuer Punkt" 
-            onClick={openNew} 
-            className="p-button-warning comic-button flex-shrink-0"
+            icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"} 
+            label={agenda?.isManuallyClosed ? "Öffnen" : "Schließen"} 
+            onClick={toggleManualClose} 
+            className="p-button-secondary p-button-outlined comic-button-secondary flex-shrink-0"
+            title="Agenda manuell öffnen/schließen"
           />
+
+          {!isClosed && (
+            <Button 
+              icon="pi pi-plus" 
+              label="Neuer Punkt" 
+              onClick={openNew} 
+              className="p-button-warning comic-button flex-shrink-0"
+            />
+          )}
         </div>
       </div>
       
+      {isClosed && (
+        <div className="p-3 mb-4 border-round-xl border-3 border-black text-center" style={{ backgroundColor: 'var(--gray-800)', boxShadow: '4px 4px 0px #000' }}>
+          <i className="pi pi-lock text-yellow-500 text-3xl mb-2"></i>
+          <h3 className="m-0 text-white font-luckiest tracking-wider text-xl">Agenda ist geschlossen</h3>
+          <p className="m-0 text-sm mt-1 text-gray-400 font-bold">Der Annahmeschluss wurde erreicht. Es können keine neuen Punkte hinzugefügt werden.</p>
+        </div>
+      )}
+
       {items && items.length > 0 ? (
         <Timeline 
           align="left" 
@@ -382,14 +416,16 @@ export default function AgendaTimeline({ items, attendees = [], currentUser, onU
         <p className="text-gray-400 mb-4">Noch keine Agendapunkte vorhanden.</p>
       )}
 
-      <div className="mt-4 flex justify-content-end">
-        <Button 
-          label="Neuer Punkt" 
-          icon="pi pi-plus" 
-          onClick={openNew} 
-          className="p-button-warning comic-button" 
-        />
-      </div>
+      {!isClosed && (
+        <div className="mt-4 flex justify-content-end">
+          <Button 
+            label="Neuer Punkt" 
+            icon="pi pi-plus" 
+            onClick={openNew} 
+            className="p-button-warning comic-button" 
+          />
+        </div>
+      )}
 
       {/* Edit / New Item Dialog */}
       <Dialog 

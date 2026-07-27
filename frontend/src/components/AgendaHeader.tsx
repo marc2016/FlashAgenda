@@ -33,6 +33,7 @@ interface AgendaData {
   time?: string;
   location?: LocationObj;
   menuUrl?: string;
+  closeBeforeHours?: number;
 }
 
 interface Props {
@@ -271,7 +272,7 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-map-marker text-yellow-500 text-2xl flex-shrink-0" />
-              <span className="text-white font-bold text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+              <span className={`text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-gray-400'}`}>
                 {agenda.location?.name || 'Ort hinzufügen...'}
               </span>
             </div>
@@ -300,7 +301,7 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
           >
             <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
               <i className="pi pi-book text-yellow-500 text-2xl flex-shrink-0" />
-              <span className="text-white font-bold text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+              <span className={`text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-gray-400'}`}>
                 {agenda.menuUrl ? 'Speisekarte öffnen' : 'Speisekarte hinzufügen...'}
               </span>
             </div>
@@ -311,6 +312,29 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
               onClick={(e) => {
                 e.stopPropagation();
                 openEdit('menuUrl', agenda.menuUrl);
+              }}
+              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
+            />
+          </div>
+
+          {/* Annahmeschluss */}
+          <div
+            className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full cursor-pointer"
+            onClick={() => openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12)}
+          >
+            <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
+              <i className="pi pi-lock text-yellow-500 text-2xl flex-shrink-0" />
+              <span className="text-white font-bold text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+                Schluss: {agenda.closeBeforeHours !== undefined ? agenda.closeBeforeHours : 12}h vorher
+              </span>
+            </div>
+            <Button
+              icon="pi pi-pencil"
+              rounded
+              text
+              onClick={(e) => {
+                e.stopPropagation();
+                openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12);
               }}
               className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
             />
@@ -446,6 +470,13 @@ export default function AgendaHeader({ agenda, onUpdate }: Props) {
 
           {editField === 'menuUrl' && (
             <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="https://..." className="comic-panel-dark text-white" />
+          )}
+
+          {editField === 'closeBeforeHours' && (
+            <div className="flex flex-column gap-2">
+              <label className="text-gray-300 font-bold">Stunden vor Beginn, ab denen keine Punkte mehr hinzugefügt werden können:</label>
+              <InputText type="number" min={0} value={tempValue} onChange={(e) => setTempValue(Number(e.target.value))} autoFocus className="comic-panel-dark text-white" />
+            </div>
           )}
 
           <Button label="Speichern" icon="pi pi-check" onClick={saveEdit} className="p-button-warning mt-auto" />

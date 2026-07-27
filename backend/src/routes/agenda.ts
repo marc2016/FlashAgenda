@@ -46,15 +46,37 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ message: 'Invalid agenda ID format' });
       return;
     }
+    
+    const existingAgenda = await Agenda.findById(id);
+    if (!existingAgenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+
+    // Validation: Check if adding new items after deadline
+    if (req.body.items && Array.isArray(req.body.items)) {
+      const hasNewItem = req.body.items.some((item: any) => !item._id);
+      if (hasNewItem) {
+        let isClosed = !!existingAgenda.isManuallyClosed;
+        if (!isClosed && existingAgenda.date) {
+          const agendaDate = new Date(existingAgenda.date).getTime();
+          const offsetMs = (existingAgenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
+          if (Date.now() > agendaDate - offsetMs) {
+            isClosed = true;
+          }
+        }
+        if (isClosed) {
+           res.status(403).json({ message: 'Agenda ist bereits geschlossen für neue Punkte' });
+           return;
+        }
+      }
+    }
+
     const updatedAgenda = await Agenda.findByIdAndUpdate(
       id,
       { $set: req.body || {} },
       { new: true }
     );
-    if (!updatedAgenda) {
-      res.status(404).json({ message: 'Agenda not found' });
-      return;
-    }
     res.json(updatedAgenda);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -124,6 +146,22 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
       res.status(404).json({ message: 'Agenda not found' });
       return;
     }
+    
+    // Check deadline
+    let isClosed = !!agenda.isManuallyClosed;
+    if (!isClosed && agenda.date) {
+      const agendaDate = new Date(agenda.date).getTime();
+      const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
+      if (Date.now() > agendaDate - offsetMs) {
+        isClosed = true;
+      }
+    }
+    
+    if (isClosed) {
+      res.status(403).json({ message: 'Agenda ist bereits geschlossen für neue Punkte' });
+      return;
+    }
+    
     agenda.items.push({
       title: req.body?.title,
       description: req.body?.description,
