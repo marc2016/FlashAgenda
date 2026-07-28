@@ -312,7 +312,8 @@ export default function AgendaTimeline({
   );
 
   const isClosed = useMemo(() => {
-    if (agenda?.isManuallyClosed) return true;
+    if (agenda?.isManuallyClosed === true) return true;
+    if (agenda?.isManuallyClosed === false) return false;
     if (agenda?.date) {
       const agendaDate = new Date(agenda.date).getTime();
       const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
@@ -322,10 +323,11 @@ export default function AgendaTimeline({
   }, [agenda]);
 
   const toggleManualClose = useCallback(async () => {
+    if (!isCreator) return;
     if (onUpdateAgenda) {
-      await onUpdateAgenda({ isManuallyClosed: !agenda?.isManuallyClosed });
+      await onUpdateAgenda({ isManuallyClosed: !isClosed });
     }
-  }, [onUpdateAgenda, agenda?.isManuallyClosed]);
+  }, [onUpdateAgenda, isClosed, isCreator]);
 
   const openNew = useCallback(() => {
     setTitle('');
@@ -546,10 +548,10 @@ export default function AgendaTimeline({
           {isCreator && (
             <div className="flex gap-2 flex-wrap ml-auto md:ml-0">
               <Button
-                icon={agenda?.isManuallyClosed ? 'pi pi-lock-open' : 'pi pi-lock'}
+                icon={isClosed ? 'pi pi-lock-open' : 'pi pi-lock'}
                 onClick={toggleManualClose}
                 className="comic-button-secondary flex-shrink-0"
-                title={agenda?.isManuallyClosed ? 'Agenda öffnen' : 'Agenda schließen'}
+                title={isClosed ? 'Agenda wieder öffnen' : 'Agenda schließen'}
               />
             </div>
           )}
