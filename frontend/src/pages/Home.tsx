@@ -58,6 +58,10 @@ export default function Home() {
           style={{ marginTop: '7rem' }}
         />
       </div>
+
+      <div className="absolute bottom-0 right-0 m-3 z-2 text-xs font-bold opacity-60 text-yellow-400">
+        v{import.meta.env.VITE_APP_VERSION || '1.0.0'}
+      </div>
     </div>
   );
 }

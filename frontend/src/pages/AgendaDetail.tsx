@@ -313,6 +313,11 @@ export default function AgendaDetail() {
         isOpen={showUserModal}
         onClose={() => setShowUserModal(false)}
       />
+
+      {/* App Version Footer */}
+      <div className="text-center mt-6 text-xs text-yellow-400 font-bold opacity-60">
+        FlashAgenda v{import.meta.env.VITE_APP_VERSION || '1.0.0'}
+      </div>
     </div>
   );
 }
