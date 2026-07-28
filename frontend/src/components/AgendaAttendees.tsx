@@ -73,11 +73,18 @@ const isUserOnline = (lastSeen?: string | Date) => {
 export default function AgendaAttendees({ attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
+
+  // Avatar Modal State
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [avatarUrlInput, setAvatarUrlInput] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
-  // Precompute item counts per attendee O(N + M) instead of O(N * M)
+  // Edit / Delete Attendee Modal State
+  const [editingAttendee, setEditingAttendee] = useState<Attendee | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editModalVisible, setEditModalVisible] = useState(false);
+
+  // Precompute item counts per attendee O(N + M)
   const itemCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const item of items) {
@@ -191,6 +198,52 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
     }
   };
 
+  const handleOpenEditAttendee = (att: Attendee) => {
+    setEditingAttendee(att);
+    setEditName(att.name);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEditAttendee = async () => {
+    if (!editingAttendee || !editName.trim()) return;
+    const oldName = editingAttendee.name;
+    const newNameStr = editName.trim();
+
+    const updated = attendees.map(a => {
+      const isTarget =
+        (editingAttendee.id && a.id === editingAttendee.id) ||
+        (editingAttendee._id && a._id === editingAttendee._id) ||
+        a.name === oldName;
+      if (isTarget) {
+        return { ...a, name: newNameStr };
+      }
+      return a;
+    });
+
+    if (onUpdateAgenda) {
+      await onUpdateAgenda({ attendees: updated });
+    }
+    setEditModalVisible(false);
+    setEditingAttendee(null);
+  };
+
+  const handleDeleteAttendee = async () => {
+    if (!editingAttendee) return;
+    const updated = attendees.filter(a => {
+      const isTarget =
+        (editingAttendee.id && a.id === editingAttendee.id) ||
+        (editingAttendee._id && a._id === editingAttendee._id) ||
+        a.name === editingAttendee.name;
+      return !isTarget;
+    });
+
+    if (onUpdateAgenda) {
+      await onUpdateAgenda({ attendees: updated });
+    }
+    setEditModalVisible(false);
+    setEditingAttendee(null);
+  };
+
   return (
     <div className="mb-4 sm:mb-6">
       <div className="flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
@@ -277,8 +330,21 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
 
                 {/* Right: Details */}
                 <div className="flex flex-column flex-1 justify-content-center m-0 p-0 min-w-0">
-                  <div className="font-bold text-lg sm:text-2xl mb-1 sm:mb-2 overflow-hidden text-overflow-ellipsis white-space-nowrap text-white">
-                    {att.name}
+                  <div className="flex justify-content-between align-items-start mb-1 sm:mb-2 gap-1">
+                    <div className="font-bold text-lg sm:text-2xl overflow-hidden text-overflow-ellipsis white-space-nowrap text-white flex-1 min-w-0">
+                      {att.name}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditAttendee(att);
+                      }}
+                      className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors flex-shrink-0"
+                      style={{ width: '1.75rem', height: '1.75rem' }}
+                      title="Person bearbeiten oder löschen"
+                    >
+                      <i className="pi pi-pencil text-xs font-bold" />
+                    </button>
                   </div>
                   
                   <div className="flex flex-column gap-1 text-xs sm:text-sm text-white-alpha-90">
@@ -348,6 +414,45 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
             />
           </div>
           <Button label="Hinzufügen" icon="pi pi-check" onClick={handleAdd} className="p-button-warning" disabled={!newName.trim()} />
+        </div>
+      </Dialog>
+
+      {/* Edit / Delete Person Dialog */}
+      <Dialog
+        header="Person bearbeiten"
+        visible={editModalVisible}
+        style={{ width: '92vw', maxWidth: '420px' }}
+        onHide={() => setEditModalVisible(false)}
+        className="glass-panel"
+      >
+        <div className="flex flex-column gap-3 pt-3">
+          <label className="text-sm font-bold text-gray-300">Name ändern:</label>
+          <div className="p-inputgroup">
+            <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="pi pi-user"></i></span>
+            <InputText
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveEditAttendee()}
+              autoFocus
+              className="bg-gray-800 text-white border-gray-600"
+            />
+          </div>
+
+          <div className="flex gap-2 mt-3">
+            <Button
+              label="Löschen"
+              icon="pi pi-trash"
+              className="p-button-danger p-button-outlined flex-1 text-sm"
+              onClick={handleDeleteAttendee}
+            />
+            <Button
+              label="Speichern"
+              icon="pi pi-check"
+              className="p-button-warning flex-1 text-sm"
+              disabled={!editName.trim()}
+              onClick={handleSaveEditAttendee}
+            />
+          </div>
         </div>
       </Dialog>
 
