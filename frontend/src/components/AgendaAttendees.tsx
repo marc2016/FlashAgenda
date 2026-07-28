@@ -247,7 +247,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
   return (
     <div className="mb-4 sm:mb-6">
       <div className="flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <h3 className="text-xl sm:text-2xl text-yellow-500 font-medium font-luckiest m-0">Personen</h3>
+        <h3 className="text-xl sm:text-2xl text-yellow-500 font-bold m-0" style={{ textShadow: '2px 2px 0px #000' }}>Personen</h3>
         {onSwitchUser && (
           <Button
             icon="pi pi-user-edit"

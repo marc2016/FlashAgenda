@@ -344,20 +344,25 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         </div>
       </div>
 
-      <div className="flex align-items-center mb-3 sm:mb-4 group flex-wrap gap-2 pt-1 md:pt-4">
+      <div className="flex align-items-center mb-3 sm:mb-4 gap-2 pt-1 md:pt-4 flex-wrap">
         <i className="pi pi-bolt text-yellow-400 text-3xl sm:text-4xl md:text-6xl flex-shrink-0" />
-        <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest line-height-1 word-break-break-word flex-1 min-w-0">
-          {agenda.title}
-        </h1>
-        <Button
-          icon="pi pi-pencil"
-          rounded
-          text
-          aria-label="Edit Title"
-          onClick={() => openEdit('title', agenda.title)}
-          className="text-gray-400 hover:text-yellow-400 p-0 flex-shrink-0"
-          style={{ width: '2.2rem', height: '2.2rem' }}
-        />
+        <div className="flex align-items-center gap-2 flex-wrap flex-1 min-w-0">
+          <h1
+            className="text-3xl sm:text-4xl md:text-6xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 line-height-2 word-break-break-word"
+            style={{ filter: 'drop-shadow(3px 3px 0px #000)', paddingBottom: '0.15em' }}
+          >
+            {agenda.title}
+          </h1>
+          <Button
+            icon="pi pi-pencil"
+            rounded
+            text
+            aria-label="Edit Title"
+            onClick={() => openEdit('title', agenda.title)}
+            className="text-gray-400 hover:text-yellow-400 p-0 flex-shrink-0"
+            style={{ width: '2.2rem', height: '2.2rem' }}
+          />
+        </div>
       </div>
 
       {/* Layout: Boxen oben/links, Karte unten/rechts */}
@@ -639,7 +644,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           {/* Section 1: Personen */}
           <div className="bg-gray-900 border-round p-3 border-1 border-gray-700">
             <div className="flex justify-content-between align-items-center mb-3">
-              <span className="font-bold text-yellow-400 text-base flex align-items-center gap-2 font-luckiest">
+              <span className="font-bold text-yellow-400 text-base flex align-items-center gap-2">
                 <i className="pi pi-users text-sm"></i>
                 Personen
               </span>
@@ -678,7 +683,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           {/* Section 2: Agenda-Themen */}
           <div className="bg-gray-900 border-round p-3 border-1 border-gray-700">
             <div className="flex justify-content-between align-items-center mb-3">
-              <span className="font-bold text-yellow-400 text-base flex align-items-center gap-2 font-luckiest">
+              <span className="font-bold text-yellow-400 text-base flex align-items-center gap-2">
                 <i className="pi pi-list text-sm"></i>
                 Agenda-Themen
               </span>

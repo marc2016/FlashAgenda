@@ -600,7 +600,7 @@ export default function AgendaTimeline({
     <div className="mb-6">
       <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-4 gap-3">
         <div className="flex align-items-center gap-2 flex-wrap">
-          <h3 className="text-2xl m-0 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
+          <h3 className="text-2xl m-0 text-yellow-500 font-bold" style={{ textShadow: '2px 2px 0px #000' }}>Agendapunkte</h3>
           
           <span
             className="inline-flex align-items-center gap-2 text-xs sm:text-sm font-bold text-yellow-400"
