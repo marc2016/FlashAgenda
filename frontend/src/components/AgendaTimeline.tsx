@@ -590,10 +590,33 @@ export default function AgendaTimeline({
     [currentUserId, attendees, isCreator, toggleCompleted, toggleUpvote, togglePinned, deleteItem, openEdit]
   );
 
+  const totalCount = items?.length || 0;
+  const completedCount = useMemo(
+    () => (items || []).filter((i) => i.completed).length,
+    [items]
+  );
+
   return (
     <div className="mb-6">
       <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-4 gap-3">
-        <h3 className="text-2xl m-0 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
+        <div className="flex align-items-center gap-2 flex-wrap">
+          <h3 className="text-2xl m-0 text-yellow-500 font-medium font-luckiest">Agendapunkte</h3>
+          
+          <span
+            className="inline-flex align-items-center gap-2 text-xs sm:text-sm font-bold text-yellow-400"
+            style={{
+              backgroundColor: '#1f2937',
+              border: '2px solid #000',
+              boxShadow: '2px 2px 0px #000',
+              borderRadius: '10px',
+              padding: '6px 14px'
+            }}
+            title={`${completedCount} von ${totalCount} Agendampunkten besprochen`}
+          >
+            <i className="pi pi-check-circle text-yellow-400 text-sm"></i>
+            <span>{completedCount}/{totalCount} besprochen</span>
+          </span>
+        </div>
 
         <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">
           {items && items.length > 1 && (
