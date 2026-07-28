@@ -30,6 +30,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     const newAgenda = new Agenda({
       title: req.body?.title || 'Neue Agenda',
       attendees: req.body?.attendees || [],
+      items: req.body?.items || [],
       createdBy: req.body?.createdBy || undefined
     });
     const savedAgenda = await newAgenda.save();

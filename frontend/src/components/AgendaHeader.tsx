@@ -4,6 +4,7 @@ import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
+import { Checkbox } from 'primereact/checkbox';
 import { parseISO } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
@@ -35,6 +36,8 @@ interface AgendaData {
   location?: LocationObj;
   menuUrl?: string;
   closeBeforeHours?: number;
+  attendees?: any[];
+  items?: any[];
 }
 
 interface Props {
@@ -90,14 +93,95 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
     }
   };
 
-  const handleCreateNewFromCurrent = async () => {
+  // New Agenda creation modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedAttendeeKeys, setSelectedAttendeeKeys] = useState<string[]>([]);
+  const [selectedItemKeys, setSelectedItemKeys] = useState<string[]>([]);
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+
+  const openCreateModal = () => {
+    const attendees = (agenda as any).attendees || [];
+    const allAttKeys = attendees.map((a: any) => a._id || a.id || a.name);
+    setSelectedAttendeeKeys(allAttKeys);
+
+    const items = (agenda as any).items || [];
+    const pinnedKeys = items
+      .filter((i: any) => i.pinned)
+      .map((i: any, idx: number) => i._id || i.title || String(idx));
+    setSelectedItemKeys(pinnedKeys);
+
+    setShowCreateModal(true);
+  };
+
+  const toggleAttendeeKey = (key: string) => {
+    setSelectedAttendeeKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const toggleAllAttendees = () => {
+    const attendees = (agenda as any).attendees || [];
+    const allAttKeys = attendees.map((a: any) => a._id || a.id || a.name);
+    if (selectedAttendeeKeys.length === allAttKeys.length) {
+      setSelectedAttendeeKeys([]);
+    } else {
+      setSelectedAttendeeKeys(allAttKeys);
+    }
+  };
+
+  const toggleItemKey = (key: string) => {
+    setSelectedItemKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const toggleAllItems = () => {
+    const items = (agenda as any).items || [];
+    const allItemKeys = items.map((i: any, idx: number) => i._id || i.title || String(idx));
+    if (selectedItemKeys.length === allItemKeys.length) {
+      setSelectedItemKeys([]);
+    } else {
+      setSelectedItemKeys(allItemKeys);
+    }
+  };
+
+  const handleConfirmCreateNew = async () => {
+    setIsCreatingNew(true);
     try {
+      const attendees = (agenda as any).attendees || [];
+      const selectedAttendees = attendees
+        .filter((a: any) => selectedAttendeeKeys.includes(a._id || a.id || a.name))
+        .map((a: any) => ({
+          id: a.id || a._id,
+          name: a.name,
+          avatarUrl: a.avatarUrl,
+          joinedAt: new Date(),
+          lastSeen: new Date()
+        }));
+
+      const items = (agenda as any).items || [];
+      const selectedItems = items
+        .filter((i: any, idx: number) => selectedItemKeys.includes(i._id || i.title || String(idx)))
+        .map((i: any) => ({
+          title: i.title,
+          description: i.description,
+          author: i.author,
+          createdBy: i.createdBy,
+          imageUrl: i.imageUrl,
+          pinned: !!i.pinned,
+          completed: false,
+          upvotes: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+
       const response = await fetch('/api/agendas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: agenda.title,
-          attendees: (agenda as any).attendees || [],
+          attendees: selectedAttendees,
+          items: selectedItems,
           createdBy: currentUser?.id || currentUser?._id || currentUser?.name
         })
       });
@@ -105,10 +189,13 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
       const data = await response.json();
       if (data?._id) {
         localStorage.setItem(`flashagenda_created_${data._id}`, 'true');
-        navigate(`/agenda/${data._id}`);
+        setShowCreateModal(false);
+        window.open(`/agenda/${data._id}`, '_blank');
       }
     } catch (err) {
-      console.error('Error copying agenda:', err);
+      console.error('Error creating new agenda:', err);
+    } finally {
+      setIsCreatingNew(false);
     }
   };
 
@@ -223,7 +310,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           }}
         >
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2.2rem', height: '2.2rem' }} />
-          <Button icon="pi pi-plus" rounded text size="small" onClick={handleCreateNewFromCurrent} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code anzeigen" style={{ width: '2.2rem', height: '2.2rem' }} />
@@ -250,7 +337,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
           }}
         >
-          <Button icon="pi pi-plus" rounded text size="small" onClick={handleCreateNewFromCurrent} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda" style={{ width: '2rem', height: '2rem' }} />
+          <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code" style={{ width: '2rem', height: '2rem' }} />
@@ -524,6 +611,123 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           )}
 
           <Button label="Speichern" icon="pi pi-check" onClick={saveEdit} className="p-button-warning mt-auto" />
+        </div>
+      </Dialog>
+
+      {/* Create New Agenda Confirmation Dialog */}
+      <Dialog
+        header="Neue Agenda erstellen"
+        visible={showCreateModal}
+        style={{ width: '92vw', maxWidth: '600px' }}
+        onHide={() => setShowCreateModal(false)}
+        className="glass-panel"
+      >
+        <div className="flex flex-column gap-4 pt-2">
+          <p className="text-gray-300 text-sm m-0 font-medium">
+            Wähle Personen und Themen aus, die in die neue Agenda übernommen werden sollen:
+          </p>
+
+          {/* Section 1: Personen */}
+          <div className="bg-gray-900 border-round p-3 border-1 border-gray-700">
+            <div className="flex justify-content-between align-items-center mb-3">
+              <span className="font-bold text-yellow-400 text-base flex align-items-center gap-2 font-luckiest">
+                <i className="pi pi-users text-sm"></i>
+                Personen
+              </span>
+              {((agenda as any).attendees || []).length > 0 && (
+                <Button
+                  label={selectedAttendeeKeys.length === ((agenda as any).attendees || []).length ? 'Alle abwählen' : 'Alle wählen'}
+                  text
+                  className="p-0 text-xs text-gray-400 hover:text-yellow-400 font-normal"
+                  onClick={toggleAllAttendees}
+                />
+              )}
+            </div>
+
+            {((agenda as any).attendees || []).length === 0 ? (
+              <p className="text-gray-500 text-xs italic m-0">Keine Personen vorhanden</p>
+            ) : (
+              <div className="flex flex-column gap-2 max-h-12rem overflow-y-auto pr-1">
+                {((agenda as any).attendees || []).map((att: any, idx: number) => {
+                  const key = att._id || att.id || att.name;
+                  const isChecked = selectedAttendeeKeys.includes(key);
+                  return (
+                    <div
+                      key={key || idx}
+                      className="flex align-items-center gap-3 p-2 border-round bg-gray-800 hover:bg-gray-700 cursor-pointer transition-colors"
+                      onClick={() => toggleAttendeeKey(key)}
+                    >
+                      <Checkbox checked={isChecked} onChange={() => toggleAttendeeKey(key)} />
+                      <span className="text-white text-sm font-semibold">{att.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Agenda-Themen */}
+          <div className="bg-gray-900 border-round p-3 border-1 border-gray-700">
+            <div className="flex justify-content-between align-items-center mb-3">
+              <span className="font-bold text-yellow-400 text-base flex align-items-center gap-2 font-luckiest">
+                <i className="pi pi-list text-sm"></i>
+                Agenda-Themen
+              </span>
+              {((agenda as any).items || []).length > 0 && (
+                <Button
+                  label={selectedItemKeys.length === ((agenda as any).items || []).length ? 'Alle abwählen' : 'Alle wählen'}
+                  text
+                  className="p-0 text-xs text-gray-400 hover:text-yellow-400 font-normal"
+                  onClick={toggleAllItems}
+                />
+              )}
+            </div>
+
+            {((agenda as any).items || []).length === 0 ? (
+              <p className="text-gray-500 text-xs italic m-0">Keine Agendapunkte vorhanden</p>
+            ) : (
+              <div className="flex flex-column gap-2 max-h-14rem overflow-y-auto pr-1">
+                {((agenda as any).items || []).map((item: any, idx: number) => {
+                  const key = item._id || item.title || String(idx);
+                  const isChecked = selectedItemKeys.includes(key);
+                  return (
+                    <div
+                      key={key}
+                      className="flex align-items-center justify-content-between p-2 border-round bg-gray-800 hover:bg-gray-700 cursor-pointer transition-colors gap-2"
+                      onClick={() => toggleItemKey(key)}
+                    >
+                      <div className="flex align-items-center gap-3 min-w-0 flex-1">
+                        <Checkbox checked={isChecked} onChange={() => toggleItemKey(key)} />
+                        <span className="text-white text-sm font-semibold word-break-break-word">{item.title}</span>
+                      </div>
+                      {item.pinned && (
+                        <span className="text-yellow-400 text-xs font-bold flex align-items-center gap-1 bg-yellow-950-alpha px-2 py-1 border-round flex-shrink-0">
+                          <i className="mdi mdi-pin text-xs"></i>
+                          Angepinnt
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 justify-content-end mt-2">
+            <Button
+              label="Abbrechen"
+              icon="pi pi-times"
+              onClick={() => setShowCreateModal(false)}
+              className="p-button-text text-gray-400 hover:text-white"
+            />
+            <Button
+              label="Neue Agenda erstellen"
+              icon="pi pi-check"
+              loading={isCreatingNew}
+              onClick={handleConfirmCreateNew}
+              className="p-button-warning comic-button font-bold"
+            />
+          </div>
         </div>
       </Dialog>
     </div>
