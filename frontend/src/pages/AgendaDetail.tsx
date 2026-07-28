@@ -1,9 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import AgendaHeader from '../components/AgendaHeader';
 import AgendaAttendees from '../components/AgendaAttendees';
 import AgendaTimeline from '../components/AgendaTimeline';
 import UserIdentificationModal from '../components/UserIdentificationModal';
+import {
+  getCachedAgenda,
+  setCachedAgenda,
+  enqueueAction,
+  processOfflineQueue,
+  subscribeOfflineSync
+} from '../services/offlineSync';
 
 export default function AgendaDetail() {
   const { id } = useParams();
@@ -11,23 +18,63 @@ export default function AgendaDetail() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showUserModal, setShowUserModal] = useState<boolean | undefined>(undefined);
+  
+  // Offline state tracking
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
-  const fetchAgenda = async () => {
+  const fetchAgenda = useCallback(async () => {
+    if (!id) return;
     try {
-      const response = await fetch(`/api/agendas/${id}`);
-      if (!response.ok) throw new Error('Not found');
-      const data = await response.json();
-      setAgenda(data);
+      if (navigator.onLine) {
+        const response = await fetch(`/api/agendas/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setAgenda(data);
+          setCachedAgenda(id, data);
+          return;
+        }
+      }
+      // Fallback to cache if offline or fetch failed
+      const cached = getCachedAgenda(id);
+      if (cached) {
+        setAgenda(cached);
+      } else {
+        setAgenda(null);
+      }
     } catch (err) {
-      console.error(err);
-      setAgenda(null);
+      console.error('Fetch agenda error, checking cache:', err);
+      const cached = getCachedAgenda(id);
+      if (cached) {
+        setAgenda(cached);
+      } else {
+        setAgenda(null);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchAgenda();
+  }, [fetchAgenda]);
+
+  // Subscribe to offline sync state changes & process queue when reconnected
+  useEffect(() => {
+    const unsubscribe = subscribeOfflineSync((online, pending) => {
+      setIsOnline(online);
+      setPendingCount(pending);
+    });
+
+    if (navigator.onLine) {
+      processOfflineQueue((syncedAgendaId, updatedAgenda) => {
+        if (syncedAgendaId === id) {
+          setAgenda(updatedAgenda);
+        }
+      });
+    }
+
+    return () => unsubscribe();
   }, [id]);
 
   useEffect(() => {
@@ -36,19 +83,19 @@ export default function AgendaDetail() {
     }
   }, [agenda?.title]);
 
-  // Periodic polling to fetch fresh agenda data (e.g. attendee online status updates)
+  // Periodic polling to fetch fresh agenda data when online
   useEffect(() => {
-    if (!id) return;
+    if (!id || !isOnline) return;
     const pollInterval = setInterval(() => {
       fetchAgenda();
     }, 10000);
     return () => clearInterval(pollInterval);
-  }, [id]);
+  }, [id, isOnline, fetchAgenda]);
 
   // Ping server periodically to update current user's lastSeen timestamp
   useEffect(() => {
     const userId = currentUser?._id || currentUser?.id;
-    if (!userId || !id) return;
+    if (!userId || !id || !isOnline) return;
 
     const pingServer = async () => {
       try {
@@ -60,7 +107,7 @@ export default function AgendaDetail() {
           if (data.lastSeen) {
             setAgenda((prev: any) => {
               if (!prev) return prev;
-              return {
+              const updated = {
                 ...prev,
                 attendees: (prev.attendees || []).map((att: any) => {
                   const attId = att._id || att.id;
@@ -70,6 +117,8 @@ export default function AgendaDetail() {
                   return att;
                 })
               };
+              setCachedAgenda(id, updated);
+              return updated;
             });
           }
         }
@@ -81,7 +130,7 @@ export default function AgendaDetail() {
     pingServer();
     const interval = setInterval(pingServer, 15000);
     return () => clearInterval(interval);
-  }, [currentUser, id]);
+  }, [currentUser, id, isOnline]);
 
   const userId = currentUser?._id || currentUser?.id;
 
@@ -102,49 +151,78 @@ export default function AgendaDetail() {
   );
 
   useEffect(() => {
-    if (agenda && currentUser && !agenda.createdBy && isCreator) {
+    if (agenda && currentUser && !agenda.createdBy && isCreator && isOnline) {
       const creatorId = currentUser.id || currentUser._id || currentUser.name;
       handleUpdateAgenda({ createdBy: creatorId });
     }
-  }, [agenda?.createdBy, currentUser, isCreator]);
+  }, [agenda?.createdBy, currentUser, isCreator, isOnline]);
 
   const handleUpdateAgenda = async (updates: any) => {
+    if (!id) return;
+    const payload = { ...updates };
+    if (userId && !payload.userId) {
+      payload.userId = userId;
+    }
+
+    // Optimistic UI update & Cache update
+    const updatedLocal = { ...agenda, ...payload };
+    setAgenda(updatedLocal);
+    setCachedAgenda(id, updatedLocal);
+
+    if (!navigator.onLine) {
+      const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
+      const queuePayload = updates.items !== undefined ? updates.items : payload;
+      enqueueAction(id, queueType, queuePayload);
+      return;
+    }
+
     try {
-      const payload = { ...updates };
-      if (userId && !payload.userId) {
-        payload.userId = userId;
-      }
       const response = await fetch(`/api/agendas/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await response.json();
-      setAgenda(data);
+      if (response.ok) {
+        const data = await response.json();
+        setAgenda(data);
+        setCachedAgenda(id, data);
+      } else {
+        const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
+        const queuePayload = updates.items !== undefined ? updates.items : payload;
+        enqueueAction(id, queueType, queuePayload);
+      }
     } catch (err) {
-      console.error('Failed to update agenda', err);
+      console.error('Failed to update agenda online, queueing offline action', err);
+      const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
+      const queuePayload = updates.items !== undefined ? updates.items : payload;
+      enqueueAction(id, queueType, queuePayload);
     }
   };
 
   const handleAddAttendee = async (newAttendee: any) => {
     try {
-      const response = await fetch(`/api/agendas/${id}/attendees`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newAttendee),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAgenda(data);
-        const added = (data.attendees || []).find((a: any) => a.name === newAttendee.name || a.id === newAttendee.id);
-        return added || newAttendee;
+      if (navigator.onLine) {
+        const response = await fetch(`/api/agendas/${id}/attendees`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newAttendee),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAgenda(data);
+          setCachedAgenda(id!, data);
+          const added = (data.attendees || []).find((a: any) => a.name === newAttendee.name || a.id === newAttendee.id);
+          return added || newAttendee;
+        }
       }
     } catch (err) {
-      console.error('Failed to add attendee', err);
-      // Fallback
-      const updatedAttendees = [...(agenda.attendees || []), newAttendee];
-      await handleUpdateAgenda({ attendees: updatedAttendees });
+      console.error('Failed to add attendee online', err);
     }
+    
+    // Offline / fallback addition
+    const updatedAttendees = [...(agenda?.attendees || []), newAttendee];
+    await handleUpdateAgenda({ attendees: updatedAttendees });
+    return newAttendee;
   };
 
   const handleUpdateItems = async (newItems: any[]) => {
@@ -176,6 +254,26 @@ export default function AgendaDetail() {
       </div>
 
       <div className="max-w-4xl mx-auto relative z-1">
+        {/* Offline & Sync Status Banners */}
+        {!isOnline && (
+          <div className="mb-4 p-3 border-round-xl border-3 border-black flex align-items-center justify-content-between bg-yellow-500 text-black font-bold shadow-2 gap-2 flex-wrap">
+            <div className="flex align-items-center gap-2">
+              <i className="pi pi-wifi text-xl" />
+              <span>Offline-Modus {pendingCount > 0 ? `(${pendingCount} Änderung(en) ausstehend)` : ''}</span>
+            </div>
+            <span className="text-xs bg-black text-yellow-400 px-2 py-1 border-round font-semibold">Lokal gespeichert</span>
+          </div>
+        )}
+
+        {isOnline && pendingCount > 0 && (
+          <div className="mb-4 p-3 border-round-xl border-3 border-black flex align-items-center justify-content-between bg-blue-600 text-white font-bold shadow-2 gap-2">
+            <div className="flex align-items-center gap-2">
+              <i className="pi pi-spin pi-spinner text-xl" />
+              <span>Synchronisiere {pendingCount} ausstehende Änderung(en)...</span>
+            </div>
+          </div>
+        )}
+
         <AgendaHeader 
           agenda={agenda} 
           onUpdate={handleUpdateAgenda}
