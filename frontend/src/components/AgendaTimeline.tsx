@@ -204,12 +204,6 @@ const AgendaCard = memo(function AgendaCard({
       <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-center mb-2 gap-2">
         <div className="flex-1 min-w-0 w-full sm:w-auto">
           <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2 align-items-center">
-            {isPinned && (
-              <span className="flex align-items-center gap-1 text-yellow-400 font-bold bg-yellow-950-alpha border-1 border-yellow-500-alpha px-2 py-1 border-round" title="Angepinnt - Position bleibt beim Sortieren fixiert">
-                <i className="mdi mdi-pin text-sm"></i>
-                <span>Angepinnt</span>
-              </span>
-            )}
             {createdAtLabel && (
               <span className="flex align-items-center gap-1" title="Erstellt am">
                 <i className="pi pi-calendar-plus" style={{ fontSize: '0.7rem' }}></i>
@@ -220,6 +214,12 @@ const AgendaCard = memo(function AgendaCard({
               <span className="flex align-items-center gap-1" title="Zuletzt bearbeitet am">
                 <i className="pi pi-pencil" style={{ fontSize: '0.7rem' }}></i>
                 {updatedAtLabel}
+              </span>
+            )}
+            {isPinned && (
+              <span className="flex align-items-center gap-1 text-yellow-400 font-bold bg-yellow-950-alpha border-1 border-yellow-500-alpha px-2 py-1 border-round" title="Angepinnt - Position bleibt beim Sortieren fixiert">
+                <i className="mdi mdi-pin text-sm"></i>
+                <span>Angepinnt</span>
               </span>
             )}
           </div>
