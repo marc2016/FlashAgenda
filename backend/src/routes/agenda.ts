@@ -4,6 +4,16 @@ import Agenda from '../models/Agenda';
 
 const router: Router = express.Router();
 
+// Helper to validate and sanitize image URLs / Data URIs against XSS (e.g. javascript: or data:text/html)
+function isSafeImageUrl(url: any): boolean {
+  if (!url || typeof url !== 'string') return true;
+  const trimmed = url.trim();
+  if (trimmed === '') return true;
+  const isHttp = /^https?:\/\//i.test(trimmed);
+  const isSafeDataUri = /^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,/i.test(trimmed);
+  return isHttp || isSafeDataUri;
+}
+
 // Get an agenda by ID
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -90,9 +100,17 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    const allowedFields = ['title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed', 'items', 'attendees', 'createdBy'];
+    const sanitizedUpdates: Record<string, any> = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        sanitizedUpdates[field] = req.body[field];
+      }
+    }
+
     const updatedAgenda = await Agenda.findByIdAndUpdate(
       id,
-      { $set: req.body || {} },
+      { $set: sanitizedUpdates },
       { new: true }
     );
     res.json(updatedAgenda);
@@ -183,6 +201,11 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
       return;
     }
     
+    if (req.body?.imageUrl && !isSafeImageUrl(req.body.imageUrl)) {
+      res.status(400).json({ message: 'Ungültiges oder unsicheres Bild-URL-Format' });
+      return;
+    }
+
     agenda.items.push({
       title: req.body?.title,
       description: req.body?.description,
@@ -214,11 +237,18 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
       return;
     }
     
+    if (req.body?.imageUrl !== undefined) {
+      if (!isSafeImageUrl(req.body.imageUrl)) {
+        res.status(400).json({ message: 'Ungültiges oder unsicheres Bild-URL-Format' });
+        return;
+      }
+      item.imageUrl = req.body.imageUrl;
+    }
+
     if (req.body?.title !== undefined) item.title = req.body.title;
     if (req.body?.description !== undefined) item.description = req.body.description;
     if (req.body?.createdBy !== undefined) item.createdBy = req.body.createdBy;
     if (req.body?.author !== undefined) item.author = req.body.author;
-    if (req.body?.imageUrl !== undefined) item.imageUrl = req.body.imageUrl;
     if (req.body?.completed !== undefined) item.completed = req.body.completed;
     if (req.body?.pinned !== undefined) item.pinned = req.body.pinned;
     if (req.body?.location !== undefined) item.location = req.body.location;
