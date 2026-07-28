@@ -494,15 +494,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
       </div>
 
       {/* Mobile: Action buttons above title */}
-      <div className="flex md:hidden mb-3 justify-content-between align-items-center flex-wrap gap-2">
-        <Button
-          icon="pi pi-arrow-left"
-          label="Zurück"
-          text
-          size="small"
-          onClick={() => navigate('/')}
-          className="text-yellow-400 font-bold p-0 text-sm"
-        />
+      <div className="flex md:hidden mb-3 justify-content-end align-items-center flex-wrap gap-2">
         <div
           className="flex align-items-center gap-1 ml-auto"
           style={{
@@ -513,6 +505,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
           }}
         >
+          <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2rem', height: '2rem' }} />
