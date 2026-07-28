@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -20,6 +20,20 @@ L.Icon.Default.mergeOptions({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,
   shadowUrl: markerShadow,
+});
+
+const userLocationIcon = new L.DivIcon({
+  className: 'user-location-marker',
+  html: `<div style="
+    background-color: #3b82f6;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4), 2px 2px 0px #000;
+  "></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9]
 });
 
 interface LocationObj {
@@ -54,13 +68,91 @@ interface NominatimResult {
   lon: string;
 }
 
-// Helper component to recenter map when coordinates change
-function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
+
+
+function MapControls({
+  venueCoords,
+  userCoords,
+  onLocateUser,
+  isLocating
+}: {
+  venueCoords?: { lat: number; lng: number };
+  userCoords?: { lat: number; lng: number } | null;
+  onLocateUser: () => void;
+  isLocating: boolean;
+}) {
   const map = useMap();
-  useEffect(() => {
-    map.setView([lat, lng], 14);
-  }, [lat, lng, map]);
-  return null;
+
+  const handleFitBoth = () => {
+    if (venueCoords && userCoords) {
+      const bounds = L.latLngBounds([
+        [venueCoords.lat, venueCoords.lng],
+        [userCoords.lat, userCoords.lng]
+      ]);
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    } else if (userCoords) {
+      map.setView([userCoords.lat, userCoords.lng], 15);
+    } else if (venueCoords) {
+      map.setView([venueCoords.lat, venueCoords.lng], 15);
+    } else {
+      onLocateUser();
+    }
+  };
+
+  const handleZoomToUser = () => {
+    if (userCoords) {
+      map.setView([userCoords.lat, userCoords.lng], 16);
+    } else {
+      onLocateUser();
+    }
+  };
+
+  const handleZoomToVenue = () => {
+    if (venueCoords) {
+      map.setView([venueCoords.lat, venueCoords.lng], 16);
+    }
+  };
+
+  return (
+    <div
+      className="absolute bottom-0 right-0 m-2 flex flex-column gap-1"
+      style={{ zIndex: 1001 }}
+    >
+      {/* Fit Both (Location + User Position) */}
+      {venueCoords && userCoords && (
+        <Button
+          icon="pi pi-expand"
+          rounded
+          className="p-button-warning comic-button shadow-2"
+          style={{ width: '2.4rem', height: '2.4rem' }}
+          title="Veranstaltungsort und eigenen Standort zusammen anzeigen"
+          onClick={handleFitBoth}
+        />
+      )}
+
+      {/* Zoom to Venue */}
+      {venueCoords && (
+        <Button
+          icon="pi pi-map-marker"
+          rounded
+          className="p-button-secondary comic-button shadow-2"
+          style={{ width: '2.4rem', height: '2.4rem' }}
+          title="Zum Veranstaltungsort zoomen"
+          onClick={handleZoomToVenue}
+        />
+      )}
+
+      {/* Zoom to User */}
+      <Button
+        icon={isLocating ? 'pi pi-spin pi-spinner' : 'pi pi-compass'}
+        rounded
+        className="p-button-warning comic-button shadow-2"
+        style={{ width: '2.4rem', height: '2.4rem' }}
+        title="Auf meinen Standort zoomen"
+        onClick={handleZoomToUser}
+      />
+    </div>
+  );
 }
 
 export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator }: Props) {
@@ -73,6 +165,90 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
   const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedCoords, setSelectedCoords] = useState<{ lat?: number; lng?: number }>({});
+  
+  // Geolocation state (persisted in sessionStorage so browser doesn't prompt on reload)
+  const [userCoords, setUserCoordsState] = useState<{ lat: number; lng: number } | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('flashagenda_user_location');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isLocating, setIsLocating] = useState(false);
+
+  const saveUserCoords = (coords: { lat: number; lng: number }) => {
+    setUserCoordsState(coords);
+    try {
+      sessionStorage.setItem('flashagenda_user_location', JSON.stringify(coords));
+    } catch (err) {
+      console.error('Failed to save user location:', err);
+    }
+  };
+
+  const handleGetMyLocation = () => {
+    if (userCoords) {
+      return;
+    }
+    if (!navigator.geolocation) {
+      alert('Geolokalisierung wird von deinem Browser nicht unterstützt.');
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        saveUserCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        });
+        setIsLocating(false);
+      },
+      (err) => {
+        console.error('Geolocation error:', err);
+        alert('Standort konnte nicht ermittelt werden.');
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleUseCurrentLocationInEdit = () => {
+    if (!navigator.geolocation) {
+      alert('Geolokalisierung wird von deinem Browser nicht unterstützt.');
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setSelectedCoords({ lat, lng });
+        saveUserCoords({ lat, lng });
+
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+            headers: { 'User-Agent': 'FlashAgendaApp/1.0' }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.display_name) {
+              setTempValue(data.display_name);
+            }
+          }
+        } catch (err) {
+          console.error('Reverse geocode error:', err);
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      (err) => {
+        console.error('Geolocation error:', err);
+        alert('Standort konnte nicht ermittelt werden.');
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -491,36 +667,59 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         </div>
 
         {/* Unten/Rechts: Karte */}
-        {agenda.location?.name && (
-          <div className="comic-panel-dark p-2 sm:p-3 w-full md:flex-1 md:min-w-18rem md:max-w-lg">
-            {agenda.location.lat && agenda.location.lng ? (
-              <div className="mb-2 sm:mb-3 border-round-lg overflow-hidden" style={{ height: '220px' }}>
-                <MapContainer
-                  center={[agenda.location.lat, agenda.location.lng]}
-                  zoom={14}
-                  scrollWheelZoom={false}
-                  style={{ height: '100%', width: '100%' }}
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
+        <div className="comic-panel-dark p-2 sm:p-3 w-full md:flex-1 md:min-w-18rem md:max-w-lg">
+          {(agenda.location?.lat && agenda.location?.lng) || userCoords ? (
+            <div className="mb-2 sm:mb-3 border-round-lg overflow-hidden relative" style={{ height: '350px' }}>
+              <MapContainer
+                center={[
+                  agenda.location?.lat ?? userCoords?.lat ?? 51.1657,
+                  agenda.location?.lng ?? userCoords?.lng ?? 10.4515
+                ]}
+                zoom={14}
+                scrollWheelZoom={false}
+                style={{ height: '100%', width: '100%' }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {agenda.location?.lat && agenda.location?.lng && (
                   <Marker position={[agenda.location.lat, agenda.location.lng]} />
-                  <RecenterMap lat={agenda.location.lat} lng={agenda.location.lng} />
-                </MapContainer>
-              </div>
-            ) : (
-              <div className="bg-gray-700 border-round-lg mb-2 sm:mb-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold" style={{ height: '220px' }}>
-                <i className="pi pi-map text-2xl mb-1" />
-                <span className="block text-xs sm:text-sm">Keine Koordinaten für diesen Ort</span>
-              </div>
-            )}
+                )}
+                {userCoords && (
+                  <Marker
+                    position={[userCoords.lat, userCoords.lng]}
+                    icon={userLocationIcon}
+                  />
+                )}
+                <MapControls
+                  venueCoords={agenda.location?.lat && agenda.location?.lng ? { lat: agenda.location.lat, lng: agenda.location.lng } : undefined}
+                  userCoords={userCoords}
+                  onLocateUser={handleGetMyLocation}
+                  isLocating={isLocating}
+                />
+              </MapContainer>
+            </div>
+          ) : (
+            <div className="bg-gray-700 border-round-lg mb-2 sm:mb-3 p-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold gap-2 text-center" style={{ height: '350px' }}>
+              <i className="pi pi-map-marker text-yellow-500 text-3xl mb-1" />
+              <span className="block text-sm text-white font-bold">Kein Ort hinterlegt</span>
+              <Button
+                label="Meinen Standort anzeigen"
+                icon={isLocating ? 'pi pi-spin pi-spinner' : 'pi pi-compass'}
+                size="small"
+                className="comic-button text-xs py-2 px-3 mt-1"
+                onClick={handleGetMyLocation}
+              />
+            </div>
+          )}
+          {agenda.location?.name && (
             <div className="flex flex-row gap-2">
               <Button label="Google Maps" icon="pi pi-google" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs px-1" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
               <Button label="Apple Maps" icon="pi pi-apple" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs px-1" onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Edit Dialog */}
@@ -557,6 +756,13 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                   icon={isSearching ? "pi pi-spin pi-spinner" : "pi pi-search"}
                   onClick={() => executeOSMSearch()}
                   className="p-button-warning flex-shrink-0"
+                  title="Suchen"
+                />
+                <Button
+                  icon={isLocating ? "pi pi-spin pi-spinner" : "pi pi-compass"}
+                  onClick={handleUseCurrentLocationInEdit}
+                  className="comic-button-secondary flex-shrink-0"
+                  title="Meinen aktuellen Standort verwenden"
                 />
               </div>
 
@@ -579,7 +785,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
               )}
 
               {(selectedCoords.lat || agenda.location?.lat) ? (
-                <div className="border-round-lg overflow-hidden flex-1" style={{ minHeight: '220px' }}>
+                <div className="border-round-lg overflow-hidden flex-1 relative" style={{ minHeight: '220px' }}>
                   <MapContainer
                     center={[
                       selectedCoords.lat ?? agenda.location?.lat!,
@@ -599,9 +805,23 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                         selectedCoords.lng ?? agenda.location?.lng!
                       ]}
                     />
-                    <RecenterMap
-                      lat={selectedCoords.lat ?? agenda.location?.lat!}
-                      lng={selectedCoords.lng ?? agenda.location?.lng!}
+                    {userCoords && (
+                      <Marker
+                        position={[userCoords.lat, userCoords.lng]}
+                        icon={userLocationIcon}
+                      />
+                    )}
+                    <MapControls
+                      venueCoords={
+                        selectedCoords.lat && selectedCoords.lng
+                          ? { lat: selectedCoords.lat, lng: selectedCoords.lng }
+                          : agenda.location?.lat && agenda.location?.lng
+                          ? { lat: agenda.location.lat, lng: agenda.location.lng }
+                          : undefined
+                      }
+                      userCoords={userCoords}
+                      onLocateUser={handleUseCurrentLocationInEdit}
+                      isLocating={isLocating}
                     />
                   </MapContainer>
                 </div>

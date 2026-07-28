@@ -25,6 +25,7 @@ export interface IAgendaItem {
   completed?: boolean;
   upvotes?: string[];
   pinned?: boolean;
+  location?: ILocation;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -65,6 +66,7 @@ const AgendaItemSchema = new Schema<IAgendaItem>({
   completed: { type: Boolean, default: false },
   upvotes: { type: [String], default: [] },
   pinned: { type: Boolean, default: false },
+  location: { type: LocationSchema },
   createdAt: { type: Date },
   updatedAt: { type: Date }
 });
