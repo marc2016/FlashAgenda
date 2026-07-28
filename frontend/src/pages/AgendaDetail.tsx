@@ -21,7 +21,7 @@ export default function AgendaDetail() {
   
   // Offline state tracking
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [pendingCount, setPendingCount] = useState<number>(0);
+  const [, setPendingCount] = useState<number>(0);
 
   const fetchAgenda = useCallback(async () => {
     if (!id) return;
@@ -59,11 +59,34 @@ export default function AgendaDetail() {
     fetchAgenda();
   }, [fetchAgenda]);
 
+  // Banner state machine: 'OFFLINE' | 'SYNC' | 'ONLINE' | 'HIDDEN'
+  const [bannerState, setBannerState] = useState<'OFFLINE' | 'SYNC' | 'ONLINE' | 'HIDDEN'>(() => {
+    return typeof navigator !== 'undefined' && !navigator.onLine ? 'OFFLINE' : 'HIDDEN';
+  });
+
   // Subscribe to offline sync state changes & process queue when reconnected
   useEffect(() => {
+    let hideTimer: any = null;
+
     const unsubscribe = subscribeOfflineSync((online, pending) => {
       setIsOnline(online);
       setPendingCount(pending);
+
+      if (!online) {
+        setBannerState('OFFLINE');
+      } else if (pending > 0) {
+        setBannerState('SYNC');
+      } else {
+        setBannerState((prev) => {
+          if (prev === 'OFFLINE' || prev === 'SYNC') {
+            hideTimer = setTimeout(() => {
+              setBannerState('HIDDEN');
+            }, 3000);
+            return 'ONLINE';
+          }
+          return prev;
+        });
+      }
     });
 
     if (navigator.onLine) {
@@ -74,7 +97,10 @@ export default function AgendaDetail() {
       });
     }
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (hideTimer) clearTimeout(hideTimer);
+    };
   }, [id]);
 
   useEffect(() => {
@@ -229,9 +255,53 @@ export default function AgendaDetail() {
     await handleUpdateAgenda({ items: newItems });
   };
 
+  const renderFloatingBanderole = () => {
+    if (bannerState === 'HIDDEN') return null;
+    return (
+      <div
+        className={`fixed top-0 left-0 flex align-items-center gap-2 font-bold px-3 py-2 border-bottom-3 border-right-3 border-black uppercase tracking-wider ${
+          bannerState === 'OFFLINE'
+            ? 'bg-red-600 text-white'
+            : bannerState === 'SYNC'
+            ? 'bg-orange-500 text-white'
+            : 'bg-green-600 text-white'
+        }`}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          zIndex: 20000,
+          borderBottomRightRadius: '16px',
+          boxShadow: '3px 3px 0px #000',
+          fontSize: '0.8rem'
+        }}
+      >
+        {bannerState === 'OFFLINE' && (
+          <>
+            <i className="pi pi-wifi text-base" />
+            <span>OFFLINE</span>
+          </>
+        )}
+        {bannerState === 'SYNC' && (
+          <>
+            <i className="pi pi-spin pi-spinner text-base" />
+            <span>SYNC...</span>
+          </>
+        )}
+        {bannerState === 'ONLINE' && (
+          <>
+            <i className="pi pi-check-circle text-base" />
+            <span>ONLINE</span>
+          </>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-comic-red text-white flex justify-content-center align-items-center">
+      <div className="min-h-screen bg-comic-red text-white flex justify-content-center align-items-center relative">
+        {renderFloatingBanderole()}
         <i className="pi pi-spin pi-spinner text-yellow-500 text-6xl"></i>
       </div>
     );
@@ -239,7 +309,8 @@ export default function AgendaDetail() {
 
   if (!agenda) {
     return (
-      <div className="min-h-screen bg-comic-red text-white flex justify-content-center align-items-center flex-column">
+      <div className="min-h-screen bg-comic-red text-white flex justify-content-center align-items-center flex-column relative">
+        {renderFloatingBanderole()}
         <i className="pi pi-exclamation-triangle text-yellow-500 text-6xl mb-4"></i>
         <h2 className="text-2xl">Agenda nicht gefunden</h2>
       </div>
@@ -248,31 +319,13 @@ export default function AgendaDetail() {
 
   return (
     <div className="min-h-screen bg-comic-red text-white p-2 sm:p-4 md:p-6 lg:p-8 relative overflow-x-hidden">
+      {renderFloatingBanderole()}
       {/* Subtle background element - disabled on mobile screens for GPU speed */}
       <div className="hidden md:block fixed top-0 right-0 w-full h-full pointer-events-none opacity-20 z-0">
         <div className="absolute top-0 right-0 w-30rem h-30rem bg-yellow-500 border-circle blur-8xl" style={{ transform: 'translate(30%, -30%)' }}></div>
       </div>
 
       <div className="max-w-4xl mx-auto relative z-1">
-        {/* Offline & Sync Status Banners */}
-        {!isOnline && (
-          <div className="mb-4 p-3 border-round-xl border-3 border-black flex align-items-center justify-content-between bg-yellow-500 text-black font-bold shadow-2 gap-2 flex-wrap">
-            <div className="flex align-items-center gap-2">
-              <i className="pi pi-wifi text-xl" />
-              <span>Offline-Modus {pendingCount > 0 ? `(${pendingCount} Änderung(en) ausstehend)` : ''}</span>
-            </div>
-            <span className="text-xs bg-black text-yellow-400 px-2 py-1 border-round font-semibold">Lokal gespeichert</span>
-          </div>
-        )}
-
-        {isOnline && pendingCount > 0 && (
-          <div className="mb-4 p-3 border-round-xl border-3 border-black flex align-items-center justify-content-between bg-blue-600 text-white font-bold shadow-2 gap-2">
-            <div className="flex align-items-center gap-2">
-              <i className="pi pi-spin pi-spinner text-xl" />
-              <span>Synchronisiere {pendingCount} ausstehende Änderung(en)...</span>
-            </div>
-          </div>
-        )}
 
         <AgendaHeader 
           agenda={agenda} 

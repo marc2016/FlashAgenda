@@ -122,16 +122,21 @@ export const processOfflineQueue = async (onSuccess?: (agendaId: string, updated
   saveOfflineQueue(remainingQueue);
 };
 
-const notifyListeners = () => {
-  const isOnline = navigator.onLine;
+export const notifyOfflineState = (isOnline: boolean) => {
   const pendingCount = getOfflineQueue().length;
   listeners.forEach((listener) => listener(isOnline, pendingCount));
+};
+
+const notifyListeners = () => {
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  notifyOfflineState(isOnline);
 };
 
 export const subscribeOfflineSync = (listener: SyncListener) => {
   listeners.add(listener);
   // Immediate notification
-  listener(navigator.onLine, getOfflineQueue().length);
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  listener(isOnline, getOfflineQueue().length);
   return () => {
     listeners.delete(listener);
   };
@@ -139,10 +144,13 @@ export const subscribeOfflineSync = (listener: SyncListener) => {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
-    notifyListeners();
+    notifyOfflineState(true);
     processOfflineQueue();
   });
   window.addEventListener('offline', () => {
-    notifyListeners();
+    notifyOfflineState(false);
   });
+  setInterval(() => {
+    notifyOfflineState(navigator.onLine);
+  }, 2000);
 }

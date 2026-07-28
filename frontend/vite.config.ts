@@ -13,6 +13,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      devOptions: {
+        enabled: true
+      },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons.svg', 'pwa-192x192.png', 'pwa-512x512.png', 'maskable-icon.png'],
       manifest: {
