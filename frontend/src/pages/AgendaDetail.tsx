@@ -169,14 +169,13 @@ export default function AgendaDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-comic-red text-white p-4 md:p-6 lg:p-8 relative overflow-x-hidden">
-      {/* Subtle background element */}
-      <div className="fixed top-0 right-0 w-full h-full pointer-events-none opacity-20 z-0">
+    <div className="min-h-screen bg-comic-red text-white p-2 sm:p-4 md:p-6 lg:p-8 relative overflow-x-hidden">
+      {/* Subtle background element - disabled on mobile screens for GPU speed */}
+      <div className="hidden md:block fixed top-0 right-0 w-full h-full pointer-events-none opacity-20 z-0">
         <div className="absolute top-0 right-0 w-30rem h-30rem bg-yellow-500 border-circle blur-8xl" style={{ transform: 'translate(30%, -30%)' }}></div>
       </div>
 
       <div className="max-w-4xl mx-auto relative z-1">
-        
         <AgendaHeader 
           agenda={agenda} 
           onUpdate={handleUpdateAgenda}
@@ -184,7 +183,7 @@ export default function AgendaDetail() {
           isCreator={isCreator}
         />
 
-        <div className="border-top-1 border-gray-700 my-6"></div>
+        <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
 
         <AgendaAttendees 
           attendees={agenda.attendees || []} 
@@ -195,7 +194,7 @@ export default function AgendaDetail() {
           onSwitchUser={() => setShowUserModal(true)}
         />
 
-        <div className="border-top-1 border-gray-700 my-6"></div>
+        <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
 
         <AgendaTimeline 
           agenda={agenda}
@@ -206,7 +205,6 @@ export default function AgendaDetail() {
           onUpdate={handleUpdateItems}
           onUpdateAgenda={handleUpdateAgenda}
         />
-
       </div>
 
       <UserIdentificationModal 

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useMemo, memo } from 'react';
 import { Timeline } from 'primereact/timeline';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -80,7 +80,220 @@ interface Props {
   onUpdateAgenda?: (updates: any) => Promise<void>;
 }
 
-export default function AgendaTimeline({ agenda, items, attendees = [], currentUser, isCreator = true, onUpdate, onUpdateAgenda }: Props) {
+// ─── Memoized AgendaCard ───────────────────────────────────────────────────
+interface AgendaCardProps {
+  item: AgendaItem;
+  index: number;
+  currentUserId: string | undefined;
+  attendees: any[];
+  isCreator: boolean;
+  onToggleCompleted: (index: number) => void;
+  onToggleUpvote: (index: number) => void;
+  onDelete: (index: number) => void;
+  onEdit: (index: number) => void;
+  onPreviewImage: (url: string) => void;
+}
+
+const AgendaCard = memo(function AgendaCard({
+  item,
+  index,
+  currentUserId,
+  attendees,
+  onToggleCompleted,
+  onToggleUpvote,
+  onDelete,
+  onEdit,
+  onPreviewImage,
+}: AgendaCardProps) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const hasDetails = !!(item.description || item.imageUrl || (item.upvotes && item.upvotes.length > 0));
+  const isCompleted = !!item.completed;
+  const hasUpvoted = useMemo(
+    () => !!(currentUserId && (item.upvotes || []).includes(currentUserId)),
+    [currentUserId, item.upvotes]
+  );
+  const upvoteCount = item.upvotes?.length || 0;
+
+  const authorName = useMemo(() => {
+    if (item.createdBy) {
+      const attendee = attendees.find(
+        (a: any) =>
+          (a.id && a.id === item.createdBy) ||
+          (a._id && a._id === item.createdBy) ||
+          (a.name && a.name.trim().toLowerCase() === item.createdBy?.trim().toLowerCase())
+      );
+      if (attendee) return attendee.name;
+    }
+    if (item.author && item.author !== 'Unbekannt') return item.author;
+    return item.createdBy || item.author || 'Unbekannt';
+  }, [item.createdBy, item.author, attendees]);
+
+  const upvoterNames = useMemo(() => {
+    if (!item.upvotes || item.upvotes.length === 0) return '';
+    return item.upvotes
+      .map((id: string) => {
+        const attendee = attendees.find((a: any) => a.id === id || a._id === id || a.name === id);
+        return attendee ? attendee.name : id;
+      })
+      .join(', ');
+  }, [item.upvotes, attendees]);
+
+  const createdAtLabel = useMemo(
+    () =>
+      item.createdAt
+        ? new Date(item.createdAt).toLocaleString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : null,
+    [item.createdAt]
+  );
+
+  const updatedAtLabel = useMemo(
+    () =>
+      item.updatedAt
+        ? new Date(item.updatedAt).toLocaleString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : null,
+    [item.updatedAt]
+  );
+
+  return (
+    <div className={`mb-4 comic-panel-dark p-3 sm:p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
+      <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-center mb-2 gap-2">
+        <div className="flex-1 min-w-0 w-full sm:w-auto">
+          <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
+            {createdAtLabel && (
+              <span className="flex align-items-center gap-1" title="Erstellt am">
+                <i className="pi pi-calendar-plus" style={{ fontSize: '0.7rem' }}></i>
+                {createdAtLabel}
+              </span>
+            )}
+            {updatedAtLabel && (
+              <span className="flex align-items-center gap-1" title="Zuletzt bearbeitet am">
+                <i className="pi pi-pencil" style={{ fontSize: '0.7rem' }}></i>
+                {updatedAtLabel}
+              </span>
+            )}
+          </div>
+          <div className={`text-xl font-bold mb-1 word-break-break-word ${isCompleted ? 'line-through text-gray-400' : ''}`}>
+            {item.title}
+          </div>
+          <div className="text-sm text-gray-400">Erstellt von: {authorName}</div>
+        </div>
+        <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
+          <Button
+            text
+            rounded
+            className={`p-button-sm ${hasUpvoted ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}`}
+            title="Daumen hoch"
+            onClick={() => onToggleUpvote(index)}
+          >
+            <i className={`pi ${hasUpvoted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'} text-xl`}></i>
+            {upvoteCount > 0 && (
+              <Badge value={upvoteCount} severity="warning" className="ml-2"></Badge>
+            )}
+          </Button>
+          <Button
+            icon={isCompleted ? 'pi pi-check-circle' : 'pi pi-circle'}
+            rounded
+            text
+            className={isCompleted ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}
+            title={isCompleted ? 'Als noch nicht besprochen markieren' : 'Als besprochen markieren'}
+            onClick={() => onToggleCompleted(index)}
+          />
+          <Button
+            icon="pi pi-pencil"
+            rounded
+            text
+            className="text-gray-400 hover:text-yellow-400"
+            title="Bearbeiten"
+            onClick={() => onEdit(index)}
+          />
+          <Button
+            icon="pi pi-trash"
+            rounded
+            text
+            className="text-gray-400 hover:text-red-400"
+            title="Löschen"
+            onClick={() => onDelete(index)}
+          />
+          <Button
+            icon={detailsOpen ? 'pi pi-angle-up' : 'pi pi-angle-down'}
+            rounded
+            text
+            disabled={!hasDetails}
+            className={hasDetails ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-600 opacity-40'}
+            title={hasDetails ? 'Details anzeigen/einklappen' : 'Keine Details vorhanden'}
+            onClick={() => {
+              if (hasDetails) setDetailsOpen((o) => !o);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Details are only rendered in the DOM when opened — avoids heavy MDXEditor instances */}
+      {hasDetails && detailsOpen && (
+        <div className="agenda-details-container mt-3 pt-3 border-top-1 border-gray-700 text-gray-300 line-height-3">
+          <div className="flex flex-column md:flex-row gap-4 align-items-start justify-content-between">
+            {/* Links: Details-Text */}
+            <div className="flex-1 min-w-0">
+              {item.description && (
+                <MDXEditor
+                  markdown={item.description}
+                  readOnly
+                  plugins={READONLY_PLUGINS}
+                />
+              )}
+              {item.upvotes && item.upvotes.length > 0 && (
+                <div className="mt-3 text-sm text-gray-400 bg-gray-800 p-2 border-round inline-block">
+                  <i className="pi pi-thumbs-up mr-2 text-yellow-500"></i>
+                  <span className="font-bold text-gray-300">Daumen hoch von: </span>
+                  {upvoterNames}
+                </div>
+              )}
+            </div>
+
+            {/* Rechts: Bild (unverzerrt & skaliert) */}
+            {item.imageUrl && (
+              <div className="border-round-lg overflow-hidden flex-shrink-0 bg-black-alpha-40 border-1 border-gray-700 w-full md:w-auto p-1 self-center md:self-start">
+                <img
+                  src={item.imageUrl}
+                  alt={item.title}
+                  className="h-auto border-round cursor-pointer hover:opacity-90 transition-opacity"
+                  style={{ maxHeight: '220px', maxWidth: '280px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                  loading="lazy"
+                  onClick={() => onPreviewImage(item.imageUrl!)}
+                  title="Klicken zum Vergrößern"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ─── Main Component ────────────────────────────────────────────────────────
+export default function AgendaTimeline({
+  agenda,
+  items,
+  attendees = [],
+  currentUser,
+  isCreator = true,
+  onUpdate,
+  onUpdateAgenda,
+}: Props) {
   const [visible, setVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
@@ -93,35 +306,28 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
   const editorRef = useRef<MDXEditorMethods>(null);
   const [editorKey, setEditorKey] = useState(0);
 
-  const getAuthorName = (item: AgendaItem) => {
-    if (item.createdBy) {
-      const attendee = attendees.find((a: any) =>
-        (a.id && a.id === item.createdBy) ||
-        (a._id && a._id === item.createdBy) ||
-        (a.name && a.name.trim().toLowerCase() === item.createdBy?.trim().toLowerCase())
-      );
-      if (attendee) return attendee.name;
-    }
-    if (item.author && item.author !== 'Unbekannt') {
-      return item.author;
-    }
-    return item.createdBy || item.author || 'Unbekannt';
-  };
+  const currentUserId = useMemo(
+    () => currentUser?.id || currentUser?._id || currentUser?.name,
+    [currentUser]
+  );
 
-  let isClosed = !!(agenda && agenda.isManuallyClosed);
-  if (!isClosed && agenda && agenda.date) {
-    const agendaDate = new Date(agenda.date).getTime();
-    const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
-    isClosed = Date.now() > agendaDate - offsetMs;
-  }
+  const isClosed = useMemo(() => {
+    if (agenda?.isManuallyClosed) return true;
+    if (agenda?.date) {
+      const agendaDate = new Date(agenda.date).getTime();
+      const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
+      return Date.now() > agendaDate - offsetMs;
+    }
+    return false;
+  }, [agenda]);
 
-  const toggleManualClose = async () => {
+  const toggleManualClose = useCallback(async () => {
     if (onUpdateAgenda) {
       await onUpdateAgenda({ isManuallyClosed: !agenda?.isManuallyClosed });
     }
-  };
+  }, [onUpdateAgenda, agenda?.isManuallyClosed]);
 
-  const openNew = () => {
+  const openNew = useCallback(() => {
     setTitle('');
     setDescription('');
     setImageUrl('');
@@ -130,28 +336,31 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
     if (editorRef.current) {
       editorRef.current.setMarkdown('');
     } else {
-      setEditorKey(k => k + 1);
+      setEditorKey((k) => k + 1);
     }
     setVisible(true);
-  };
+  }, []);
 
-  const openEdit = (index: number) => {
-    const item = items[index];
-    const newDesc = item.description || '';
-    setTitle(item.title);
-    setDescription(newDesc);
-    setImageUrl(item.imageUrl || '');
-    setEditingIndex(index);
-    setShowDetails(!!(item.description || item.imageUrl));
-    if (editorRef.current) {
-      editorRef.current.setMarkdown(newDesc);
-    } else {
-      setEditorKey(k => k + 1);
-    }
-    setVisible(true);
-  };
+  const openEdit = useCallback(
+    (index: number) => {
+      const item = items[index];
+      const newDesc = item.description || '';
+      setTitle(item.title);
+      setDescription(newDesc);
+      setImageUrl(item.imageUrl || '');
+      setEditingIndex(index);
+      setShowDetails(!!(item.description || item.imageUrl));
+      if (editorRef.current) {
+        editorRef.current.setMarkdown(newDesc);
+      } else {
+        setEditorKey((k) => k + 1);
+      }
+      setVisible(true);
+    },
+    [items]
+  );
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -184,80 +393,74 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
       };
       reader.readAsDataURL(file);
     }
-  };
+  }, []);
 
-  const toggleCompleted = async (index: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    let updatedItems = [...items];
-    updatedItems[index] = {
-      ...updatedItems[index],
-      completed: !updatedItems[index].completed,
-      updatedAt: new Date().toISOString()
-    };
-    await onUpdate(updatedItems);
-  };
+  const toggleCompleted = useCallback(
+    async (index: number) => {
+      const updatedItems = [...items];
+      updatedItems[index] = {
+        ...updatedItems[index],
+        completed: !updatedItems[index].completed,
+        updatedAt: new Date().toISOString(),
+      };
+      await onUpdate(updatedItems);
+    },
+    [items, onUpdate]
+  );
 
-  const toggleUpvote = async (index: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const userId = currentUser?.id || currentUser?._id || currentUser?.name;
-    if (!userId) return;
+  const toggleUpvote = useCallback(
+    async (index: number) => {
+      if (!currentUserId) return;
+      const updatedItems = [...items];
+      const item = { ...updatedItems[index] };
+      const upvotes = item.upvotes || [];
+      item.upvotes = upvotes.includes(currentUserId)
+        ? upvotes.filter((id: string) => id !== currentUserId)
+        : [...upvotes, currentUserId];
+      item.updatedAt = new Date().toISOString();
+      updatedItems[index] = item;
+      await onUpdate(updatedItems);
+    },
+    [items, onUpdate, currentUserId]
+  );
 
-    let updatedItems = [...items];
-    const item = { ...updatedItems[index] };
-    const upvotes = item.upvotes || [];
+  const deleteItem = useCallback(
+    async (index: number) => {
+      const updatedItems = items.filter((_, i) => i !== index);
+      await onUpdate(updatedItems);
+    },
+    [items, onUpdate]
+  );
 
-    if (upvotes.includes(userId)) {
-      item.upvotes = upvotes.filter((id: string) => id !== userId);
-    } else {
-      item.upvotes = [...upvotes, userId];
-    }
-
-    item.updatedAt = new Date().toISOString();
-
-    updatedItems[index] = item;
-    await onUpdate(updatedItems);
-  };
-
-  const deleteItem = async (index: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const updatedItems = items.filter((_, i) => i !== index);
-    await onUpdate(updatedItems);
-  };
-
-  const sortByDate = async () => {
+  const sortByDate = useCallback(async () => {
     const sorted = [...items].sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateA - dateB;
     });
     await onUpdate(sorted);
-  };
+  }, [items, onUpdate]);
 
-  const sortByRating = async () => {
-    const sorted = [...items].sort((a, b) => {
-      const votesA = a.upvotes?.length || 0;
-      const votesB = b.upvotes?.length || 0;
-      return votesB - votesA;
-    });
+  const sortByRating = useCallback(async () => {
+    const sorted = [...items].sort((a, b) => (b.upvotes?.length || 0) - (a.upvotes?.length || 0));
     await onUpdate(sorted);
-  };
+  }, [items, onUpdate]);
 
-  const sortRandomly = async () => {
+  const sortRandomly = useCallback(async () => {
     const sorted = [...items].sort(() => Math.random() - 0.5);
     await onUpdate(sorted);
-  };
+  }, [items, onUpdate]);
 
-  const saveItem = async () => {
+  const saveItem = useCallback(async () => {
     if (!title.trim()) return;
-
-    let updatedItems = [...items];
+    const updatedItems = [...items];
     if (editingIndex !== null) {
       updatedItems[editingIndex] = {
         ...updatedItems[editingIndex],
         title,
         description,
         imageUrl,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
     } else {
       const authorName = currentUser?.name || 'Unbekannt';
@@ -270,147 +473,57 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
         createdBy: createdById,
         completed: false,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       });
     }
-
     await onUpdate(updatedItems);
     setVisible(false);
-  };
+  }, [title, description, imageUrl, editingIndex, items, currentUser, onUpdate]);
 
-  const customizedMarker = (item: AgendaItem, index: number) => {
-    const isCompleted = !!item.completed;
-    return (
-      <span
-        onClick={(e) => toggleCompleted(index, e)}
-        className="flex w-2rem h-2rem align-items-center justify-content-center border-circle z-1 shadow-1 cursor-pointer transition-transform hover:scale-110"
-        style={{ backgroundColor: '#eab308' }}
-        title={isCompleted ? "Als noch nicht besprochen markieren" : "Als besprochen markieren"}
-      >
-        {isCompleted ? (
-          <i className="pi pi-check text-gray-900 font-bold"></i>
-        ) : (
-          <span className="border-circle" style={{ width: '0.65rem', height: '0.65rem', backgroundColor: '#111827', display: 'block' }} />
-        )}
-      </span>
-    );
-  };
-
-  const customizedContent = (item: AgendaItem, index: number) => {
-    const hasDetails = !!item.description || !!item.imageUrl || (item.upvotes && item.upvotes.length > 0);
-    const isCompleted = !!item.completed;
-    const currentUserId = currentUser?.id || currentUser?._id || currentUser?.name;
-    const hasUpvoted = (item.upvotes || []).includes(currentUserId);
-    const upvoteCount = item.upvotes?.length || 0;
-
-    return (
-      <div className={`mb-4 comic-panel-dark p-3 sm:p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
-        <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-center mb-2 gap-2">
-          <div className="flex-1 min-w-0 w-full sm:w-auto">
-            <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
-              {item.createdAt && (
-                <span className="flex align-items-center gap-1" title="Erstellt am">
-                  <i className="pi pi-calendar-plus" style={{ fontSize: '0.7rem' }}></i>
-                  {new Date(item.createdAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-              {item.updatedAt && (
-                <span className="flex align-items-center gap-1" title="Zuletzt bearbeitet am">
-                  <i className="pi pi-pencil" style={{ fontSize: '0.7rem' }}></i>
-                  {new Date(item.updatedAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-            </div>
-            <div className={`text-xl font-bold mb-1 word-break-break-word ${isCompleted ? 'line-through text-gray-400' : ''}`}>
-              {item.title}
-            </div>
-            <div className="text-sm text-gray-400">Erstellt von: {getAuthorName(item)}</div>
-          </div>
-          <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
-            <Button
-              text
-              rounded
-              className={`p-button-sm ${hasUpvoted ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}`}
-              title="Daumen hoch"
-              onClick={(e) => toggleUpvote(index, e)}
-            >
-              <i className={`pi ${hasUpvoted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'} text-xl`}></i>
-              {upvoteCount > 0 && (
-                <Badge value={upvoteCount} severity="warning" className="ml-2"></Badge>
-              )}
-            </Button>
-            <Button
-              icon={isCompleted ? "pi pi-check-circle" : "pi pi-circle"}
-              rounded
-              text
-              className={isCompleted ? "text-yellow-400" : "text-gray-400 hover:text-yellow-400"}
-              title={isCompleted ? "Als noch nicht besprochen markieren" : "Als besprochen markieren"}
-              onClick={(e) => toggleCompleted(index, e)}
+  // Stable marker renderer — avoids O(n²) indexOf
+  const customizedMarker = useCallback(
+    (item: AgendaItem, index: number) => {
+      const isCompleted = !!item.completed;
+      return (
+        <span
+          onClick={() => toggleCompleted(index)}
+          className="flex w-2rem h-2rem align-items-center justify-content-center border-circle z-1 shadow-1 cursor-pointer transition-transform hover:scale-110"
+          style={{ backgroundColor: '#eab308' }}
+          title={isCompleted ? 'Als noch nicht besprochen markieren' : 'Als besprochen markieren'}
+        >
+          {isCompleted ? (
+            <i className="pi pi-check text-gray-900 font-bold"></i>
+          ) : (
+            <span
+              className="border-circle"
+              style={{ width: '0.65rem', height: '0.65rem', backgroundColor: '#111827', display: 'block' }}
             />
-            <Button icon="pi pi-pencil" rounded text className="text-gray-400 hover:text-yellow-400" title="Bearbeiten" onClick={() => openEdit(index)} />
-            <Button icon="pi pi-trash" rounded text className="text-gray-400 hover:text-red-400" title="Löschen" onClick={(e) => deleteItem(index, e)} />
-            <Button
-              icon="pi pi-angle-down"
-              rounded
-              text
-              disabled={!hasDetails}
-              className={hasDetails ? "text-gray-400 hover:text-yellow-400" : "text-gray-600 opacity-40"}
-              title={hasDetails ? "Details anzeigen/einklappen" : "Keine Details vorhanden"}
-              onClick={(e) => {
-                if (!hasDetails) return;
-                const cardEl = e.currentTarget.closest('.comic-panel-dark');
-                const detailsEl = cardEl?.querySelector('.agenda-details-container');
-                if (detailsEl) {
-                  detailsEl.classList.toggle('hidden');
-                }
-              }}
-            />
-          </div>
-        </div>
+          )}
+        </span>
+      );
+    },
+    [toggleCompleted]
+  );
 
-        {hasDetails && (
-          <div className="agenda-details-container hidden mt-3 pt-3 border-top-1 border-gray-700 text-gray-300 line-height-3">
-            <div className="flex flex-column md:flex-row gap-4 align-items-start justify-content-between">
-              {/* Links: Details-Text */}
-              <div className="flex-1 min-w-0">
-                {item.description && (
-                  <MDXEditor
-                    markdown={item.description}
-                    readOnly
-                    plugins={READONLY_PLUGINS}
-                  />
-                )}
-                {item.upvotes && item.upvotes.length > 0 && (
-                  <div className="mt-3 text-sm text-gray-400 bg-gray-800 p-2 border-round inline-block">
-                    <i className="pi pi-thumbs-up mr-2 text-yellow-500"></i>
-                    <span className="font-bold text-gray-300">Daumen hoch von: </span>
-                    {item.upvotes.map((id: string) => {
-                      const attendee = attendees.find((a: any) => a.id === id || a._id === id || a.name === id);
-                      return attendee ? attendee.name : id;
-                    }).join(', ')}
-                  </div>
-                )}
-              </div>
-
-              {/* Rechts: Bild (unverzerrt & skaliert) */}
-              {item.imageUrl && (
-                <div className="border-round-lg overflow-hidden flex-shrink-0 bg-black-alpha-40 border-1 border-gray-700 w-full md:w-auto p-1 self-center md:self-start">
-                  <img
-                    src={item.imageUrl}
-                    alt={item.title}
-                    className="h-auto border-round cursor-pointer hover:opacity-90 transition-opacity"
-                    style={{ maxHeight: '220px', maxWidth: '280px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                    onClick={() => setSelectedPreviewImage(item.imageUrl || null)}
-                    title="Klicken zum Vergrößern"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+  // Stable content renderer — index comes directly from PrimeReact, no indexOf needed
+  const customizedContent = useCallback(
+    (item: AgendaItem, index: number) => (
+      <AgendaCard
+        key={item._id ?? index}
+        item={item}
+        index={index}
+        currentUserId={currentUserId}
+        attendees={attendees}
+        isCreator={isCreator}
+        onToggleCompleted={toggleCompleted}
+        onToggleUpvote={toggleUpvote}
+        onDelete={deleteItem}
+        onEdit={openEdit}
+        onPreviewImage={setSelectedPreviewImage}
+      />
+    ),
+    [currentUserId, attendees, isCreator, toggleCompleted, toggleUpvote, deleteItem, openEdit]
+  );
 
   return (
     <div className="mb-6">
@@ -433,10 +546,10 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
           {isCreator && (
             <div className="flex gap-2 flex-wrap ml-auto md:ml-0">
               <Button
-                icon={agenda?.isManuallyClosed ? "pi pi-lock-open" : "pi pi-lock"}
+                icon={agenda?.isManuallyClosed ? 'pi pi-lock-open' : 'pi pi-lock'}
                 onClick={toggleManualClose}
                 className="comic-button-secondary flex-shrink-0"
-                title={agenda?.isManuallyClosed ? "Agenda öffnen" : "Agenda schließen"}
+                title={agenda?.isManuallyClosed ? 'Agenda öffnen' : 'Agenda schließen'}
               />
             </div>
           )}
@@ -455,15 +568,13 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
         <Timeline
           align="left"
           value={items}
-          content={(item) => customizedContent(item, items.indexOf(item))}
-          marker={(item) => customizedMarker(item, items.indexOf(item))}
+          content={customizedContent}
+          marker={customizedMarker}
           className="w-full"
         />
       ) : (
         <p className="text-gray-400 mb-4">Noch keine Agendapunkte vorhanden.</p>
       )}
-
-
 
       {/* Floating Action Button (FAB) */}
       {!isClosed && (
@@ -501,8 +612,8 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
           {/* Toggle Button for Details & Bild */}
           <div className="border-top-1 border-gray-700 pt-2 flex align-items-center">
             <Button
-              icon={showDetails ? "pi pi-chevron-up" : "pi pi-chevron-down"}
-              label={showDetails ? "Details & Bild einklappen" : "Details & Bild hinzufügen..."}
+              icon={showDetails ? 'pi pi-chevron-up' : 'pi pi-chevron-down'}
+              label={showDetails ? 'Details & Bild einklappen' : 'Details & Bild hinzufügen...'}
               text
               className="text-gray-400 hover:text-yellow-400 p-0 text-sm font-bold"
               onClick={() => setShowDetails(!showDetails)}
@@ -590,7 +701,7 @@ export default function AgendaTimeline({ agenda, items, attendees = [], currentU
         visible={!!selectedPreviewImage}
         onHide={() => setSelectedPreviewImage(null)}
         header="Bildansicht"
-        style={{ width: '90vw', maxWidth: '1000px' }}
+        style={{ width: '90vw', maxWidth: '1200px' }}
         className="glass-panel"
         modal
       >

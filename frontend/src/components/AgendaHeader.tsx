@@ -134,7 +134,6 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         const data: NominatimResult[] = await res.json();
         setSearchResults(data);
         if (data.length > 0) {
-          // Auto select first result for map preview
           setSelectedCoords({
             lat: parseFloat(data[0].lat),
             lng: parseFloat(data[0].lon)
@@ -177,37 +176,35 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
   };
 
   return (
-    <div className="mb-6">
-
-
+    <div className="mb-4 sm:mb-6">
       {/* QR Code Dialog */}
       <Dialog
         header="QR-Code scannen"
         visible={showQR}
         onHide={() => setShowQR(false)}
-        style={{ width: 'auto' }}
+        style={{ width: '92vw', maxWidth: '360px' }}
         className="glass-panel"
         modal
         draggable={false}
         resizable={false}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem', padding: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '0.5rem' }}>
           <div style={{
             background: '#fff',
             borderRadius: '16px',
-            padding: '20px',
+            padding: '16px',
             boxShadow: '0 4px 24px rgba(234,179,8,0.25)'
           }}>
             <QRCodeSVG
               value={window.location.href}
-              size={220}
+              size={180}
               bgColor="#ffffff"
               fgColor="#1a1a1a"
               level="H"
               includeMargin={false}
             />
           </div>
-          <p style={{ color: '#facc15', fontSize: '0.8rem', margin: 0, maxWidth: '260px', textAlign: 'center', wordBreak: 'break-all' }}>
+          <p style={{ color: '#facc15', fontSize: '0.75rem', margin: 0, maxWidth: '240px', textAlign: 'center', wordBreak: 'break-all' }}>
             {window.location.href}
           </p>
         </div>
@@ -218,9 +215,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         <div
           className="flex align-items-center gap-1"
           style={{
-            background: 'rgba(0,0,0,0.65)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
+            background: 'rgba(0,0,0,0.85)',
             borderRadius: '999px',
             padding: '4px 10px',
             border: '1px solid rgba(234,179,8,0.3)',
@@ -235,31 +230,36 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         </div>
       </div>
 
-      {/* Mobile: Action buttons above the title (right-aligned) */}
-      <div className="flex md:hidden mb-3 justify-content-end">
+      {/* Mobile: Action buttons above title */}
+      <div className="flex md:hidden mb-3 justify-content-between align-items-center flex-wrap gap-2">
+        <Button
+          icon="pi pi-arrow-left"
+          label="Zurück"
+          text
+          size="small"
+          onClick={() => navigate('/')}
+          className="text-yellow-400 font-bold p-0 text-sm"
+        />
         <div
-          className="flex align-items-center gap-1"
+          className="flex align-items-center gap-1 ml-auto"
           style={{
-            background: 'rgba(0,0,0,0.65)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
+            background: 'rgba(0,0,0,0.85)',
             borderRadius: '999px',
-            padding: '4px 10px',
+            padding: '3px 8px',
             border: '1px solid rgba(234,179,8,0.3)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
           }}
         >
-          <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2.2rem', height: '2.2rem' }} />
-          <Button icon="pi pi-plus" rounded text size="small" onClick={handleCreateNewFromCurrent} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
-          <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2.2rem', height: '2.2rem' }} />
-          <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2.2rem', height: '2.2rem' }} />
-          <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code anzeigen" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-plus" rounded text size="small" onClick={handleCreateNewFromCurrent} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda" style={{ width: '2rem', height: '2rem' }} />
+          <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2rem', height: '2rem' }} />
+          <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2rem', height: '2rem' }} />
+          <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code" style={{ width: '2rem', height: '2rem' }} />
         </div>
       </div>
 
-      <div className="flex align-items-center mb-4 group flex-wrap gap-2 pt-2 md:pt-4">
-        <i className="pi pi-bolt text-yellow-400 text-4xl md:text-6xl flex-shrink-0" />
-        <h1 className="text-4xl md:text-6xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest line-height-1">
+      <div className="flex align-items-center mb-3 sm:mb-4 group flex-wrap gap-2 pt-1 md:pt-4">
+        <i className="pi pi-bolt text-yellow-400 text-3xl sm:text-4xl md:text-6xl flex-shrink-0" />
+        <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 font-luckiest line-height-1 word-break-break-word flex-1 min-w-0">
           {agenda.title}
         </h1>
         <Button
@@ -268,19 +268,19 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           text
           aria-label="Edit Title"
           onClick={() => openEdit('title', agenda.title)}
-          className="text-gray-400 hover:text-yellow-400 p-0"
-          style={{ width: '2.5rem', height: '2.5rem' }}
+          className="text-gray-400 hover:text-yellow-400 p-0 flex-shrink-0"
+          style={{ width: '2.2rem', height: '2.2rem' }}
         />
       </div>
 
       {/* Layout: Boxen oben/links, Karte unten/rechts */}
-      <div className="flex flex-column md:flex-row gap-4 align-items-start mb-4 w-full">
-        {/* Links/Oben: Boxen Container */}
-        <div className="flex flex-column gap-3 w-full md:flex-1 md:max-w-md min-w-0">
+      <div className="flex flex-column md:flex-row gap-3 sm:gap-4 align-items-start mb-4 w-full">
+        {/* Links/Oben: Boxen Container - min-h-4rem fixes cutoff on small screens */}
+        <div className="flex flex-column gap-2 sm:gap-3 w-full md:flex-1 md:max-w-md min-w-0">
           {/* Datum */}
-          <div className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full">
-            <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
-              <i className="pi pi-calendar-plus text-yellow-500 text-2xl flex-shrink-0" />
+          <div className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full">
+            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+              <i className="pi pi-calendar-plus text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
               <Calendar
                 value={agenda.date ? parseISO(agenda.date) : null}
                 onChange={async (e) => {
@@ -294,7 +294,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 dateFormat="dd.mm.yy"
                 placeholder="Datum & Uhrzeit hinzufügen..."
                 className="text-white font-bold w-full"
-                inputClassName="bg-transparent text-white font-bold text-base sm:text-xl border-none p-0 w-full"
+                inputClassName="bg-transparent text-white font-bold text-sm sm:text-xl border-none p-0 w-full"
                 panelClassName="comic-panel-dark"
               />
             </div>
@@ -307,18 +307,18 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 e.stopPropagation();
                 openEdit('date', agenda.date);
               }}
-              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
+              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
             />
           </div>
 
           {/* Ort */}
           <div
-            className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full cursor-pointer"
+            className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full cursor-pointer"
             onClick={() => openEdit('location', agenda.location?.name)}
           >
-            <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
-              <i className="pi pi-map-marker text-yellow-500 text-2xl flex-shrink-0" />
-              <span className={`text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-white-alpha-60'}`}>
+            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+              <i className="pi pi-map-marker text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+              <span className={`text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-white-alpha-60'}`}>
                 {agenda.location?.name || 'Ort hinzufügen...'}
               </span>
             </div>
@@ -330,13 +330,13 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 e.stopPropagation();
                 openEdit('location', agenda.location?.name);
               }}
-              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
+              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
             />
           </div>
 
           {/* Speisekarte */}
           <div
-            className="comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full cursor-pointer"
+            className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full cursor-pointer"
             onClick={() => {
               if (agenda.menuUrl) {
                 window.open(agenda.menuUrl, '_blank');
@@ -345,9 +345,9 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
               }
             }}
           >
-            <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
-              <i className="pi pi-book text-yellow-500 text-2xl flex-shrink-0" />
-              <span className={`text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-white-alpha-60'}`}>
+            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+              <i className="pi pi-book text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+              <span className={`text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-white-alpha-60'}`}>
                 {agenda.menuUrl ? 'Speisekarte öffnen' : 'Speisekarte hinzufügen...'}
               </span>
             </div>
@@ -359,18 +359,18 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 e.stopPropagation();
                 openEdit('menuUrl', agenda.menuUrl);
               }}
-              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
+              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
             />
           </div>
 
           {/* Annahmeschluss */}
           <div
-            className={`comic-panel-dark px-4 py-2 flex align-items-center justify-content-between h-4rem w-full ${isCreator ? 'cursor-pointer' : ''}`}
+            className={`comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full ${isCreator ? 'cursor-pointer' : ''}`}
             onClick={() => isCreator && openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12)}
           >
-            <div className="flex align-items-center gap-3 flex-1 overflow-hidden">
-              <i className="pi pi-lock text-yellow-500 text-2xl flex-shrink-0" />
-              <span className="text-white font-bold text-base sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+              <i className="pi pi-lock text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+              <span className="text-white font-bold text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
                 Schluss: {agenda.closeBeforeHours !== undefined ? agenda.closeBeforeHours : 12}h vorher
               </span>
             </div>
@@ -383,7 +383,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                   e.stopPropagation();
                   openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12);
                 }}
-                className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-2"
+                className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
               />
             )}
           </div>
@@ -391,9 +391,9 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
 
         {/* Unten/Rechts: Karte */}
         {agenda.location?.name && (
-          <div className="comic-panel-dark p-3 w-full md:flex-1 md:min-w-18rem md:max-w-lg">
+          <div className="comic-panel-dark p-2 sm:p-3 w-full md:flex-1 md:min-w-18rem md:max-w-lg">
             {agenda.location.lat && agenda.location.lng ? (
-              <div className="mb-3 border-round-lg overflow-hidden" style={{ height: '300px' }}>
+              <div className="mb-2 sm:mb-3 border-round-lg overflow-hidden" style={{ height: '220px' }}>
                 <MapContainer
                   center={[agenda.location.lat, agenda.location.lng]}
                   zoom={14}
@@ -409,14 +409,14 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 </MapContainer>
               </div>
             ) : (
-              <div className="bg-gray-700 border-round-lg mb-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold" style={{ height: '300px' }}>
-                <i className="pi pi-map text-3xl mb-2" />
-                <span className="block text-sm">Keine Koordinaten für diesen Ort</span>
+              <div className="bg-gray-700 border-round-lg mb-2 sm:mb-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold" style={{ height: '220px' }}>
+                <i className="pi pi-map text-2xl mb-1" />
+                <span className="block text-xs sm:text-sm">Keine Koordinaten für diesen Ort</span>
               </div>
             )}
-            <div className="flex flex-column sm:flex-row gap-2">
-              <Button label="Google Maps" icon="pi pi-google" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
-              <Button label="Apple Maps" icon="pi pi-apple" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs" onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
+            <div className="flex flex-row gap-2">
+              <Button label="Google Maps" icon="pi pi-google" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs px-1" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
+              <Button label="Apple Maps" icon="pi pi-apple" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs px-1" onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
             </div>
           </div>
         )}
@@ -426,8 +426,8 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
       <Dialog
         header="Bearbeite Info"
         visible={!!editField}
-        style={{ width: '95vw', maxWidth: editField === 'location' ? '900px' : '440px', height: editField === 'location' ? '700px' : 'auto' }}
-        contentStyle={{ height: editField === 'location' ? '620px' : 'auto', display: 'flex', flexDirection: 'column' }}
+        style={{ width: '95vw', maxWidth: editField === 'location' ? '900px' : '440px', height: editField === 'location' ? '90vh' : 'auto' }}
+        contentStyle={{ height: editField === 'location' ? '100%' : 'auto', display: 'flex', flexDirection: 'column' }}
         onHide={() => setEditField(null)}
         className="glass-panel"
       >
@@ -438,7 +438,6 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
 
           {editField === 'location' && (
             <div className="flex flex-column gap-3 flex-1 overflow-hidden">
-              {/* Search input with Button & Enter key support */}
               <div className="flex gap-2">
                 <InputText
                   value={tempValue}
@@ -451,7 +450,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                   }}
                   autoFocus
                   placeholder="Ort oder Adresse suchen..."
-                  className="comic-panel-dark text-white flex-1"
+                  className="comic-panel-dark text-white flex-1 text-sm"
                 />
                 <Button
                   icon={isSearching ? "pi pi-spin pi-spinner" : "pi pi-search"}
@@ -460,17 +459,16 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 />
               </div>
 
-              {/* Suggestions list (Scrollable) */}
               {searchResults.length > 0 && (
                 <div
                   className="comic-panel-dark p-2 flex flex-column gap-1 overflow-y-auto"
-                  style={{ background: '#111827', maxHeight: '180px' }}
+                  style={{ background: '#111827', maxHeight: '160px' }}
                 >
                   {searchResults.map((place) => (
                     <div
                       key={place.place_id}
                       onClick={() => selectOsmPlace(place)}
-                      className="p-2 border-round cursor-pointer hover:bg-gray-800 text-sm text-white"
+                      className="p-2 border-round cursor-pointer hover:bg-gray-800 text-xs sm:text-sm text-white"
                     >
                       <i className="pi pi-map-marker text-yellow-500 mr-2" />
                       {place.display_name}
@@ -479,9 +477,8 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 </div>
               )}
 
-              {/* Live Map Preview inside Dialog */}
               {(selectedCoords.lat || agenda.location?.lat) ? (
-                <div className="border-round-lg overflow-hidden flex-1" style={{ minHeight: '320px' }}>
+                <div className="border-round-lg overflow-hidden flex-1" style={{ minHeight: '220px' }}>
                   <MapContainer
                     center={[
                       selectedCoords.lat ?? agenda.location?.lat!,
@@ -508,7 +505,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                   </MapContainer>
                 </div>
               ) : (
-                <div className="bg-gray-800 border-round-lg p-3 text-center text-gray-400 text-sm flex align-items-center justify-content-center flex-1" style={{ minHeight: '260px' }}>
+                <div className="bg-gray-800 border-round-lg p-3 text-center text-gray-400 text-xs sm:text-sm flex align-items-center justify-content-center flex-1" style={{ minHeight: '180px' }}>
                   <span>Suche ein Ausflugsziel oder gib eine Adresse ein für die Kartenvorschau</span>
                 </div>
               )}
@@ -516,12 +513,12 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           )}
 
           {editField === 'menuUrl' && (
-            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="https://..." className="comic-panel-dark text-white" />
+            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="https://..." className="comic-panel-dark text-white text-sm" />
           )}
 
           {editField === 'closeBeforeHours' && (
             <div className="flex flex-column gap-2">
-              <label className="text-gray-300 font-bold">Stunden vor Beginn, ab denen keine Punkte mehr hinzugefügt werden können:</label>
+              <label className="text-gray-300 font-bold text-sm">Stunden vor Beginn, ab denen keine Punkte mehr hinzugefügt werden können:</label>
               <InputText type="number" min={0} value={tempValue} onChange={(e) => setTempValue(Number(e.target.value))} autoFocus className="comic-panel-dark text-white" />
             </div>
           )}

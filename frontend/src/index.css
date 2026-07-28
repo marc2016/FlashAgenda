@@ -1,21 +1,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@300;400;500;600;700&family=Luckiest+Guy&display=swap');
 @import 'leaflet/dist/leaflet.css';
 
+html {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #111827; /* gray-900 */
+  background-color: #b71c1c; /* global comic red */
   color: #f9fafb; /* gray-50 */
 }
 
 /* Glassmorphism utility */
 .glass-panel {
-  background: rgba(31, 41, 55, 0.4); /* gray-800 with opacity */
+  background: rgba(31, 41, 55, 0.7); /* gray-800 with opacity */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Disable expensive backdrop-filter on mobile screens to ensure 60fps touch scrolling */
+@media (max-width: 768px) {
+  .glass-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(31, 41, 55, 0.96) !important;
+  }
 }
 
 /* Custom utilities */
@@ -140,9 +154,10 @@ body {
   border: 3px solid #000 !important;
   box-shadow: 6px 6px 0px #000 !important;
   border-radius: 12px !important;
+  contain: content;
 }
 
-/* Global button override for PrimeReact warning buttons (which are the yellow ones used) */
+/* Global button override for PrimeReact warning buttons */
 .p-button.p-button-warning, .p-button.p-button-outlined.p-button-warning {
   background-color: #facc15 !important;
   color: #000 !important;
@@ -165,12 +180,6 @@ body {
 
 .bg-comic-red {
   background-color: #b71c1c !important;
-}
-
-/* Global override for body background to red */
-body {
-  background-color: #b71c1c;
-  color: #f9fafb;
 }
 
 /* CSS Logo */
@@ -324,5 +333,3 @@ body {
   white-space: nowrap;
   pointer-events: none;
 }
-
-
