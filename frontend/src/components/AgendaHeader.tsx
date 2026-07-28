@@ -715,8 +715,20 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           )}
           {agenda.location?.name && (
             <div className="flex flex-row gap-2">
-              <Button label="Google Maps" icon="pi pi-google" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs px-1" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
-              <Button label="Apple Maps" icon="pi pi-apple" size="small" className="p-button-outlined p-button-secondary flex-1 text-xs px-1" onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')} />
+              <Button
+                label="Google Maps"
+                icon="pi pi-google"
+                size="small"
+                className="p-button-outlined p-button-secondary flex-1 text-xs justify-content-center gap-2 px-2 py-2 font-bold"
+                onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')}
+              />
+              <Button
+                label="Apple Maps"
+                icon="pi pi-apple"
+                size="small"
+                className="p-button-outlined p-button-secondary flex-1 text-xs justify-content-center gap-2 px-2 py-2 font-bold"
+                onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')}
+              />
             </div>
           )}
         </div>
