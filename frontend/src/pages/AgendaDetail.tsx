@@ -257,23 +257,29 @@ export default function AgendaDetail() {
 
   const renderFloatingBanderole = () => {
     if (bannerState === 'HIDDEN') return null;
+
+    const bgColor =
+      bannerState === 'OFFLINE'
+        ? '#dc2626'
+        : bannerState === 'SYNC'
+        ? '#ea580c'
+        : '#16a34a';
+
     return (
       <div
-        className={`fixed top-0 left-0 flex align-items-center gap-2 font-bold px-3 py-2 border-bottom-3 border-right-3 border-black uppercase tracking-wider ${
-          bannerState === 'OFFLINE'
-            ? 'bg-red-600 text-white'
-            : bannerState === 'SYNC'
-            ? 'bg-orange-500 text-white'
-            : 'bg-green-600 text-white'
-        }`}
+        className="fixed top-0 left-0 flex align-items-center gap-2 font-bold px-3 py-2 uppercase tracking-wider"
         style={{
           position: 'fixed',
           top: 0,
           left: 0,
           zIndex: 20000,
+          backgroundColor: bgColor,
+          color: '#ffffff',
+          borderBottom: '3px solid #000000',
+          borderRight: '3px solid #000000',
           borderBottomRightRadius: '16px',
-          boxShadow: '3px 3px 0px #000',
-          fontSize: '0.8rem'
+          boxShadow: '3px 3px 0px #000000',
+          fontSize: '0.85rem'
         }}
       >
         {bannerState === 'OFFLINE' && (
