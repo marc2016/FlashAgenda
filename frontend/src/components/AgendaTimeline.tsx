@@ -66,6 +66,7 @@ interface AgendaItem {
   imageUrl?: string;
   completed?: boolean;
   upvotes?: string[];
+  pinned?: boolean;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -80,6 +81,34 @@ interface Props {
   onUpdateAgenda?: (updates: any) => Promise<void>;
 }
 
+// ─── Helper for sorting while retaining pinned items' positions ───────────
+const sortWithPinned = (
+  items: AgendaItem[],
+  compareFn: (a: AgendaItem, b: AgendaItem) => number
+): AgendaItem[] => {
+  const unpinnedItems: AgendaItem[] = [];
+  const result: (AgendaItem | null)[] = new Array(items.length).fill(null);
+
+  items.forEach((item, index) => {
+    if (item.pinned) {
+      result[index] = item;
+    } else {
+      unpinnedItems.push(item);
+    }
+  });
+
+  unpinnedItems.sort(compareFn);
+
+  let unpinnedIdx = 0;
+  for (let i = 0; i < result.length; i++) {
+    if (result[i] === null) {
+      result[i] = unpinnedItems[unpinnedIdx++];
+    }
+  }
+
+  return result as AgendaItem[];
+};
+
 // ─── Memoized AgendaCard ───────────────────────────────────────────────────
 interface AgendaCardProps {
   item: AgendaItem;
@@ -89,6 +118,7 @@ interface AgendaCardProps {
   isCreator: boolean;
   onToggleCompleted: (index: number) => void;
   onToggleUpvote: (index: number) => void;
+  onTogglePinned: (index: number) => void;
   onDelete: (index: number) => void;
   onEdit: (index: number) => void;
   onPreviewImage: (url: string) => void;
@@ -101,6 +131,7 @@ const AgendaCard = memo(function AgendaCard({
   attendees,
   onToggleCompleted,
   onToggleUpvote,
+  onTogglePinned,
   onDelete,
   onEdit,
   onPreviewImage,
@@ -109,6 +140,7 @@ const AgendaCard = memo(function AgendaCard({
 
   const hasDetails = !!(item.description || item.imageUrl || (item.upvotes && item.upvotes.length > 0));
   const isCompleted = !!item.completed;
+  const isPinned = !!item.pinned;
   const hasUpvoted = useMemo(
     () => !!(currentUserId && (item.upvotes || []).includes(currentUserId)),
     [currentUserId, item.upvotes]
@@ -168,10 +200,16 @@ const AgendaCard = memo(function AgendaCard({
   );
 
   return (
-    <div className={`mb-4 comic-panel-dark p-3 sm:p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}>
+    <div className={`mb-4 comic-panel-dark p-3 sm:p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''} ${isPinned ? 'border-left-3 border-yellow-400' : ''}`}>
       <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-center mb-2 gap-2">
         <div className="flex-1 min-w-0 w-full sm:w-auto">
-          <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2">
+          <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2 align-items-center">
+            {isPinned && (
+              <span className="flex align-items-center gap-1 text-yellow-400 font-bold bg-yellow-950-alpha border-1 border-yellow-500-alpha px-2 py-1 border-round" title="Angepinnt - Position bleibt beim Sortieren fixiert">
+                <i className="mdi mdi-pin text-sm"></i>
+                <span>Angepinnt</span>
+              </span>
+            )}
             {createdAtLabel && (
               <span className="flex align-items-center gap-1" title="Erstellt am">
                 <i className="pi pi-calendar-plus" style={{ fontSize: '0.7rem' }}></i>
@@ -191,6 +229,14 @@ const AgendaCard = memo(function AgendaCard({
           <div className="text-sm text-gray-400">Erstellt von: {authorName}</div>
         </div>
         <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
+          <Button
+            icon={isPinned ? 'mdi mdi-pin text-xl' : 'mdi mdi-pin-outline text-xl'}
+            rounded
+            text
+            className={isPinned ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}
+            title={isPinned ? 'Anpinnung aufheben' : 'Agendapunkt anpinnen'}
+            onClick={() => onTogglePinned(index)}
+          />
           <Button
             text
             rounded
@@ -426,6 +472,19 @@ export default function AgendaTimeline({
     [items, onUpdate, currentUserId]
   );
 
+  const togglePinned = useCallback(
+    async (index: number) => {
+      const updatedItems = [...items];
+      updatedItems[index] = {
+        ...updatedItems[index],
+        pinned: !updatedItems[index].pinned,
+        updatedAt: new Date().toISOString(),
+      };
+      await onUpdate(updatedItems);
+    },
+    [items, onUpdate]
+  );
+
   const deleteItem = useCallback(
     async (index: number) => {
       const updatedItems = items.filter((_, i) => i !== index);
@@ -435,7 +494,7 @@ export default function AgendaTimeline({
   );
 
   const sortByDate = useCallback(async () => {
-    const sorted = [...items].sort((a, b) => {
+    const sorted = sortWithPinned(items, (a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateA - dateB;
@@ -444,12 +503,12 @@ export default function AgendaTimeline({
   }, [items, onUpdate]);
 
   const sortByRating = useCallback(async () => {
-    const sorted = [...items].sort((a, b) => (b.upvotes?.length || 0) - (a.upvotes?.length || 0));
+    const sorted = sortWithPinned(items, (a, b) => (b.upvotes?.length || 0) - (a.upvotes?.length || 0));
     await onUpdate(sorted);
   }, [items, onUpdate]);
 
   const sortRandomly = useCallback(async () => {
-    const sorted = [...items].sort(() => Math.random() - 0.5);
+    const sorted = sortWithPinned(items, () => Math.random() - 0.5);
     await onUpdate(sorted);
   }, [items, onUpdate]);
 
@@ -486,15 +545,18 @@ export default function AgendaTimeline({
   const customizedMarker = useCallback(
     (item: AgendaItem, index: number) => {
       const isCompleted = !!item.completed;
+      const isPinned = !!item.pinned;
       return (
         <span
           onClick={() => toggleCompleted(index)}
           className="flex w-2rem h-2rem align-items-center justify-content-center border-circle z-1 shadow-1 cursor-pointer transition-transform hover:scale-110"
-          style={{ backgroundColor: '#eab308' }}
+          style={{ backgroundColor: isPinned ? '#f59e0b' : '#eab308' }}
           title={isCompleted ? 'Als noch nicht besprochen markieren' : 'Als besprochen markieren'}
         >
           {isCompleted ? (
             <i className="pi pi-check text-gray-900 font-bold"></i>
+          ) : isPinned ? (
+            <i className="mdi mdi-pin text-gray-900 font-bold" style={{ fontSize: '0.9rem' }}></i>
           ) : (
             <span
               className="border-circle"
@@ -519,12 +581,13 @@ export default function AgendaTimeline({
         isCreator={isCreator}
         onToggleCompleted={toggleCompleted}
         onToggleUpvote={toggleUpvote}
+        onTogglePinned={togglePinned}
         onDelete={deleteItem}
         onEdit={openEdit}
         onPreviewImage={setSelectedPreviewImage}
       />
     ),
-    [currentUserId, attendees, isCreator, toggleCompleted, toggleUpvote, deleteItem, openEdit]
+    [currentUserId, attendees, isCreator, toggleCompleted, toggleUpvote, togglePinned, deleteItem, openEdit]
   );
 
   return (

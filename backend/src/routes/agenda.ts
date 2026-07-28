@@ -188,7 +188,8 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
       createdBy: req.body?.createdBy,
       author: req.body?.author || req.body?.createdBy,
       imageUrl: req.body?.imageUrl,
-      completed: req.body?.completed || false
+      completed: req.body?.completed || false,
+      pinned: req.body?.pinned || false
     });
     const savedAgenda = await agenda.save();
     res.status(201).json(savedAgenda);
@@ -217,6 +218,7 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.author !== undefined) item.author = req.body.author;
     if (req.body?.imageUrl !== undefined) item.imageUrl = req.body.imageUrl;
     if (req.body?.completed !== undefined) item.completed = req.body.completed;
+    if (req.body?.pinned !== undefined) item.pinned = req.body.pinned;
     
     const savedAgenda = await agenda.save();
     res.json(savedAgenda);
