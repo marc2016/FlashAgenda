@@ -461,7 +461,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 Schluss: {agenda.closeBeforeHours !== undefined ? agenda.closeBeforeHours : 12}h vorher
               </span>
             </div>
-            {isCreator && (
+            {isCreator ? (
               <Button
                 icon="pi pi-pencil"
                 rounded
@@ -471,6 +471,15 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                   openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12);
                 }}
                 className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
+              />
+            ) : (
+              <Button
+                icon="pi pi-lock"
+                rounded
+                text
+                disabled
+                className="text-gray-600 opacity-40 flex-shrink-0 ml-1 sm:ml-2 cursor-default"
+                title="Nur der Ersteller kann den Annahmeschluss bearbeiten"
               />
             )}
           </div>
