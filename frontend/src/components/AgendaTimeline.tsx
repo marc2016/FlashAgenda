@@ -425,7 +425,7 @@ const AgendaCard = memo(function AgendaCard({
                 />
               )}
               {item.upvotes && item.upvotes.length > 0 && (
-                <div className="mt-3 pt-3 border-top-1 border-gray-700 flex align-items-center gap-2 flex-wrap">
+                <div className={`flex align-items-center gap-2 flex-wrap ${item.description ? 'mt-3 pt-3 border-top-1 border-gray-700' : ''}`}>
                   <span className="text-xs font-bold text-gray-300 flex align-items-center gap-2 mr-2">
                     <i className="pi pi-thumbs-up text-yellow-400 text-sm" />
                     <span>Daumen hoch von:</span>
