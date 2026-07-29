@@ -167,15 +167,18 @@ const AgendaCard = memo(function AgendaCard({
     return item.createdBy || item.author || 'Unbekannt';
   }, [item.createdBy, item.author, attendees]);
 
-  const upvoterNames = useMemo(() => {
-    if (!item.upvotes || item.upvotes.length === 0) return '';
-    return item.upvotes
-      .map((id: string) => {
-        const attendee = attendees.find((a: any) => a.id === id || a._id === id || a.name === id);
-        return attendee ? attendee.name : id;
-      })
-      .join(', ');
-  }, [item.upvotes, attendees]);
+  const authorAttendeeData = useMemo(() => {
+    const personColors = ['#007ad9', '#ed5565', '#26a69a', '#ab47bc', '#d4e157', '#ff7043', '#ec407a', '#78909c'];
+    const personIndex = attendees.findIndex(
+      (a: any) =>
+        (a.id && a.id === item.createdBy) ||
+        (a._id && a._id === item.createdBy) ||
+        (a.name && a.name.trim().toLowerCase() === authorName.trim().toLowerCase())
+    );
+    const attendee = personIndex !== -1 ? attendees[personIndex] : null;
+    const chipColor = personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151';
+    return { attendee, chipColor };
+  }, [item.createdBy, authorName, attendees]);
 
   const createdAtLabel = useMemo(
     () =>
@@ -222,11 +225,35 @@ const AgendaCard = memo(function AgendaCard({
                 {updatedAtLabel}
               </span>
             )}
+            <span
+              className="inline-flex align-items-center font-bold text-white text-xs"
+              title={`Erstellt von ${authorName}`}
+              style={{
+                backgroundColor: authorAttendeeData.chipColor,
+                border: '2px solid #000000',
+                boxShadow: '2px 2px 0px #000000',
+                borderRadius: '8px',
+                lineHeight: 1.2,
+                gap: '0.5rem',
+                padding: '0.35rem 0.85rem',
+              }}
+            >
+              {authorAttendeeData.attendee?.avatarUrl ? (
+                <img
+                  src={authorAttendeeData.attendee.avatarUrl}
+                  alt={authorName}
+                  className="border-circle object-cover flex-shrink-0"
+                  style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
+                />
+              ) : (
+                <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
+              )}
+              <span>{authorName}</span>
+            </span>
           </div>
           <div className={`text-xl font-bold mb-1 word-break-break-word ${isCompleted ? 'line-through text-gray-400' : ''}`}>
             {item.title}
           </div>
-          <div className="text-sm text-gray-400">Erstellt von: {authorName}</div>
         </div>
         <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
           <Button
@@ -398,10 +425,48 @@ const AgendaCard = memo(function AgendaCard({
                 />
               )}
               {item.upvotes && item.upvotes.length > 0 && (
-                <div className="mt-3 text-sm text-gray-400 bg-gray-800 p-2 border-round inline-block">
-                  <i className="pi pi-thumbs-up mr-2 text-yellow-500"></i>
-                  <span className="font-bold text-gray-300">Daumen hoch von: </span>
-                  {upvoterNames}
+                <div className="mt-3 pt-3 border-top-1 border-gray-700 flex align-items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-gray-300 flex align-items-center gap-2 mr-2">
+                    <i className="pi pi-thumbs-up text-yellow-400 text-sm" />
+                    <span>Daumen hoch von:</span>
+                  </span>
+                  {item.upvotes.map((voterId) => {
+                    const personColors = ['#007ad9', '#ed5565', '#26a69a', '#ab47bc', '#d4e157', '#ff7043', '#ec407a', '#78909c'];
+                    const personIndex = attendees.findIndex(
+                      (a: any) => a.id === voterId || a._id === voterId || a.name === voterId
+                    );
+                    const attendee = personIndex !== -1 ? attendees[personIndex] : null;
+                    const voterName = attendee ? attendee.name : voterId;
+                    const chipColor = personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151';
+
+                    return (
+                      <span
+                        key={voterId}
+                        className="inline-flex align-items-center font-bold text-white text-xs"
+                        style={{
+                          backgroundColor: chipColor,
+                          border: '2px solid #000000',
+                          boxShadow: '2px 2px 0px #000000',
+                          borderRadius: '8px',
+                          lineHeight: 1.2,
+                          gap: '0.5rem',
+                          padding: '0.35rem 0.85rem',
+                        }}
+                      >
+                        {attendee?.avatarUrl ? (
+                          <img
+                            src={attendee.avatarUrl}
+                            alt={voterName}
+                            className="border-circle object-cover flex-shrink-0"
+                            style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
+                          />
+                        ) : (
+                          <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
+                        )}
+                        <span>{voterName}</span>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
             </div>
