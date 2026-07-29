@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -69,6 +69,16 @@ interface NominatimResult {
 }
 
 
+
+function MapRecenter({ coords }: { coords?: { lat?: number; lng?: number } }) {
+  const map = useMap();
+  useEffect(() => {
+    if (coords?.lat && coords?.lng) {
+      map.setView([coords.lat, coords.lng], 15, { animate: true });
+    }
+  }, [coords?.lat, coords?.lng, map]);
+  return null;
+}
 
 function MapControls({
   venueCoords,
@@ -166,6 +176,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
   const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedCoords, setSelectedCoords] = useState<{ lat?: number; lng?: number }>({});
+  const [selectedPlace, setSelectedPlace] = useState<NominatimResult | null>(null);
   
   // Geolocation state (persisted in sessionStorage so browser doesn't prompt on reload)
   const [userCoords, setUserCoordsState] = useState<{ lat: number; lng: number } | null>(() => {
@@ -380,6 +391,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
     setTempValue(currentValue || '');
     setSearchResults([]);
     setSelectedCoords({});
+    setSelectedPlace(null);
     setEditField(field);
   };
 
@@ -388,8 +400,9 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
     if (!q || !q.trim()) return;
 
     setIsSearching(true);
+    setSelectedPlace(null);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5`, {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=8`, {
         headers: {
           'User-Agent': 'FlashAgendaApp/1.0'
         }
@@ -398,6 +411,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         const data: NominatimResult[] = await res.json();
         setSearchResults(data);
         if (data.length > 0) {
+          setSelectedPlace(data[0]);
           setSelectedCoords({
             lat: parseFloat(data[0].lat),
             lng: parseFloat(data[0].lon)
@@ -412,20 +426,20 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
   };
 
   const selectOsmPlace = (place: NominatimResult) => {
-    setTempValue(place.display_name);
+    setSelectedPlace(place);
     setSelectedCoords({
       lat: parseFloat(place.lat),
       lng: parseFloat(place.lon)
     });
-    setSearchResults([]);
   };
 
   const saveEdit = async () => {
     if (editField) {
       if (editField === 'location') {
+        const locationName = selectedPlace ? selectedPlace.display_name : tempValue;
         await onUpdate({
           location: {
-            name: tempValue,
+            name: locationName,
             lat: selectedCoords.lat ?? agenda.location?.lat,
             lng: selectedCoords.lng ?? agenda.location?.lng
           }
@@ -439,6 +453,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
     }
     setEditField(null);
     setSelectedCoords({});
+    setSelectedPlace(null);
     setSearchResults([]);
   };
 
@@ -452,6 +467,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         style={{ width: '92vw', maxWidth: '360px' }}
         className="glass-panel"
         modal
+        blockScroll
         draggable={false}
         resizable={false}
       >
@@ -737,19 +753,20 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           )}
         </div>
       </div>
-
       {/* Edit Dialog */}
       <Dialog
-        header="Bearbeite Info"
         visible={!!editField}
-        style={{ width: '95vw', maxWidth: editField === 'location' ? '900px' : '440px', height: editField === 'location' ? '90vh' : 'auto' }}
-        contentStyle={{ height: editField === 'location' ? '100%' : 'auto', display: 'flex', flexDirection: 'column' }}
+        showHeader={false}
+        style={{ width: '96vw', maxWidth: editField === 'location' ? '1200px' : '440px', height: editField === 'location' ? '92vh' : 'auto' }}
+        contentStyle={{ height: editField === 'location' ? '100%' : 'auto', display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '1rem' }}
         onHide={() => setEditField(null)}
         className="glass-panel"
+        modal
+        blockScroll
       >
-        <div className="flex flex-column gap-3 pt-3 flex-1 overflow-hidden">
+        <div className="flex flex-column gap-3 pt-1 flex-1 overflow-y-auto md:overflow-hidden relative">
           {editField === 'title' && (
-            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus className="comic-panel-dark text-white" />
+            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus className="comic-input text-white w-full p-3" />
           )}
 
           {editField === 'date' && (
@@ -763,7 +780,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 dateFormat="dd.mm.yy"
                 placeholder="Datum & Uhrzeit wählen..."
                 className="w-full text-white font-bold"
-                inputClassName="comic-panel-dark text-white font-bold p-3 w-full"
+                inputClassName="comic-input text-white font-bold p-3 w-full"
                 panelClassName="comic-panel-dark"
                 appendTo="self"
               />
@@ -771,8 +788,8 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
           )}
 
           {editField === 'location' && (
-            <div className="flex flex-column gap-3 flex-1 overflow-hidden">
-              <div className="flex gap-2">
+            <div className="flex flex-column gap-3 flex-1 overflow-y-auto md:overflow-hidden p-1">
+              <div className="flex align-items-center gap-2 flex-wrap sm:flex-nowrap w-full p-1 flex-shrink-0">
                 <InputText
                   value={tempValue}
                   onChange={(e) => setTempValue(e.target.value)}
@@ -784,103 +801,145 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                   }}
                   autoFocus
                   placeholder="Ort oder Adresse suchen..."
-                  className="comic-panel-dark text-white flex-1 text-sm"
+                  className="comic-input text-white flex-1 min-w-0 text-sm p-3"
                 />
-                <Button
-                  icon={isSearching ? "pi pi-spin pi-spinner" : "pi pi-search"}
-                  onClick={() => executeOSMSearch()}
-                  className="p-button-warning flex-shrink-0"
-                  title="Suchen"
-                />
-                <Button
-                  icon={isLocating ? "pi pi-spin pi-spinner" : "pi pi-compass"}
-                  onClick={handleUseCurrentLocationInEdit}
-                  className="comic-button-secondary flex-shrink-0"
-                  title="Meinen aktuellen Standort verwenden"
-                />
+                <div className="flex gap-2 flex-shrink-0 ml-auto sm:ml-0">
+                  <Button
+                    icon={isSearching ? "pi pi-spin pi-spinner" : "pi pi-search"}
+                    onClick={() => executeOSMSearch()}
+                    className="p-button-warning flex-shrink-0"
+                    title="Suchen"
+                  />
+                  <Button
+                    icon={isLocating ? "pi pi-spin pi-spinner" : "pi pi-compass"}
+                    onClick={handleUseCurrentLocationInEdit}
+                    className="comic-button-secondary flex-shrink-0"
+                    title="Meinen aktuellen Standort verwenden"
+                  />
+                </div>
               </div>
 
-              {searchResults.length > 0 && (
-                <div
-                  className="comic-panel-dark p-2 flex flex-column gap-1 overflow-y-auto"
-                  style={{ background: '#111827', maxHeight: '160px' }}
-                >
-                  {searchResults.map((place) => (
+              {/* Responsive Container: Row on desktop (list left, map right), Column on mobile */}
+              <div className="flex flex-column md:flex-row gap-3 flex-1 overflow-y-auto md:overflow-hidden p-1">
+                {/* Left Column (Desktop) / Top Column (Mobile): Search Results */}
+                <div className="w-full md:w-5 md:max-w-24rem flex flex-column p-1 flex-shrink-0">
+                  {searchResults.length > 0 ? (
                     <div
-                      key={place.place_id}
-                      onClick={() => selectOsmPlace(place)}
-                      className="p-2 border-round cursor-pointer hover:bg-gray-800 text-xs sm:text-sm text-white"
+                      className="comic-input p-2 flex flex-column gap-1 overflow-y-auto flex-1 min-h-12rem md:min-h-0"
+                      style={{ background: '#111827', maxHeight: '300px' }}
                     >
-                      <i className="pi pi-map-marker text-yellow-500 mr-2" />
-                      {place.display_name}
+                      <div className="text-xs text-yellow-400 font-bold px-2 py-1 uppercase tracking-wider border-bottom-1 border-gray-700 mb-1">
+                        Suchergebnisse ({searchResults.length}):
+                      </div>
+                      {searchResults.map((place) => {
+                        const isSelected = selectedPlace?.place_id === place.place_id;
+                        return (
+                          <div
+                            key={place.place_id}
+                            onClick={() => selectOsmPlace(place)}
+                            className={`p-2 border-round cursor-pointer text-xs sm:text-sm text-white transition-colors flex align-items-start gap-2 ${
+                              isSelected
+                                ? 'bg-yellow-500 text-gray-900 font-bold border-1 border-yellow-400'
+                                : 'hover:bg-gray-800'
+                            }`}
+                          >
+                            <i className={`pi pi-map-marker text-sm mt-1 flex-shrink-0 ${isSelected ? 'text-gray-900' : 'text-yellow-500'}`} />
+                            <span className="flex-1 min-w-0 line-height-2">{place.display_name}</span>
+                            {isSelected && <i className="pi pi-check-circle text-gray-900 text-sm mt-1 flex-shrink-0" />}
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="comic-input p-3 text-center text-gray-400 text-xs sm:text-sm flex flex-column align-items-center justify-content-center flex-1 min-h-6rem md:min-h-0">
+                      <i className="pi pi-search text-yellow-500 text-2xl mb-2" />
+                      <span>Gib eine Adresse oder einen Ort ein und klicke auf Suchen</span>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {(selectedCoords.lat || agenda.location?.lat) ? (
-                <div className="border-round-lg overflow-hidden flex-1 relative" style={{ minHeight: '220px' }}>
-                  <MapContainer
-                    center={[
-                      selectedCoords.lat ?? agenda.location?.lat!,
-                      selectedCoords.lng ?? agenda.location?.lng!
-                    ]}
-                    zoom={14}
-                    scrollWheelZoom={false}
-                    style={{ height: '100%', width: '100%' }}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    <Marker
-                      position={[
+                {/* Right Column (Desktop) / Bottom Column (Mobile): Map */}
+                <div className="w-full md:flex-1 flex flex-column comic-panel-dark overflow-hidden relative min-h-24rem md:min-h-0 flex-shrink-0" style={{ minHeight: '380px' }}>
+                  {(selectedCoords.lat || agenda.location?.lat) ? (
+                    <MapContainer
+                      center={[
                         selectedCoords.lat ?? agenda.location?.lat!,
                         selectedCoords.lng ?? agenda.location?.lng!
                       ]}
-                    />
-                    {userCoords && (
-                      <Marker
-                        position={[userCoords.lat, userCoords.lng]}
-                        icon={userLocationIcon}
+                      zoom={14}
+                      scrollWheelZoom={false}
+                      style={{ height: '100%', width: '100%', minHeight: '380px' }}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       />
-                    )}
-                    <MapControls
-                      venueCoords={
-                        selectedCoords.lat && selectedCoords.lng
-                          ? { lat: selectedCoords.lat, lng: selectedCoords.lng }
-                          : agenda.location?.lat && agenda.location?.lng
-                          ? { lat: agenda.location.lat, lng: agenda.location.lng }
-                          : undefined
-                      }
-                      userCoords={userCoords}
-                      onLocateUser={handleUseCurrentLocationInEdit}
-                      isLocating={isLocating}
-                    />
-                  </MapContainer>
+                      <MapRecenter coords={selectedCoords} />
+                      <Marker
+                        position={[
+                          selectedCoords.lat ?? agenda.location?.lat!,
+                          selectedCoords.lng ?? agenda.location?.lng!
+                        ]}
+                      />
+                      {userCoords && (
+                        <Marker
+                          position={[userCoords.lat, userCoords.lng]}
+                          icon={userLocationIcon}
+                        />
+                      )}
+                      <MapControls
+                        venueCoords={
+                          selectedCoords.lat && selectedCoords.lng
+                            ? { lat: selectedCoords.lat, lng: selectedCoords.lng }
+                            : agenda.location?.lat && agenda.location?.lng
+                            ? { lat: agenda.location.lat, lng: agenda.location.lng }
+                            : undefined
+                        }
+                        userCoords={userCoords}
+                        onLocateUser={handleUseCurrentLocationInEdit}
+                        isLocating={isLocating}
+                      />
+                    </MapContainer>
+                  ) : (
+                    <div className="bg-gray-800 p-3 text-center text-gray-400 text-xs sm:text-sm flex align-items-center justify-content-center flex-1 min-h-24rem" style={{ minHeight: '380px' }}>
+                      <span>Suche ein Ausflugsziel oder gib eine Adresse ein für die Kartenvorschau</span>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="bg-gray-800 border-round-lg p-3 text-center text-gray-400 text-xs sm:text-sm flex align-items-center justify-content-center flex-1" style={{ minHeight: '180px' }}>
-                  <span>Suche ein Ausflugsziel oder gib eine Adresse ein für die Kartenvorschau</span>
-                </div>
-              )}
+              </div>
             </div>
           )}
 
           {editField === 'menuUrl' && (
-            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="https://..." className="comic-panel-dark text-white text-sm" />
+            <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus placeholder="https://..." className="comic-input text-white text-sm p-3" />
           )}
 
           {editField === 'closeBeforeHours' && (
             <div className="flex flex-column gap-2">
               <label className="text-gray-300 font-bold text-sm">Stunden vor Beginn, ab denen keine Punkte mehr hinzugefügt werden können:</label>
-              <InputText type="number" min={0} value={tempValue} onChange={(e) => setTempValue(Number(e.target.value))} autoFocus className="comic-panel-dark text-white" />
+              <InputText type="number" min={0} value={tempValue} onChange={(e) => setTempValue(Number(e.target.value))} autoFocus className="comic-input text-white p-3" />
             </div>
           )}
 
-          <Button label="Speichern" icon="pi pi-check" onClick={saveEdit} className="p-button-warning mt-auto" />
+          <div className="flex gap-3 mt-auto pt-2 pb-2 px-1 flex-shrink-0">
+            <Button
+              icon="pi pi-times"
+              onClick={() => setEditField(null)}
+              className="comic-button-secondary flex-shrink-0"
+              style={{ width: '3.2rem', height: '2.8rem' }}
+              title="Abbrechen / Schließen"
+            />
+            <Button
+              label="Speichern"
+              icon="pi pi-check"
+              onClick={saveEdit}
+              className="p-button-warning flex-1"
+              style={{ height: '2.8rem' }}
+            />
+          </div>
         </div>
       </Dialog>
+
 
       {/* Create New Agenda Confirmation Dialog */}
       <Dialog
@@ -889,6 +948,8 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         style={{ width: '92vw', maxWidth: '600px' }}
         onHide={() => setShowCreateModal(false)}
         className="glass-panel"
+        modal
+        blockScroll
       >
         <div className="flex flex-column gap-4 pt-2">
           <p className="text-gray-300 text-sm m-0 font-medium">

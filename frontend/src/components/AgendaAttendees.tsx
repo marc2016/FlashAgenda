@@ -433,6 +433,8 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
         style={{ width: '92vw', maxWidth: '400px' }} 
         onHide={() => setVisible(false)}
         className="glass-panel"
+        modal
+        blockScroll
       >
         <div className="flex flex-column gap-3 pt-3">
           <div className="p-inputgroup">
@@ -457,6 +459,8 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
         style={{ width: '92vw', maxWidth: '420px' }}
         onHide={() => setEditModalVisible(false)}
         className="glass-panel"
+        modal
+        blockScroll
       >
         <div className="flex flex-column gap-3 pt-3">
           <label className="text-sm font-bold text-gray-300">Name ändern:</label>
@@ -496,6 +500,8 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
         style={{ width: '92vw', maxWidth: '450px' }}
         onHide={() => setAvatarModalVisible(false)}
         className="glass-panel"
+        modal
+        blockScroll
       >
         <div className="flex flex-column gap-3 pt-3">
           <label className="text-xs sm:text-sm font-bold text-gray-300">Profilbild von Gerät wählen oder Bild-URL eingeben:</label>

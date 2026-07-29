@@ -737,6 +737,8 @@ export default function AgendaTimeline({
           }, 50);
         }}
         className="glass-panel"
+        modal
+        blockScroll
       >
         <div className="flex flex-column gap-3 pt-3">
           <div className="p-inputgroup">
@@ -839,6 +841,7 @@ export default function AgendaTimeline({
         style={{ width: '90vw', maxWidth: '1200px' }}
         className="glass-panel"
         modal
+        blockScroll
       >
         {selectedPreviewImage && (
           <div className="flex justify-content-center p-2">

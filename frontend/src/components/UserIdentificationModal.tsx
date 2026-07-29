@@ -65,6 +65,7 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
       style={{ width: '90vw', maxWidth: '400px' }} 
       closable={!!onClose}
       modal
+      blockScroll
       className="p-fluid glass-panel"
       onHide={handleClose}
     >
