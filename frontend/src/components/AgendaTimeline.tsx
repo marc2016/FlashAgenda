@@ -222,12 +222,6 @@ const AgendaCard = memo(function AgendaCard({
                 {updatedAtLabel}
               </span>
             )}
-            {isPinned && (
-              <span className="flex align-items-center gap-1 text-yellow-400 font-bold bg-yellow-950-alpha border-1 border-yellow-500-alpha px-2 py-1 border-round" title="Angepinnt - Position bleibt beim Sortieren fixiert">
-                <i className="mdi mdi-pin text-sm"></i>
-                <span>Angepinnt</span>
-              </span>
-            )}
           </div>
           <div className={`text-xl font-bold mb-1 word-break-break-word ${isCompleted ? 'line-through text-gray-400' : ''}`}>
             {item.title}
@@ -236,10 +230,11 @@ const AgendaCard = memo(function AgendaCard({
         </div>
         <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
           <Button
-            icon={isPinned ? 'mdi mdi-pin text-xl' : 'mdi mdi-pin-outline text-xl'}
+            icon={isPinned ? 'mdi mdi-pin text-xl text-yellow-400' : 'mdi mdi-pin-outline text-xl'}
             rounded
             text
-            className={isPinned ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}
+            style={isPinned ? { color: '#facc15' } : undefined}
+            className={isPinned ? 'text-yellow-400 font-bold' : 'text-gray-400 hover:text-yellow-400'}
             title={isPinned ? 'Anpinnung aufheben' : 'Agendapunkt anpinnen'}
             onClick={() => onTogglePinned(index)}
           />
@@ -255,16 +250,6 @@ const AgendaCard = memo(function AgendaCard({
               <Badge value={upvoteCount} severity="warning" className="ml-2"></Badge>
             )}
           </Button>
-          {item.poll && item.poll.options && item.poll.options.length > 0 && (
-            <Button
-              icon="pi pi-chart-bar text-xl"
-              rounded
-              text
-              className="text-yellow-400 hover:text-yellow-300"
-              title="An Abstimmung teilnehmen"
-              onClick={() => onOpenVoteModal(index)}
-            />
-          )}
           <Button
             icon={isCompleted ? 'pi pi-check-circle' : 'pi pi-circle'}
             rounded
@@ -305,7 +290,7 @@ const AgendaCard = memo(function AgendaCard({
 
       {/* Poll / Abstimmung Ergebnisse auf der Karte */}
       {item.poll && item.poll.options && item.poll.options.length > 0 && (
-        <div className="mt-3 p-3 bg-gray-900 border-round-xl border-1 border-gray-700">
+        <div className="mt-3 pt-3 border-top-1 border-gray-700">
           <div className="flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
             <div className="flex align-items-center gap-2">
               <i className="pi pi-chart-bar text-yellow-500 text-base font-bold" />
@@ -321,19 +306,15 @@ const AgendaCard = memo(function AgendaCard({
             />
           </div>
 
-          <div className="flex flex-column gap-2 mt-2">
+          <div className="flex flex-column gap-3 mt-3">
             {item.poll.options.map((opt) => {
               const totalVotesCount = item.poll!.options.reduce((sum, o) => sum + (o.votes?.length || 0), 0);
               const optionVotesCount = opt.votes?.length || 0;
               const percentage = totalVotesCount > 0 ? Math.round((optionVotesCount / totalVotesCount) * 100) : 0;
-              const hasUserVoted = !!(currentUserId && (opt.votes || []).includes(currentUserId));
-
               return (
-                <div key={opt.id} className="bg-gray-800 p-2 border-round-lg border-1 border-gray-700">
-                  <div className="flex justify-content-between align-items-center text-xs text-gray-200 mb-1 font-bold">
-                    <span>
-                      {opt.text} {hasUserVoted && <span className="text-yellow-400 ml-1">(Deine Stimme)</span>}
-                    </span>
+                <div key={opt.id} className="flex flex-column gap-1">
+                  <div className="flex justify-content-between align-items-center text-xs text-gray-200 font-bold">
+                    <span>{opt.text}</span>
                     <span className="text-yellow-400 font-bold">
                       {optionVotesCount} {optionVotesCount === 1 ? 'Stimme' : 'Stimmen'} ({percentage}%)
                     </span>
@@ -354,35 +335,44 @@ const AgendaCard = memo(function AgendaCard({
                     />
                   </div>
 
-                  {/* Voter Avatars */}
+                  {/* Voter Name Chips in Button Style with Person Card Color */}
                   {opt.votes && opt.votes.length > 0 && (
-                    <div className="flex align-items-center gap-1.5 mt-2 flex-wrap">
+                    <div className="flex align-items-center gap-2 mt-1 flex-wrap">
                       {opt.votes.map((voterId) => {
-                        const attendee = attendees.find(
+                        const personColors = ['#007ad9', '#ed5565', '#26a69a', '#ab47bc', '#d4e157', '#ff7043', '#ec407a', '#78909c'];
+                        const personIndex = attendees.findIndex(
                           (a: any) => a.id === voterId || a._id === voterId || a.name === voterId
                         );
+                        const attendee = personIndex !== -1 ? attendees[personIndex] : null;
                         const voterName = attendee ? attendee.name : voterId;
-                        const avatarUrl = attendee?.avatarUrl;
+                        const chipColor = personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151';
 
                         return (
-                          <div
+                          <span
                             key={voterId}
-                            className="flex align-items-center gap-1 bg-gray-900 px-2 py-0.5 border-round-circle border-1 border-gray-700"
-                            title={voterName}
+                            className="inline-flex align-items-center font-bold text-white text-xs"
+                            style={{
+                              backgroundColor: chipColor,
+                              border: '2px solid #000000',
+                              boxShadow: '2px 2px 0px #000000',
+                              borderRadius: '8px',
+                              lineHeight: 1.2,
+                              gap: '0.5rem',
+                              padding: '0.35rem 0.85rem',
+                            }}
                           >
-                            {avatarUrl ? (
+                            {attendee?.avatarUrl ? (
                               <img
-                                src={avatarUrl}
+                                src={attendee.avatarUrl}
                                 alt={voterName}
-                                className="w-1rem h-1rem border-circle object-cover"
+                                className="border-circle object-cover flex-shrink-0"
+                                style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
                               />
                             ) : (
-                              <div className="w-1rem h-1rem border-circle bg-yellow-500 text-gray-900 text-xs font-bold flex align-items-center justify-content-center" style={{ fontSize: '0.65rem' }}>
-                                {voterName.charAt(0).toUpperCase()}
-                              </div>
+                              <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
                             )}
-                            <span className="text-xs text-gray-300 font-semibold">{voterName}</span>
-                          </div>
+                            <span>{voterName}</span>
+                          </span>
                         );
                       })}
                     </div>
