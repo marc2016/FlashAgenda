@@ -60,7 +60,12 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
 
   return (
     <Dialog 
-      header="Wer bist du?" 
+      header={
+        <div className="flex align-items-center gap-2">
+          <i className="pi pi-user text-yellow-400 text-xl" />
+          <span>Wer bist du?</span>
+        </div>
+      } 
       visible={visible} 
       style={{ width: '90vw', maxWidth: '400px' }} 
       closable={!!onClose}

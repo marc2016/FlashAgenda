@@ -200,7 +200,49 @@ body {
 .p-dialog .p-dialog-header .p-dialog-title {
   font-family: 'Inter', sans-serif !important;
   font-weight: bold !important;
-  color: #facc15 !important;
+  font-style: normal !important;
+  color: #ffffff !important;
+  text-shadow: 2px 2px 0px #000000 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.p-dialog .p-dialog-header-close,
+.p-dialog .p-dialog-header-icon {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+  border: 2px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+  border-radius: 8px !important;
+  width: 2.2rem !important;
+  height: 2.2rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: transform 0.1s, box-shadow 0.1s, background-color 0.1s !important;
+  margin: 0 !important;
+}
+
+.p-dialog .p-dialog-header-close:hover,
+.p-dialog .p-dialog-header-icon:hover {
+  background-color: #4b5563 !important;
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 4px 4px 0px #000000 !important;
+  color: #ffffff !important;
+}
+
+.p-dialog .p-dialog-header-close:active,
+.p-dialog .p-dialog-header-icon:active {
+  transform: translate(1px, 1px) !important;
+  box-shadow: 1px 1px 0px #000000 !important;
+}
+
+.p-dialog .p-dialog-header-close .p-dialog-header-close-icon,
+.p-dialog .p-dialog-header-close i {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  font-size: 0.9rem !important;
 }
 
 body.p-overflow-hidden {

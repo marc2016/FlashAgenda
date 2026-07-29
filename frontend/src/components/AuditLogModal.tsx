@@ -59,7 +59,12 @@ export default function AuditLogModal({ agendaId, visible, onHide }: Props) {
 
   return (
     <Dialog
-      header="Agenda Audit-Protokoll"
+      header={
+        <div className="flex align-items-center gap-2">
+          <i className="pi pi-history text-yellow-400 text-xl" />
+          <span>Agenda Audit-Protokoll</span>
+        </div>
+      }
       visible={visible}
       onHide={onHide}
       style={{ width: '94vw', maxWidth: '1000px' }}

@@ -926,7 +926,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
               icon="pi pi-times"
               onClick={() => setEditField(null)}
               className="comic-button-secondary flex-shrink-0"
-              style={{ width: '3.2rem', height: '2.8rem' }}
+              style={{ width: '2.8rem', height: '2.8rem' }}
               title="Abbrechen / Schließen"
             />
             <Button
@@ -943,7 +943,12 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
 
       {/* Create New Agenda Confirmation Dialog */}
       <Dialog
-        header="Neue Agenda erstellen"
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-plus-circle text-yellow-400 text-xl" />
+            <span>Neue Agenda erstellen</span>
+          </div>
+        }
         visible={showCreateModal}
         style={{ width: '92vw', maxWidth: '600px' }}
         onHide={() => setShowCreateModal(false)}

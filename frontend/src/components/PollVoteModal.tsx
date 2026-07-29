@@ -94,30 +94,20 @@ export const PollVoteModal: React.FC<PollVoteModalProps> = ({
 
   return (
     <Dialog
-      header="Abstimmung"
+      header={
+        <div className="flex align-items-center gap-2">
+          <i className="pi pi-chart-bar text-yellow-400 text-xl" />
+          <span>Abstimmung</span>
+        </div>
+      }
       visible={visible}
       onHide={onHide}
       style={{ width: '92vw', maxWidth: '520px' }}
       className="glass-panel"
       modal
       blockScroll
-      showHeader={false}
     >
-      <div className="p-3">
-        <div className="flex align-items-center justify-content-between mb-3 border-bottom-1 border-gray-700 pb-2">
-          <div className="flex align-items-center gap-2">
-            <i className="pi pi-chart-bar text-yellow-500 text-xl" />
-            <h3 className="m-0 text-white font-luckiest tracking-wider text-lg sm:text-xl">
-              Abstimmung
-            </h3>
-          </div>
-          <Button
-            icon="pi pi-times"
-            onClick={onHide}
-            className="comic-button-secondary p-button-rounded p-button-text text-white p-1"
-            style={{ width: '2.2rem', height: '2.2rem' }}
-          />
-        </div>
+      <div className="pt-2">
 
         <div className="mb-4">
           <p className="text-gray-300 text-sm font-bold m-0 mb-1 uppercase tracking-wider">

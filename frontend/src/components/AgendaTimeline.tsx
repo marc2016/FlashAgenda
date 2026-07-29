@@ -936,7 +936,12 @@ export default function AgendaTimeline({
 
       {/* Edit / New Item Dialog */}
       <Dialog
-        header={editingIndex !== null ? 'Agendapunkt bearbeiten' : 'Neuer Agendapunkt'}
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-bookmark text-yellow-400 text-xl" />
+            <span>{editingIndex !== null ? 'Agendapunkt bearbeiten' : 'Neuer Agendapunkt'}</span>
+          </div>
+        }
         visible={visible}
         style={{ width: '96vw', maxWidth: '1200px' }}
         contentStyle={{ maxHeight: '82vh', overflowY: 'auto' }}
@@ -1139,7 +1144,12 @@ export default function AgendaTimeline({
       <Dialog
         visible={!!selectedPreviewImage}
         onHide={() => setSelectedPreviewImage(null)}
-        header="Bildansicht"
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-image text-yellow-400 text-xl" />
+            <span>Bildansicht</span>
+          </div>
+        }
         style={{ width: '90vw', maxWidth: '1200px' }}
         className="glass-panel"
         modal

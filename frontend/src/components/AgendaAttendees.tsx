@@ -428,7 +428,12 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
 
       {/* Add Attendee Dialog */}
       <Dialog 
-        header="Person hinzufügen" 
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-user-plus text-yellow-400 text-xl" />
+            <span>Person hinzufügen</span>
+          </div>
+        } 
         visible={visible} 
         style={{ width: '92vw', maxWidth: '400px' }} 
         onHide={() => setVisible(false)}
@@ -454,7 +459,12 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
 
       {/* Edit / Delete Person Dialog */}
       <Dialog
-        header="Person bearbeiten"
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-user-edit text-yellow-400 text-xl" />
+            <span>Person bearbeiten</span>
+          </div>
+        }
         visible={editModalVisible}
         style={{ width: '92vw', maxWidth: '420px' }}
         onHide={() => setEditModalVisible(false)}
@@ -495,7 +505,12 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
 
       {/* Avatar Modal (Only for current user) */}
       <Dialog
-        header="Profilbild ändern"
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-image text-yellow-400 text-xl" />
+            <span>Profilbild ändern</span>
+          </div>
+        }
         visible={avatarModalVisible}
         style={{ width: '92vw', maxWidth: '450px' }}
         onHide={() => setAvatarModalVisible(false)}
