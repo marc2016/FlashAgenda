@@ -301,17 +301,6 @@ const AgendaCard = memo(function AgendaCard({
             title="Löschen"
             onClick={() => onDelete(index)}
           />
-          <Button
-            icon={detailsOpen ? 'pi pi-angle-up' : 'pi pi-angle-down'}
-            rounded
-            text
-            disabled={!hasDetails}
-            className={hasDetails ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-600 opacity-40'}
-            title={hasDetails ? 'Details anzeigen/einklappen' : 'Keine Details vorhanden'}
-            onClick={() => {
-              if (hasDetails) setDetailsOpen((o) => !o);
-            }}
-          />
         </div>
       </div>
 
@@ -408,6 +397,19 @@ const AgendaCard = memo(function AgendaCard({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Centered Details Toggle Button */}
+      {hasDetails && (
+        <div className="flex justify-content-center mt-3">
+          <Button
+            label="Details"
+            icon={detailsOpen ? 'pi pi-angle-up' : 'pi pi-angle-down'}
+            iconPos="right"
+            onClick={() => setDetailsOpen((o) => !o)}
+            className="comic-button-secondary text-xs py-1 px-3 font-bold"
+          />
         </div>
       )}
 
