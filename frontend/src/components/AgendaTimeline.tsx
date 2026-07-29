@@ -351,6 +351,8 @@ export default function AgendaTimeline({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<MDXEditorMethods>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const [sortMode, setSortMode] = useState<'date' | 'rating' | 'random' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const currentUserId = useMemo(
     () => currentUser?.id || currentUser?._id || currentUser?.name,
@@ -494,20 +496,33 @@ export default function AgendaTimeline({
   );
 
   const sortByDate = useCallback(async () => {
+    const newOrder = sortMode === 'date' ? (sortOrder === 'asc' ? 'desc' : 'asc') : 'asc';
+    setSortMode('date');
+    setSortOrder(newOrder);
+
     const sorted = sortWithPinned(items, (a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateA - dateB;
+      return newOrder === 'asc' ? dateA - dateB : dateB - dateA;
     });
     await onUpdate(sorted);
-  }, [items, onUpdate]);
+  }, [items, onUpdate, sortMode, sortOrder]);
 
   const sortByRating = useCallback(async () => {
-    const sorted = sortWithPinned(items, (a, b) => (b.upvotes?.length || 0) - (a.upvotes?.length || 0));
+    const newOrder = sortMode === 'rating' ? (sortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
+    setSortMode('rating');
+    setSortOrder(newOrder);
+
+    const sorted = sortWithPinned(items, (a, b) => {
+      const ratingA = a.upvotes?.length || 0;
+      const ratingB = b.upvotes?.length || 0;
+      return newOrder === 'desc' ? ratingB - ratingA : ratingA - ratingB;
+    });
     await onUpdate(sorted);
-  }, [items, onUpdate]);
+  }, [items, onUpdate, sortMode, sortOrder]);
 
   const sortRandomly = useCallback(async () => {
+    setSortMode('random');
     const sorted = sortWithPinned(items, () => Math.random() - 0.5);
     await onUpdate(sorted);
   }, [items, onUpdate]);
@@ -621,9 +636,41 @@ export default function AgendaTimeline({
         <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">
           {items && items.length > 1 && (
             <div className="flex gap-2 align-items-center">
-              <Button icon="pi pi-calendar" onClick={sortByDate} className="comic-button-secondary flex-shrink-0" title="Nach Datum sortieren" />
-              <Button icon="pi pi-thumbs-up" onClick={sortByRating} className="comic-button-secondary flex-shrink-0" title="Nach Bewertung sortieren" />
-              <Button icon="mdi mdi-dice-multiple" onClick={sortRandomly} className="comic-button-secondary flex-shrink-0" title="Zufällig sortieren" />
+              <Button
+                onClick={sortByDate}
+                className={sortMode === 'date' ? 'comic-button flex-shrink-0 flex align-items-center gap-1' : 'comic-button-secondary flex-shrink-0 flex align-items-center gap-1'}
+                title={
+                  sortMode === 'date'
+                    ? `Nach Datum sortiert (${sortOrder === 'asc' ? 'älteste zuerst' : 'neueste zuerst'}). Klicken zum Ändern.`
+                    : 'Nach Datum sortieren'
+                }
+              >
+                <i className="pi pi-calendar"></i>
+                {sortMode === 'date' && (
+                  <i className={`pi ${sortOrder === 'asc' ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down'} text-xs`}></i>
+                )}
+              </Button>
+              <Button
+                onClick={sortByRating}
+                className={sortMode === 'rating' ? 'comic-button flex-shrink-0 flex align-items-center gap-1' : 'comic-button-secondary flex-shrink-0 flex align-items-center gap-1'}
+                title={
+                  sortMode === 'rating'
+                    ? `Nach Bewertung sortiert (${sortOrder === 'desc' ? 'meiste zuerst' : 'wenigste zuerst'}). Klicken zum Ändern.`
+                    : 'Nach Bewertung sortieren'
+                }
+              >
+                <i className="pi pi-thumbs-up"></i>
+                {sortMode === 'rating' && (
+                  <i className={`pi ${sortOrder === 'desc' ? 'pi-sort-amount-down' : 'pi-sort-amount-up-alt'} text-xs`}></i>
+                )}
+              </Button>
+              <Button
+                onClick={sortRandomly}
+                className={sortMode === 'random' ? 'comic-button flex-shrink-0 flex align-items-center' : 'comic-button-secondary flex-shrink-0 flex align-items-center'}
+                title={sortMode === 'random' ? 'Zufällig sortiert. Erneut klicken zum Mischen.' : 'Zufällig sortieren'}
+              >
+                <i className="mdi mdi-dice-multiple"></i>
+              </Button>
             </div>
           )}
 
