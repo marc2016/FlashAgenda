@@ -57,6 +57,9 @@ const READONLY_PLUGINS = [
   imagePlugin()
 ];
 
+import { Checkbox } from 'primereact/checkbox';
+import { PollVoteModal, type IPoll } from './PollVoteModal';
+
 interface AgendaItem {
   _id?: string;
   title: string;
@@ -67,6 +70,7 @@ interface AgendaItem {
   completed?: boolean;
   upvotes?: string[];
   pinned?: boolean;
+  poll?: IPoll;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -122,6 +126,7 @@ interface AgendaCardProps {
   onDelete: (index: number) => void;
   onEdit: (index: number) => void;
   onPreviewImage: (url: string) => void;
+  onOpenVoteModal: (index: number) => void;
 }
 
 const AgendaCard = memo(function AgendaCard({
@@ -135,6 +140,7 @@ const AgendaCard = memo(function AgendaCard({
   onDelete,
   onEdit,
   onPreviewImage,
+  onOpenVoteModal,
 }: AgendaCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -249,6 +255,16 @@ const AgendaCard = memo(function AgendaCard({
               <Badge value={upvoteCount} severity="warning" className="ml-2"></Badge>
             )}
           </Button>
+          {item.poll && item.poll.options && item.poll.options.length > 0 && (
+            <Button
+              icon="pi pi-chart-bar text-xl"
+              rounded
+              text
+              className="text-yellow-400 hover:text-yellow-300"
+              title="An Abstimmung teilnehmen"
+              onClick={() => onOpenVoteModal(index)}
+            />
+          )}
           <Button
             icon={isCompleted ? 'pi pi-check-circle' : 'pi pi-circle'}
             rounded
@@ -286,6 +302,97 @@ const AgendaCard = memo(function AgendaCard({
           />
         </div>
       </div>
+
+      {/* Poll / Abstimmung Ergebnisse auf der Karte */}
+      {item.poll && item.poll.options && item.poll.options.length > 0 && (
+        <div className="mt-3 p-3 bg-gray-900 border-round-xl border-1 border-gray-700">
+          <div className="flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+            <div className="flex align-items-center gap-2">
+              <i className="pi pi-chart-bar text-yellow-500 text-base font-bold" />
+              <span className="font-bold text-white text-sm sm:text-base">
+                {item.poll.question?.trim() || 'Abstimmung'}
+              </span>
+            </div>
+            <Button
+              label="Abstimmen"
+              icon="pi pi-check-square"
+              onClick={() => onOpenVoteModal(index)}
+              className="p-button-warning comic-button p-button-xs font-bold py-1 px-2 text-xs"
+            />
+          </div>
+
+          <div className="flex flex-column gap-2 mt-2">
+            {item.poll.options.map((opt) => {
+              const totalVotesCount = item.poll!.options.reduce((sum, o) => sum + (o.votes?.length || 0), 0);
+              const optionVotesCount = opt.votes?.length || 0;
+              const percentage = totalVotesCount > 0 ? Math.round((optionVotesCount / totalVotesCount) * 100) : 0;
+              const hasUserVoted = !!(currentUserId && (opt.votes || []).includes(currentUserId));
+
+              return (
+                <div key={opt.id} className="bg-gray-800 p-2 border-round-lg border-1 border-gray-700">
+                  <div className="flex justify-content-between align-items-center text-xs text-gray-200 mb-1 font-bold">
+                    <span>
+                      {opt.text} {hasUserVoted && <span className="text-yellow-400 ml-1">(Deine Stimme)</span>}
+                    </span>
+                    <span className="text-yellow-400 font-bold">
+                      {optionVotesCount} {optionVotesCount === 1 ? 'Stimme' : 'Stimmen'} ({percentage}%)
+                    </span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full border-round overflow-hidden relative" style={{ height: '16px', border: '2px solid #000000', backgroundColor: '#111827' }}>
+                    <div
+                      className="h-full transition-all"
+                      style={{
+                        width: `${percentage}%`,
+                        backgroundColor: '#eab308',
+                        height: '100%',
+                        minWidth: percentage > 0 ? '8px' : '0px',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+                        transition: 'width 0.4s ease-in-out',
+                      }}
+                    />
+                  </div>
+
+                  {/* Voter Avatars */}
+                  {opt.votes && opt.votes.length > 0 && (
+                    <div className="flex align-items-center gap-1.5 mt-2 flex-wrap">
+                      {opt.votes.map((voterId) => {
+                        const attendee = attendees.find(
+                          (a: any) => a.id === voterId || a._id === voterId || a.name === voterId
+                        );
+                        const voterName = attendee ? attendee.name : voterId;
+                        const avatarUrl = attendee?.avatarUrl;
+
+                        return (
+                          <div
+                            key={voterId}
+                            className="flex align-items-center gap-1 bg-gray-900 px-2 py-0.5 border-round-circle border-1 border-gray-700"
+                            title={voterName}
+                          >
+                            {avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt={voterName}
+                                className="w-1rem h-1rem border-circle object-cover"
+                              />
+                            ) : (
+                              <div className="w-1rem h-1rem border-circle bg-yellow-500 text-gray-900 text-xs font-bold flex align-items-center justify-content-center" style={{ fontSize: '0.65rem' }}>
+                                {voterName.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <span className="text-xs text-gray-300 font-semibold">{voterName}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Details are only rendered in the DOM when opened — avoids heavy MDXEditor instances */}
       {hasDetails && detailsOpen && (
@@ -358,6 +465,34 @@ export default function AgendaTimeline({
     agenda?.sortOrder || 'asc'
   );
 
+  // Poll creation & voting state
+  const [enablePoll, setEnablePoll] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState<string[]>(['Option 1', 'Option 2']);
+  const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
+
+  const [voteModalVisible, setVoteModalVisible] = useState(false);
+  const [activeVoteIndex, setActiveVoteIndex] = useState<number | null>(null);
+
+  const openVoteModal = useCallback((index: number) => {
+    setActiveVoteIndex(index);
+    setVoteModalVisible(true);
+  }, []);
+
+  const handleVoteOnItem = useCallback(
+    async (updatedPoll: IPoll) => {
+      if (activeVoteIndex === null) return;
+      const updatedItems = [...items];
+      updatedItems[activeVoteIndex] = {
+        ...updatedItems[activeVoteIndex],
+        poll: updatedPoll,
+        updatedAt: new Date().toISOString(),
+      };
+      await onUpdate(updatedItems);
+    },
+    [activeVoteIndex, items, onUpdate]
+  );
+
   useEffect(() => {
     if (agenda?.sortMode) {
       setSortMode(agenda.sortMode);
@@ -394,6 +529,10 @@ export default function AgendaTimeline({
     setTitle('');
     setDescription('');
     setImageUrl('');
+    setEnablePoll(false);
+    setPollQuestion('');
+    setPollOptions(['Option 1', 'Option 2']);
+    setPollAllowMultiple(false);
     setEditingIndex(null);
     setShowDetails(false);
     if (editorRef.current) {
@@ -412,7 +551,20 @@ export default function AgendaTimeline({
       setDescription(newDesc);
       setImageUrl(item.imageUrl || '');
       setEditingIndex(index);
-      setShowDetails(!!(item.description || item.imageUrl));
+
+      if (item.poll) {
+        setEnablePoll(true);
+        setPollQuestion(item.poll.question || '');
+        setPollOptions(item.poll.options.map((o) => o.text));
+        setPollAllowMultiple(!!item.poll.allowMultiple);
+      } else {
+        setEnablePoll(false);
+        setPollQuestion('');
+        setPollOptions(['Option 1', 'Option 2']);
+        setPollAllowMultiple(false);
+      }
+
+      setShowDetails(!!(item.description || item.imageUrl || item.poll));
       if (editorRef.current) {
         editorRef.current.setMarkdown(newDesc);
       } else {
@@ -552,12 +704,34 @@ export default function AgendaTimeline({
   const saveItem = useCallback(async () => {
     if (!title.trim()) return;
     const updatedItems = [...items];
+
+    let pollData: IPoll | undefined = undefined;
+    if (enablePoll) {
+      const validOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
+      if (validOptions.length >= 2) {
+        const existingItem = editingIndex !== null ? items[editingIndex] : null;
+        pollData = {
+          question: pollQuestion.trim() || undefined,
+          allowMultiple: pollAllowMultiple,
+          options: validOptions.map((text, idx) => {
+            const existingOpt = existingItem?.poll?.options?.find((o) => o.text === text);
+            return {
+              id: existingOpt?.id || `opt_${Date.now()}_${idx}`,
+              text,
+              votes: existingOpt?.votes || [],
+            };
+          }),
+        };
+      }
+    }
+
     if (editingIndex !== null) {
       updatedItems[editingIndex] = {
         ...updatedItems[editingIndex],
         title,
         description,
         imageUrl,
+        poll: pollData,
         updatedAt: new Date().toISOString(),
       };
     } else {
@@ -567,6 +741,7 @@ export default function AgendaTimeline({
         title,
         description,
         imageUrl,
+        poll: pollData,
         author: authorName,
         createdBy: createdById,
         completed: false,
@@ -576,7 +751,19 @@ export default function AgendaTimeline({
     }
     await onUpdate(updatedItems);
     setVisible(false);
-  }, [title, description, imageUrl, editingIndex, items, currentUser, onUpdate]);
+  }, [
+    title,
+    description,
+    imageUrl,
+    enablePoll,
+    pollQuestion,
+    pollOptions,
+    pollAllowMultiple,
+    editingIndex,
+    items,
+    currentUser,
+    onUpdate,
+  ]);
 
   // Stable marker renderer — avoids O(n²) indexOf
   const customizedMarker = useCallback(
@@ -622,9 +809,10 @@ export default function AgendaTimeline({
         onDelete={deleteItem}
         onEdit={openEdit}
         onPreviewImage={setSelectedPreviewImage}
+        onOpenVoteModal={openVoteModal}
       />
     ),
-    [currentUserId, attendees, isCreator, toggleCompleted, toggleUpvote, togglePinned, deleteItem, openEdit]
+    [currentUserId, attendees, isCreator, toggleCompleted, toggleUpvote, togglePinned, deleteItem, openEdit, openVoteModal]
   );
 
   const totalCount = items?.length || 0;
@@ -835,6 +1023,98 @@ export default function AgendaTimeline({
                   plugins={EDITOR_PLUGINS}
                 />
               </div>
+
+              {/* Abstimmung / Umfrage Erstellbereich */}
+              <div className="border-top-1 border-gray-700 pt-3 flex flex-column gap-2">
+                <div className="flex align-items-center justify-content-between flex-wrap gap-2">
+                  <label className="text-sm font-bold text-gray-300 flex align-items-center gap-2">
+                    <i className="pi pi-chart-bar text-yellow-500 text-base" />
+                    <span>Abstimmung / Umfrage zu diesem Punkt:</span>
+                  </label>
+                  <Button
+                    icon={enablePoll ? 'pi pi-check-square' : 'pi pi-plus'}
+                    label={enablePoll ? 'Abstimmung entfernen' : 'Abstimmung hinzufügen'}
+                    type="button"
+                    className={enablePoll ? 'p-button-danger p-button-text p-0 text-xs font-bold' : 'comic-button-secondary p-button-xs py-1 px-2 text-xs font-bold'}
+                    onClick={() => {
+                      if (enablePoll) {
+                        setEnablePoll(false);
+                      } else {
+                        setEnablePoll(true);
+                        if (pollOptions.length < 2) {
+                          setPollOptions(['Option 1', 'Option 2']);
+                        }
+                      }
+                    }}
+                  />
+                </div>
+
+                {enablePoll && (
+                  <div className="bg-gray-800 p-3 border-round-xl border-1 border-gray-700 flex flex-column gap-3 mt-1">
+                    <div>
+                      <label className="text-xs font-bold text-gray-400 block mb-1">
+                        Optionale Frage (falls Titel nicht die Frage ist):
+                      </label>
+                      <InputText
+                        placeholder={title || 'z. B. Wo wollen wir essen?'}
+                        value={pollQuestion}
+                        onChange={(e) => setPollQuestion(e.target.value)}
+                        className="comic-input text-white text-sm w-full py-2 px-3"
+                      />
+                    </div>
+
+                    <div className="flex flex-column gap-2">
+                      <label className="text-xs font-bold text-gray-400 block">Antwort-Optionen:</label>
+                      {pollOptions.map((optText, idx) => (
+                        <div key={idx} className="flex align-items-center gap-2">
+                          <span className="text-xs font-bold text-yellow-500 w-1rem text-center">{idx + 1}.</span>
+                          <InputText
+                            placeholder={`Option ${idx + 1}`}
+                            value={optText}
+                            onChange={(e) => {
+                              const newOpts = [...pollOptions];
+                              newOpts[idx] = e.target.value;
+                              setPollOptions(newOpts);
+                            }}
+                            className="comic-input text-white text-sm flex-1 py-1 px-2"
+                          />
+                          {pollOptions.length > 2 && (
+                            <Button
+                              icon="pi pi-trash"
+                              type="button"
+                              rounded
+                              text
+                              className="text-red-400 p-1"
+                              onClick={() => {
+                                setPollOptions(pollOptions.filter((_, i) => i !== idx));
+                              }}
+                            />
+                          )}
+                        </div>
+                      ))}
+
+                      <Button
+                        icon="pi pi-plus"
+                        label="Option hinzufügen"
+                        type="button"
+                        className="comic-button-secondary p-button-xs align-self-start mt-1 text-xs font-bold"
+                        onClick={() => setPollOptions([...pollOptions, `Option ${pollOptions.length + 1}`])}
+                      />
+                    </div>
+
+                    <div className="flex align-items-center gap-2 pt-2 border-top-1 border-gray-700">
+                      <Checkbox
+                        inputId="pollAllowMultiple"
+                        checked={pollAllowMultiple}
+                        onChange={(e) => setPollAllowMultiple(!!e.checked)}
+                      />
+                      <label htmlFor="pollAllowMultiple" className="text-xs text-gray-300 cursor-pointer font-bold">
+                        Mehrfachauswahl erlauben
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -871,6 +1151,21 @@ export default function AgendaTimeline({
           </div>
         )}
       </Dialog>
+
+      {/* Voting Modal */}
+      {activeVoteIndex !== null && items[activeVoteIndex]?.poll && (
+        <PollVoteModal
+          visible={voteModalVisible}
+          onHide={() => {
+            setVoteModalVisible(false);
+            setActiveVoteIndex(null);
+          }}
+          itemTitle={items[activeVoteIndex].title}
+          poll={items[activeVoteIndex].poll}
+          currentUserId={currentUserId || currentUser?.name || 'Unbekannt'}
+          onVote={handleVoteOnItem}
+        />
+      )}
     </div>
   );
 }

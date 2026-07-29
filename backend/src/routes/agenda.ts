@@ -211,6 +211,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
           if (ni.upvotes !== undefined && JSON.stringify(ni.upvotes) !== JSON.stringify(oi.upvotes)) {
             logAudit(existingAgenda, 'Agendapunkt Gelikt', userName, `Likes für Agendapunkt "${oi.title}" aktualisiert.`);
           }
+          if (ni.poll !== undefined && JSON.stringify(ni.poll) !== JSON.stringify(oi.poll)) {
+            logAudit(existingAgenda, 'Abstimmung', userName, `Abstimmung für "${oi.title}" aktualisiert.`);
+          }
         }
       }
     }
@@ -403,6 +406,9 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.upvotes !== undefined) {
       logAudit(agenda, 'Agendapunkt Gelikt', userName, `Likes für Agendapunkt "${item.title}" aktualisiert.`);
     }
+    if (req.body?.poll !== undefined && JSON.stringify(req.body.poll) !== JSON.stringify(item.poll)) {
+      logAudit(agenda, 'Abstimmung', userName, `Abstimmung für "${item.title}" aktualisiert.`);
+    }
 
     if (req.body?.title !== undefined) item.title = req.body.title;
     if (req.body?.description !== undefined) item.description = req.body.description;
@@ -412,6 +418,7 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.pinned !== undefined) item.pinned = req.body.pinned;
     if (req.body?.location !== undefined) item.location = req.body.location;
     if (req.body?.upvotes !== undefined) item.upvotes = req.body.upvotes;
+    if (req.body?.poll !== undefined) item.poll = req.body.poll;
     
     const savedAgenda = await agenda.save();
     res.json(savedAgenda);

@@ -15,6 +15,18 @@ export interface ILocation {
   lng: number;
 }
 
+export interface IPollOption {
+  id: string;
+  text: string;
+  votes: string[];
+}
+
+export interface IPoll {
+  question?: string;
+  options: IPollOption[];
+  allowMultiple?: boolean;
+}
+
 export interface IAgendaItem {
   _id?: string;
   title: string;
@@ -26,6 +38,7 @@ export interface IAgendaItem {
   upvotes?: string[];
   pinned?: boolean;
   location?: ILocation;
+  poll?: IPoll;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -75,6 +88,18 @@ const LocationSchema = new Schema<ILocation>({
   lng: { type: Number, required: true }
 });
 
+const PollOptionSchema = new Schema<IPollOption>({
+  id: { type: String, required: true },
+  text: { type: String, required: true },
+  votes: { type: [String], default: [] }
+});
+
+const PollSchema = new Schema<IPoll>({
+  question: { type: String },
+  options: [PollOptionSchema],
+  allowMultiple: { type: Boolean, default: false }
+});
+
 const AgendaItemSchema = new Schema<IAgendaItem>({
   title: { type: String, required: true },
   description: { type: String },
@@ -85,6 +110,7 @@ const AgendaItemSchema = new Schema<IAgendaItem>({
   upvotes: { type: [String], default: [] },
   pinned: { type: Boolean, default: false },
   location: { type: LocationSchema },
+  poll: { type: PollSchema },
   createdAt: { type: Date },
   updatedAt: { type: Date }
 });
