@@ -199,6 +199,15 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
   };
 
   const handleOpenEditAttendee = (att: Attendee) => {
+    const isThisUser = currentUser && (
+      (att.id && currentUser.id === att.id) ||
+      (att._id && currentUser._id === att._id) ||
+      (att._id && currentUser.id === att._id) ||
+      (att.id && currentUser._id === att.id) ||
+      (currentUser.name && att.name && currentUser.name.trim().toLowerCase() === att.name.trim().toLowerCase())
+    );
+    if (!isThisUser) return;
+
     setEditingAttendee(att);
     setEditName(att.name);
     setEditModalVisible(true);
@@ -223,6 +232,28 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
     if (onUpdateAgenda) {
       await onUpdateAgenda({ attendees: updated });
     }
+
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('flashagenda_') && key.endsWith('_user')) {
+          const val = localStorage.getItem(key);
+          if (val) {
+            const parsed = JSON.parse(val);
+            if (
+              (editingAttendee.id && parsed.id === editingAttendee.id) ||
+              (editingAttendee._id && parsed._id === editingAttendee._id) ||
+              parsed.name === oldName
+            ) {
+              localStorage.setItem(key, JSON.stringify({ ...parsed, name: newNameStr }));
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update local storage user name:', err);
+    }
+
     setEditModalVisible(false);
     setEditingAttendee(null);
   };
@@ -334,17 +365,19 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                     <div className="font-bold text-lg sm:text-2xl overflow-hidden text-overflow-ellipsis white-space-nowrap text-white flex-1 min-w-0">
                       {att.name}
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenEditAttendee(att);
-                      }}
-                      className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors flex-shrink-0"
-                      style={{ width: '1.75rem', height: '1.75rem' }}
-                      title="Person bearbeiten oder löschen"
-                    >
-                      <i className="pi pi-pencil text-xs font-bold" />
-                    </button>
+                    {isSelf && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditAttendee(att);
+                        }}
+                        className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors flex-shrink-0"
+                        style={{ width: '1.75rem', height: '1.75rem' }}
+                        title="Eigenen Namen bearbeiten"
+                      >
+                        <i className="pi pi-pencil text-xs font-bold" />
+                      </button>
+                    )}
                   </div>
                   
                   <div className="flex flex-column gap-1 text-xs sm:text-sm text-white-alpha-90">
