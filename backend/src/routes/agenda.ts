@@ -4,6 +4,19 @@ import Agenda from '../models/Agenda';
 
 const router: Router = express.Router();
 
+// Helper to append audit log entries to an agenda
+function logAudit(agenda: any, action: string, user?: string, details?: string) {
+  if (!agenda.auditLogs) {
+    agenda.auditLogs = [];
+  }
+  agenda.auditLogs.push({
+    action,
+    user: user || 'Unbekannt',
+    details: details || '',
+    timestamp: new Date()
+  });
+}
+
 // Helper to validate and sanitize image URLs / Data URIs against XSS (e.g. javascript: or data:text/html)
 function isSafeImageUrl(url: any): boolean {
   if (!url || typeof url !== 'string') return true;
@@ -34,14 +47,45 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// Get audit logs for an agenda
+router.get('/:id/audits', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid agenda ID format' });
+      return;
+    }
+    const agenda = await Agenda.findById(id).select('auditLogs');
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    const logs = (agenda.auditLogs || []).sort(
+      (a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    res.json(logs);
+  } catch (error) {
+    console.error('Error GET /:id/audits:', error);
+    res.status(500).json({ message: 'Failed to fetch audit logs' });
+  }
+});
+
 // Create a new agenda
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
+    const title = req.body?.title || 'Neue Agenda';
+    const userName = req.body?.userName || req.body?.author || 'Ersteller';
     const newAgenda = new Agenda({
-      title: req.body?.title || 'Neue Agenda',
+      title,
       attendees: req.body?.attendees || [],
       items: req.body?.items || [],
-      createdBy: req.body?.createdBy || undefined
+      createdBy: req.body?.createdBy || undefined,
+      auditLogs: [{
+        action: 'Agenda erstellt',
+        user: userName,
+        details: `Agenda "${title}" wurde erstellt.`,
+        timestamp: new Date()
+      }]
     });
     const savedAgenda = await newAgenda.save();
     res.status(201).json(savedAgenda);
@@ -100,21 +144,88 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const allowedFields = ['title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed', 'items', 'attendees', 'createdBy'];
-    const sanitizedUpdates: Record<string, any> = {};
-    for (const field of allowedFields) {
-      if (req.body[field] !== undefined) {
-        sanitizedUpdates[field] = req.body[field];
+    const userName = req.body.userName || req.body.author || 'Benutzer';
+    const auditDetails: string[] = [];
+    if (req.body.title !== undefined && req.body.title !== existingAgenda.title) {
+      auditDetails.push(`Titel von "${existingAgenda.title}" zu "${req.body.title}" geändert`);
+    }
+    if (req.body.date !== undefined && req.body.date !== existingAgenda.date) {
+      auditDetails.push(`Datum geändert`);
+    }
+    if (req.body.location !== undefined && JSON.stringify(req.body.location) !== JSON.stringify(existingAgenda.location)) {
+      auditDetails.push(`Ort zu "${req.body.location?.name || 'kein Ort'}" geändert`);
+    }
+    if (req.body.isManuallyClosed !== undefined && req.body.isManuallyClosed !== existingAgenda.isManuallyClosed) {
+      auditDetails.push(req.body.isManuallyClosed ? 'Agenda manuell geschlossen' : 'Agenda manuell wieder geöffnet');
+    }
+
+    if (auditDetails.length > 0) {
+      logAudit(existingAgenda, 'Agenda aktualisiert', userName, auditDetails.join(', '));
+    }
+
+    // Audit log detection for items array updates via PUT /:id
+    if (req.body.items && Array.isArray(req.body.items)) {
+      const oldItems = existingAgenda.items || [];
+      const newItems = req.body.items;
+
+      if (newItems.length > oldItems.length) {
+        const addedItems = newItems.filter(
+          (ni: any) => !ni._id || !oldItems.some((oi: any) => oi._id.toString() === ni._id.toString())
+        );
+        for (const addedItem of addedItems) {
+          const itemTitle = addedItem.title || 'Neuer Punkt';
+          const itemAuthor = addedItem.author || userName;
+          logAudit(existingAgenda, 'Agendapunkt erstellt', itemAuthor, `Agendapunkt "${itemTitle}" wurde hinzugefügt.`);
+        }
+      } else if (newItems.length < oldItems.length) {
+        const deletedItems = oldItems.filter(
+          (oi: any) => !newItems.some((ni: any) => ni._id && ni._id.toString() === oi._id.toString())
+        );
+        for (const deletedItem of deletedItems) {
+          logAudit(existingAgenda, 'Agendapunkt gelöscht', userName, `Agendapunkt "${deletedItem.title}" wurde gelöscht.`);
+        }
+      } else {
+        for (const ni of newItems) {
+          if (!ni._id) continue;
+          const oi = oldItems.find((item: any) => item._id.toString() === ni._id.toString());
+          if (!oi) continue;
+
+          if (ni.title !== undefined && ni.title !== oi.title) {
+            logAudit(existingAgenda, 'Agendapunkt bearbeitet', userName, `Titel von "${oi.title}" zu "${ni.title}" geändert.`);
+          }
+          if (ni.description !== undefined && ni.description !== oi.description) {
+            logAudit(existingAgenda, 'Agendapunkt bearbeitet', userName, `Beschreibung von "${oi.title}" geändert.`);
+          }
+          if (ni.imageUrl !== undefined && ni.imageUrl !== oi.imageUrl) {
+            logAudit(existingAgenda, 'Agendapunkt bearbeitet', userName, `Bild von "${oi.title}" geändert.`);
+          }
+          if (ni.location !== undefined && JSON.stringify(ni.location) !== JSON.stringify(oi.location)) {
+            logAudit(existingAgenda, 'Agendapunkt bearbeitet', userName, `Ort von "${oi.title}" geändert.`);
+          }
+          if (ni.completed !== undefined && ni.completed !== oi.completed) {
+            logAudit(existingAgenda, 'Agendapunkt Status', userName, `Agendapunkt "${oi.title}" als ${ni.completed ? 'erledigt' : 'offen'} markiert.`);
+          }
+          if (ni.pinned !== undefined && ni.pinned !== oi.pinned) {
+            logAudit(existingAgenda, 'Agendapunkt Anpinnen', userName, `Agendapunkt "${oi.title}" ${ni.pinned ? 'angeheftet' : 'gelöst'}.`);
+          }
+          if (ni.upvotes !== undefined && JSON.stringify(ni.upvotes) !== JSON.stringify(oi.upvotes)) {
+            logAudit(existingAgenda, 'Agendapunkt Gelikt', userName, `Likes für Agendapunkt "${oi.title}" aktualisiert.`);
+          }
+        }
       }
     }
 
-    const updatedAgenda = await Agenda.findByIdAndUpdate(
-      id,
-      { $set: sanitizedUpdates },
-      { new: true }
-    );
+    const allowedFields = ['title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed', 'items', 'attendees', 'createdBy'];
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        (existingAgenda as any)[field] = req.body[field];
+      }
+    }
+
+    const updatedAgenda = await existingAgenda.save();
     res.json(updatedAgenda);
   } catch (error) {
+    console.error('Error PUT /:id:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -142,6 +253,7 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
       newAttendee.avatarUrl = req.body.avatarUrl;
     }
     agenda.attendees.push(newAttendee);
+    logAudit(agenda, 'Person beigetreten', name, `Teilnehmer "${name}" ist der Agenda beigetreten.`);
     const savedAgenda = await agenda.save();
     res.status(201).json(savedAgenda);
   } catch (error) {
@@ -206,16 +318,21 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const itemTitle = req.body?.title || 'Neuer Punkt';
+    const authorName = req.body?.author || req.body?.userName || 'Benutzer';
+
     agenda.items.push({
-      title: req.body?.title,
+      title: itemTitle,
       description: req.body?.description,
       createdBy: req.body?.createdBy,
-      author: req.body?.author || req.body?.createdBy,
+      author: authorName,
       imageUrl: req.body?.imageUrl,
       completed: req.body?.completed || false,
       pinned: req.body?.pinned || false,
       location: req.body?.location || undefined
     });
+
+    logAudit(agenda, 'Agendapunkt erstellt', authorName, `Agendapunkt "${itemTitle}" wurde hinzugefügt.`);
     const savedAgenda = await agenda.save();
     res.status(201).json(savedAgenda);
   } catch (error) {
@@ -245,6 +362,30 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
       item.imageUrl = req.body.imageUrl;
     }
 
+    const userName = req.body?.userName || req.body?.author || 'Benutzer';
+
+    if (req.body?.title !== undefined && req.body.title !== item.title) {
+      logAudit(agenda, 'Agendapunkt bearbeitet', userName, `Titel von "${item.title}" zu "${req.body.title}" geändert.`);
+    }
+    if (req.body?.description !== undefined && req.body.description !== item.description) {
+      logAudit(agenda, 'Agendapunkt bearbeitet', userName, `Beschreibung von "${item.title}" geändert.`);
+    }
+    if (req.body?.imageUrl !== undefined && req.body.imageUrl !== item.imageUrl) {
+      logAudit(agenda, 'Agendapunkt bearbeitet', userName, `Bild von "${item.title}" geändert.`);
+    }
+    if (req.body?.location !== undefined && JSON.stringify(req.body.location) !== JSON.stringify(item.location)) {
+      logAudit(agenda, 'Agendapunkt bearbeitet', userName, `Ort von "${item.title}" geändert.`);
+    }
+    if (req.body?.completed !== undefined && req.body.completed !== item.completed) {
+      logAudit(agenda, 'Agendapunkt Status', userName, `Agendapunkt "${item.title}" als ${req.body.completed ? 'erledigt' : 'offen'} markiert.`);
+    }
+    if (req.body?.pinned !== undefined && req.body.pinned !== item.pinned) {
+      logAudit(agenda, 'Agendapunkt Anpinnen', userName, `Agendapunkt "${item.title}" ${req.body.pinned ? 'angeheftet' : 'lösgelöst'}.`);
+    }
+    if (req.body?.upvotes !== undefined) {
+      logAudit(agenda, 'Agendapunkt Gelikt', userName, `Likes für Agendapunkt "${item.title}" aktualisiert.`);
+    }
+
     if (req.body?.title !== undefined) item.title = req.body.title;
     if (req.body?.description !== undefined) item.description = req.body.description;
     if (req.body?.createdBy !== undefined) item.createdBy = req.body.createdBy;
@@ -252,6 +393,7 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.completed !== undefined) item.completed = req.body.completed;
     if (req.body?.pinned !== undefined) item.pinned = req.body.pinned;
     if (req.body?.location !== undefined) item.location = req.body.location;
+    if (req.body?.upvotes !== undefined) item.upvotes = req.body.upvotes;
     
     const savedAgenda = await agenda.save();
     res.json(savedAgenda);
@@ -268,7 +410,13 @@ router.delete('/:id/items/:itemId', async (req: Request, res: Response): Promise
       res.status(404).json({ message: 'Agenda not found' });
       return;
     }
+    const itemToDelete = agenda.items.find((i: any) => i._id.toString() === req.params.itemId);
+    const itemTitle = itemToDelete ? itemToDelete.title : 'Unbekannter Punkt';
+    const userName = (req.body && req.body.userName) || (req.query && req.query.userName as string) || 'Benutzer';
+
     agenda.items = agenda.items.filter((i: any) => i._id.toString() !== req.params.itemId);
+    logAudit(agenda, 'Agendapunkt gelöscht', userName, `Agendapunkt "${itemTitle}" wurde gelöscht.`);
+
     const savedAgenda = await agenda.save();
     res.json(savedAgenda);
   } catch (error) {

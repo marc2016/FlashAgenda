@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { Button } from 'primereact/button';
 import AgendaHeader from '../components/AgendaHeader';
 import AgendaAttendees from '../components/AgendaAttendees';
 import AgendaTimeline from '../components/AgendaTimeline';
 import UserIdentificationModal from '../components/UserIdentificationModal';
+import AuditLogModal from '../components/AuditLogModal';
 import {
   getCachedAgenda,
   setCachedAgenda,
@@ -18,6 +20,7 @@ export default function AgendaDetail() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showUserModal, setShowUserModal] = useState<boolean | undefined>(undefined);
+  const [showAuditModal, setShowAuditModal] = useState(false);
   
   // Offline state tracking
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -188,6 +191,9 @@ export default function AgendaDetail() {
     const payload = { ...updates };
     if (userId && !payload.userId) {
       payload.userId = userId;
+    }
+    if (currentUser?.name && !payload.userName) {
+      payload.userName = currentUser.name;
     }
 
     // Optimistic UI update & Cache update
@@ -362,6 +368,20 @@ export default function AgendaDetail() {
           onUpdate={handleUpdateItems}
           onUpdateAgenda={handleUpdateAgenda}
         />
+
+        {/* Bottom Footer & Audit Button */}
+        <div className="mt-3 sm:mt-4 mb-4 flex flex-column sm:flex-row align-items-center justify-content-between gap-3 border-top-1 border-gray-700 pt-4">
+          <Button
+            icon="pi pi-history"
+            label="Audit-Log"
+            onClick={() => setShowAuditModal(true)}
+            className="comic-button-secondary p-button-sm flex align-items-center gap-2"
+            title="Agenda Audit-Protokoll anzeigen"
+          />
+          <div className="text-xs text-yellow-400 font-bold opacity-60">
+            FlashAgenda v{import.meta.env.VITE_APP_VERSION || '1.0.0'}
+          </div>
+        </div>
       </div>
 
       <UserIdentificationModal 
@@ -373,10 +393,11 @@ export default function AgendaDetail() {
         onClose={() => setShowUserModal(false)}
       />
 
-      {/* App Version Footer */}
-      <div className="text-center mt-6 text-xs text-yellow-400 font-bold opacity-60">
-        FlashAgenda v{import.meta.env.VITE_APP_VERSION || '1.0.0'}
-      </div>
+      <AuditLogModal
+        agendaId={agenda._id}
+        visible={showAuditModal}
+        onHide={() => setShowAuditModal(false)}
+      />
     </div>
   );
 }

@@ -30,6 +30,14 @@ export interface IAgendaItem {
   updatedAt?: string | Date;
 }
 
+export interface IAuditLog {
+  _id?: string;
+  action: string;
+  user?: string;
+  details?: string;
+  timestamp: Date;
+}
+
 export interface IAgenda extends Document {
   title: string;
   date?: string;
@@ -41,7 +49,15 @@ export interface IAgenda extends Document {
   createdBy?: string;
   attendees: IAttendee[];
   items: IAgendaItem[];
+  auditLogs: IAuditLog[];
 }
+
+const AuditLogSchema = new Schema<IAuditLog>({
+  action: { type: String, required: true },
+  user: { type: String },
+  details: { type: String },
+  timestamp: { type: Date, default: Date.now }
+});
 
 const AttendeeSchema = new Schema<IAttendee>({
   id: { type: String },
@@ -81,7 +97,8 @@ const AgendaSchema = new Schema<IAgenda>({
   isManuallyClosed: { type: Boolean, default: false },
   createdBy: { type: String },
   attendees: [AttendeeSchema],
-  items: [AgendaItemSchema]
+  items: [AgendaItemSchema],
+  auditLogs: [AuditLogSchema]
 }, { timestamps: true });
 
 export default mongoose.model<IAgenda>('Agenda', AgendaSchema);
