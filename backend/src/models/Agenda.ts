@@ -99,6 +99,6 @@ const AgendaSchema = new Schema<IAgenda>({
   attendees: [AttendeeSchema],
   items: [AgendaItemSchema],
   auditLogs: [AuditLogSchema]
-}, { timestamps: true });
+}, { timestamps: true, versionKey: false });
 
 export default mongoose.model<IAgenda>('Agenda', AgendaSchema);

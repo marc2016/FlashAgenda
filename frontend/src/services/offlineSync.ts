@@ -40,16 +40,31 @@ export const enqueueAction = (
 ): QueueAction => {
   const queue = getOfflineQueue();
   
-  // If there is already a pending update of the same type for this agenda, merge/replace payload
+  // If there is already a pending update of the same type for this agenda, merge payload
   const existingIdx = queue.findIndex(
     (a) => a.agendaId === agendaId && a.type === type
   );
   
+  let finalPayload = payload;
+  if (existingIdx !== -1) {
+    const existingPayload = queue[existingIdx].payload;
+    if (
+      existingPayload &&
+      typeof existingPayload === 'object' &&
+      payload &&
+      typeof payload === 'object' &&
+      !Array.isArray(existingPayload) &&
+      !Array.isArray(payload)
+    ) {
+      finalPayload = { ...existingPayload, ...payload };
+    }
+  }
+
   const newAction: QueueAction = {
     id: uuidv4(),
     agendaId,
     type,
-    payload,
+    payload: finalPayload,
     timestamp: Date.now(),
   };
 
@@ -93,7 +108,7 @@ export const processOfflineQueue = async (onSuccess?: (agendaId: string, updated
       let endpoint = `/api/agendas/${action.agendaId}`;
       let bodyData = action.payload;
 
-      if (action.type === 'UPDATE_ITEMS') {
+      if (action.type === 'UPDATE_ITEMS' && Array.isArray(action.payload)) {
         bodyData = { items: action.payload };
       }
 

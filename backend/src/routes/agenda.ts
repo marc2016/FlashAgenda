@@ -222,8 +222,26 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const updatedAgenda = await existingAgenda.save();
-    res.json(updatedAgenda);
+    try {
+      const updatedAgenda = await existingAgenda.save();
+      res.json(updatedAgenda);
+    } catch (saveError: any) {
+      if (saveError && saveError.name === 'VersionError') {
+        console.warn('Version error encountered, re-fetching agenda and retrying save...');
+        const freshAgenda = await Agenda.findById(id);
+        if (freshAgenda) {
+          for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+              (freshAgenda as any)[field] = req.body[field];
+            }
+          }
+          const saved = await freshAgenda.save();
+          res.json(saved);
+          return;
+        }
+      }
+      throw saveError;
+    }
   } catch (error) {
     console.error('Error PUT /:id:', error);
     res.status(500).json({ message: 'Server error' });

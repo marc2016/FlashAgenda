@@ -203,8 +203,7 @@ export default function AgendaDetail() {
 
     if (!navigator.onLine) {
       const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
-      const queuePayload = updates.items !== undefined ? updates.items : payload;
-      enqueueAction(id, queueType, queuePayload);
+      enqueueAction(id, queueType, payload);
       return;
     }
 
