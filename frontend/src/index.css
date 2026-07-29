@@ -394,15 +394,18 @@ body.p-overflow-hidden {
   color: #ffffff !important;
 }
 
-.comic-panel-dark .mdxeditor {
+.comic-panel-dark .mdxeditor,
+.comic-panel-dark .mdxeditor-content-editable,
+.comic-panel-dark .mdxeditor-root-contenteditable,
+.comic-panel-dark .mdxeditor [contenteditable="true"],
+.comic-panel-dark .mdxeditor [contenteditable="false"],
+.comic-panel-dark .mdxeditor-content-editable > div {
   background-color: transparent !important;
   border: none !important;
-  min-height: auto !important;
-}
-
-.comic-panel-dark .mdxeditor-content-editable {
-  min-height: auto !important;
+  min-height: 0 !important;
+  height: auto !important;
   padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* Corner Banderole / Ribbon for current user card */
