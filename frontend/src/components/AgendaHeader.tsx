@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -160,6 +160,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
   const [showQR, setShowQR] = useState(false);
+  const calendarRef = useRef<any>(null);
 
   // OpenStreetMap / Nominatim Search State
   const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
@@ -429,6 +430,9 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
             lng: selectedCoords.lng ?? agenda.location?.lng
           }
         });
+      } else if (editField === 'date') {
+        const dateVal = tempValue instanceof Date ? tempValue.toISOString() : tempValue;
+        await onUpdate({ date: dateVal });
       } else {
         await onUpdate({ [editField]: tempValue });
       }
@@ -543,6 +547,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
             <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
               <i className="pi pi-calendar-plus text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
               <Calendar
+                ref={calendarRef}
                 value={agenda.date ? parseISO(agenda.date) : null}
                 onChange={async (e) => {
                   if (e.value) {
@@ -555,7 +560,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                 dateFormat="dd.mm.yy"
                 placeholder="Datum & Uhrzeit hinzufügen..."
                 className="text-white font-bold w-full"
-                inputClassName="bg-transparent text-white font-bold text-sm sm:text-xl border-none p-0 w-full"
+                inputClassName="bg-transparent text-white font-bold text-sm sm:text-xl border-none p-0 w-full cursor-pointer"
                 panelClassName="comic-panel-dark"
               />
             </div>
@@ -566,7 +571,13 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
               aria-label="Edit Date"
               onClick={(e) => {
                 e.stopPropagation();
-                openEdit('date', agenda.date);
+                if (calendarRef.current) {
+                  if (typeof calendarRef.current.show === 'function') {
+                    calendarRef.current.show();
+                  } else if (typeof calendarRef.current.focusInput === 'function') {
+                    calendarRef.current.focusInput();
+                  }
+                }
               }}
               className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
             />
@@ -739,6 +750,24 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         <div className="flex flex-column gap-3 pt-3 flex-1 overflow-hidden">
           {editField === 'title' && (
             <InputText value={tempValue} onChange={(e) => setTempValue(e.target.value)} autoFocus className="comic-panel-dark text-white" />
+          )}
+
+          {editField === 'date' && (
+            <div className="flex flex-column gap-2">
+              <label className="text-gray-300 font-bold text-sm">Datum & Uhrzeit wählen:</label>
+              <Calendar
+                value={tempValue ? (typeof tempValue === 'string' ? parseISO(tempValue) : tempValue) : null}
+                onChange={(e) => setTempValue(e.value)}
+                showTime
+                hourFormat="24"
+                dateFormat="dd.mm.yy"
+                placeholder="Datum & Uhrzeit wählen..."
+                className="w-full text-white font-bold"
+                inputClassName="comic-panel-dark text-white font-bold p-3 w-full"
+                panelClassName="comic-panel-dark"
+                appendTo="self"
+              />
+            </div>
           )}
 
           {editField === 'location' && (
