@@ -47,6 +47,8 @@ export interface IAgenda extends Document {
   closeBeforeHours?: number;
   isManuallyClosed?: boolean;
   createdBy?: string;
+  sortMode?: 'date' | 'rating' | 'random';
+  sortOrder?: 'asc' | 'desc';
   attendees: IAttendee[];
   items: IAgendaItem[];
   auditLogs: IAuditLog[];
@@ -96,6 +98,8 @@ const AgendaSchema = new Schema<IAgenda>({
   closeBeforeHours: { type: Number, default: 12 },
   isManuallyClosed: { type: Boolean, default: false },
   createdBy: { type: String },
+  sortMode: { type: String, enum: ['date', 'rating', 'random'], default: 'date' },
+  sortOrder: { type: String, enum: ['asc', 'desc'], default: 'asc' },
   attendees: [AttendeeSchema],
   items: [AgendaItemSchema],
   auditLogs: [AuditLogSchema]

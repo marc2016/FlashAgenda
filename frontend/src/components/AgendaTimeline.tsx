@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { Timeline } from 'primereact/timeline';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
@@ -351,8 +351,21 @@ export default function AgendaTimeline({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<MDXEditorMethods>(null);
   const [editorKey, setEditorKey] = useState(0);
-  const [sortMode, setSortMode] = useState<'date' | 'rating' | 'random' | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortMode, setSortMode] = useState<'date' | 'rating' | 'random'>(
+    (agenda?.sortMode as any) || 'date'
+  );
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
+    agenda?.sortOrder || 'asc'
+  );
+
+  useEffect(() => {
+    if (agenda?.sortMode) {
+      setSortMode(agenda.sortMode);
+    }
+    if (agenda?.sortOrder) {
+      setSortOrder(agenda.sortOrder);
+    }
+  }, [agenda?.sortMode, agenda?.sortOrder]);
 
   const currentUserId = useMemo(
     () => currentUser?.id || currentUser?._id || currentUser?.name,
@@ -506,7 +519,10 @@ export default function AgendaTimeline({
       return newOrder === 'asc' ? dateA - dateB : dateB - dateA;
     });
     await onUpdate(sorted);
-  }, [items, onUpdate, sortMode, sortOrder]);
+    if (onUpdateAgenda) {
+      await onUpdateAgenda({ sortMode: 'date', sortOrder: newOrder });
+    }
+  }, [items, onUpdate, onUpdateAgenda, sortMode, sortOrder]);
 
   const sortByRating = useCallback(async () => {
     const newOrder = sortMode === 'rating' ? (sortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
@@ -519,13 +535,19 @@ export default function AgendaTimeline({
       return newOrder === 'desc' ? ratingB - ratingA : ratingA - ratingB;
     });
     await onUpdate(sorted);
-  }, [items, onUpdate, sortMode, sortOrder]);
+    if (onUpdateAgenda) {
+      await onUpdateAgenda({ sortMode: 'rating', sortOrder: newOrder });
+    }
+  }, [items, onUpdate, onUpdateAgenda, sortMode, sortOrder]);
 
   const sortRandomly = useCallback(async () => {
     setSortMode('random');
     const sorted = sortWithPinned(items, () => Math.random() - 0.5);
     await onUpdate(sorted);
-  }, [items, onUpdate]);
+    if (onUpdateAgenda) {
+      await onUpdateAgenda({ sortMode: 'random', sortOrder });
+    }
+  }, [items, onUpdate, onUpdateAgenda, sortOrder]);
 
   const saveItem = useCallback(async () => {
     if (!title.trim()) return;
