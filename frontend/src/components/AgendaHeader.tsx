@@ -7,6 +7,7 @@ import { Calendar } from 'primereact/calendar';
 import { Checkbox } from 'primereact/checkbox';
 import { parseISO } from 'date-fns';
 import { QRCodeSVG } from 'qrcode.react';
+import { getNotificationPermissionState, requestNotificationPermission } from '../services/notificationService';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -170,7 +171,13 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
   const [showQR, setShowQR] = useState(false);
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermissionState);
   const calendarRef = useRef<any>(null);
+
+  const handleToggleNotifications = async () => {
+    const perm = await requestNotificationPermission();
+    setNotifPermission(perm);
+  };
 
   // OpenStreetMap / Nominatim Search State
   const [searchResults, setSearchResults] = useState<NominatimResult[]>([]);
@@ -592,6 +599,16 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         >
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button
+            icon={notifPermission === 'granted' ? 'pi pi-bell' : notifPermission === 'denied' ? 'pi pi-bell-slash' : 'pi pi-bell'}
+            rounded
+            text
+            size="small"
+            onClick={handleToggleNotifications}
+            className={notifPermission === 'granted' ? 'text-yellow-400 font-bold' : notifPermission === 'denied' ? 'text-gray-500' : 'text-gray-300 hover:text-yellow-400'}
+            title={notifPermission === 'granted' ? 'Browser-Benachrichtigungen aktiv' : notifPermission === 'denied' ? 'Benachrichtigungen blockiert' : 'Browser-Benachrichtigungen aktivieren'}
+            style={{ width: '2.2rem', height: '2.2rem' }}
+          />
           <Button icon="pi pi-calendar-plus" rounded text size="small" onClick={handleExportICS} className="text-gray-300 hover:text-yellow-400" title="In Kalender exportieren (.ics)" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2.2rem', height: '2.2rem' }} />
@@ -613,6 +630,16 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         >
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda" style={{ width: '2rem', height: '2rem' }} />
+          <Button
+            icon={notifPermission === 'granted' ? 'pi pi-bell' : notifPermission === 'denied' ? 'pi pi-bell-slash' : 'pi pi-bell'}
+            rounded
+            text
+            size="small"
+            onClick={handleToggleNotifications}
+            className={notifPermission === 'granted' ? 'text-yellow-400 font-bold' : notifPermission === 'denied' ? 'text-gray-500' : 'text-gray-300 hover:text-yellow-400'}
+            title={notifPermission === 'granted' ? 'Browser-Benachrichtigungen aktiv' : notifPermission === 'denied' ? 'Benachrichtigungen blockiert' : 'Browser-Benachrichtigungen aktivieren'}
+            style={{ width: '2rem', height: '2rem' }}
+          />
           <Button icon="pi pi-calendar-plus" rounded text size="small" onClick={handleExportICS} className="text-gray-300 hover:text-yellow-400" title="In Kalender exportieren (.ics)" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2rem', height: '2rem' }} />

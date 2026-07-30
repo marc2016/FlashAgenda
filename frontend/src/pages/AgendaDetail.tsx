@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import AgendaHeader from '../components/AgendaHeader';
@@ -6,6 +6,7 @@ import AgendaAttendees from '../components/AgendaAttendees';
 import AgendaTimeline from '../components/AgendaTimeline';
 import UserIdentificationModal from '../components/UserIdentificationModal';
 import AuditLogModal from '../components/AuditLogModal';
+import { notifyNewItem } from '../services/notificationService';
 import {
   getCachedAgenda,
   setCachedAgenda,
@@ -25,6 +26,7 @@ export default function AgendaDetail() {
   // Offline state tracking
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [, setPendingCount] = useState<number>(0);
+  const prevItemsRef = useRef<any[] | null>(null);
 
   const fetchAgenda = useCallback(async () => {
     if (!id) return;
@@ -33,6 +35,22 @@ export default function AgendaDetail() {
         const response = await fetch(`/api/agendas/${id}`);
         if (response.ok) {
           const data = await response.json();
+          if (data?.items && prevItemsRef.current !== null) {
+            const newItems = data.items.filter((item: any) => {
+              return !prevItemsRef.current?.some((prev: any) => (prev._id || prev.id) === (item._id || item.id));
+            });
+            newItems.forEach((newItem: any) => {
+              const authorId = newItem.createdBy;
+              const authorName = newItem.author;
+              const isSelf = currentUser && (authorId === currentUser.id || authorId === currentUser._id || authorName === currentUser.name);
+              if (!isSelf) {
+                notifyNewItem(newItem.title, authorName);
+              }
+            });
+          }
+          if (data?.items) {
+            prevItemsRef.current = data.items;
+          }
           setAgenda(data);
           setCachedAgenda(id, data);
           return;
@@ -56,7 +74,7 @@ export default function AgendaDetail() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, currentUser]);
 
   useEffect(() => {
     fetchAgenda();
