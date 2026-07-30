@@ -5,6 +5,7 @@ export interface IAttendee {
   id?: string;
   name: string;
   avatarUrl?: string;
+  email?: string;
   joinedAt?: Date;
   lastSeen?: Date;
 }
@@ -78,6 +79,7 @@ const AttendeeSchema = new Schema<IAttendee>({
   id: { type: String },
   name: { type: String, required: true },
   avatarUrl: { type: String },
+  email: { type: String },
   joinedAt: { type: Date, default: Date.now },
   lastSeen: { type: Date, default: Date.now }
 });

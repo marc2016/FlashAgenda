@@ -308,13 +308,31 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
     const location = agenda.location?.name || '';
     const agendaUrl = window.location.href;
 
-    let descriptionText = `Link zur Agenda: ${agendaUrl}`;
+    const attendees = (agenda as any).attendees || [];
+    let attendeesDescriptionText = '';
+    if (attendees.length > 0) {
+      attendeesDescriptionText = '\\n\\nTeilnehmer:\\n' + attendees.map((att: any) => {
+        return att.email ? `- ${att.name} (${att.email})` : `- ${att.name}`;
+      }).join('\\n');
+    }
+
+    let descriptionText = `Link zur Agenda: ${agendaUrl}${attendeesDescriptionText}`;
     if (agenda.items && agenda.items.length > 0) {
       descriptionText += `\\n\\nAgendapunkte:\\n` + agenda.items.map((it: any) => `- ${it.title}`).join('\\n');
     }
 
     const escapedTitle = title.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
     const escapedLocation = location.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+
+    const attendeeIcsLines: string[] = [];
+    attendees.forEach((att: any) => {
+      const name = (att.name || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+      if (att.email && att.email.trim()) {
+        attendeeIcsLines.push(`ATTENDEE;CN=${name}:mailto:${att.email.trim()}`);
+      } else {
+        attendeeIcsLines.push(`ATTENDEE;CN=${name}:mailto:unbekannt@flashagenda`);
+      }
+    });
 
     const icsLines = [
       'BEGIN:VCALENDAR',
@@ -329,6 +347,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
       `DTEND:${dtEnd}`,
       `SUMMARY:${escapedTitle}`,
       `LOCATION:${escapedLocation}`,
+      ...attendeeIcsLines,
       `DESCRIPTION:${descriptionText}`,
       `URL:${agendaUrl}`,
       'STATUS:CONFIRMED',

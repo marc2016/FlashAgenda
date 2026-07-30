@@ -10,6 +10,7 @@ interface Attendee {
   id?: string;
   name: string;
   avatarUrl?: string;
+  email?: string;
   joinedAt?: string;
   lastSeen?: string;
 }
@@ -73,6 +74,7 @@ const isUserOnline = (lastSeen?: string | Date) => {
 export default function AgendaAttendees({ attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
 
   // Avatar Modal State
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
@@ -82,6 +84,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
   // Edit / Delete Attendee Modal State
   const [editingAttendee, setEditingAttendee] = useState<Attendee | null>(null);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
 
   // Precompute item counts per attendee O(N + M)
@@ -110,11 +113,12 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
 
   const handleAdd = useCallback(async () => {
     if (newName.trim()) {
-      await onAdd({ id: uuidv4(), name: newName.trim() });
+      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined });
       setNewName('');
+      setNewEmail('');
       setVisible(false);
     }
-  }, [newName, onAdd]);
+  }, [newName, newEmail, onAdd]);
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -210,6 +214,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
 
     setEditingAttendee(att);
     setEditName(att.name);
+    setEditEmail(att.email || '');
     setEditModalVisible(true);
   };
 
@@ -217,6 +222,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
     if (!editingAttendee || !editName.trim()) return;
     const oldName = editingAttendee.name;
     const newNameStr = editName.trim();
+    const newEmailStr = editEmail.trim();
 
     const updated = attendees.map(a => {
       const isTarget =
@@ -224,7 +230,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
         (editingAttendee._id && a._id === editingAttendee._id) ||
         a.name === oldName;
       if (isTarget) {
-        return { ...a, name: newNameStr };
+        return { ...a, name: newNameStr, email: newEmailStr || undefined };
       }
       return a;
     });
@@ -366,17 +372,30 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                       {att.name}
                     </div>
                     {isSelf && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEditAttendee(att);
-                        }}
-                        className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors flex-shrink-0"
-                        style={{ width: '1.75rem', height: '1.75rem' }}
-                        title="Eigenen Namen bearbeiten"
-                      >
-                        <i className="pi pi-pencil text-xs font-bold" />
-                      </button>
+                      <div className="flex align-items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditAttendee(att);
+                          }}
+                          className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
+                          style={{ width: '1.75rem', height: '1.75rem' }}
+                          title="Eigene E-Mail bearbeiten"
+                        >
+                          <i className="mdi mdi-email-outline text-xs font-bold" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditAttendee(att);
+                          }}
+                          className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
+                          style={{ width: '1.75rem', height: '1.75rem' }}
+                          title="Eigenen Namen bearbeiten"
+                        >
+                          <i className="pi pi-pencil text-xs font-bold" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   
@@ -384,6 +403,34 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                     <div>
                       <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide m-0">Registriert</strong>
                       <span className="m-0 p-0 line-height-1">{formatDate(att.joinedAt)}</span>
+                    </div>
+                    <div>
+                      <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">E-Mail</strong>
+                      {att.email ? (
+                        <a
+                          href={`mailto:${att.email}`}
+                          className="m-0 p-0 line-height-1 text-white-alpha-90 hover:text-yellow-300 flex align-items-center gap-1 font-semibold overflow-hidden text-overflow-ellipsis"
+                          title={att.email}
+                        >
+                          <i className="mdi mdi-email text-yellow-400 text-xs flex-shrink-0" />
+                          <span className="overflow-hidden text-overflow-ellipsis white-space-nowrap">{att.email}</span>
+                        </a>
+                      ) : (
+                        isSelf ? (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEditAttendee(att);
+                            }}
+                            className="m-0 p-0 line-height-1 text-white-alpha-50 hover:text-yellow-300 flex align-items-center gap-1 cursor-pointer italic"
+                          >
+                            <i className="mdi mdi-email-plus-outline text-xs flex-shrink-0" />
+                            <span>E-Mail hinzufügen...</span>
+                          </span>
+                        ) : (
+                          <span className="m-0 p-0 line-height-1 text-white-alpha-40 italic">Keine E-Mail</span>
+                        )
+                      )}
                     </div>
                     <div>
                       <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Zuletzt online</strong>
@@ -453,6 +500,17 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
               className="bg-gray-800 text-white border-gray-600"
             />
           </div>
+          <div className="p-inputgroup">
+            <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="mdi mdi-email text-yellow-400"></i></span>
+            <InputText 
+              type="email"
+              placeholder="E-Mail-Adresse (optional)" 
+              value={newEmail} 
+              onChange={(e) => setNewEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              className="bg-gray-800 text-white border-gray-600"
+            />
+          </div>
           <Button label="Hinzufügen" icon="pi pi-check" onClick={handleAdd} className="p-button-warning" disabled={!newName.trim()} />
         </div>
       </Dialog>
@@ -481,6 +539,19 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSaveEditAttendee()}
               autoFocus
+              className="bg-gray-800 text-white border-gray-600"
+            />
+          </div>
+
+          <label className="text-sm font-bold text-gray-300 mt-2">E-Mail-Adresse (nur für dich selbst bearbeitbar):</label>
+          <div className="p-inputgroup">
+            <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="mdi mdi-email text-yellow-400"></i></span>
+            <InputText
+              type="email"
+              placeholder="name@beispiel.de"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveEditAttendee()}
               className="bg-gray-800 text-white border-gray-600"
             />
           </div>
