@@ -6,10 +6,12 @@ export interface QueueAction {
   type: 'UPDATE_ITEMS' | 'UPDATE_AGENDA';
   payload: any;
   timestamp: number;
+  retries?: number;
 }
 
 const QUEUE_STORAGE_KEY = 'flashagenda_offline_queue';
 const CACHE_PREFIX = 'flashagenda_cache_';
+const MAX_RETRIES = 5;
 
 type SyncListener = (isOnline: boolean, pendingCount: number) => void;
 const listeners: Set<SyncListener> = new Set();
@@ -31,6 +33,10 @@ export const saveOfflineQueue = (queue: QueueAction[]) => {
   } catch (err) {
     console.error('Error saving offline queue:', err);
   }
+};
+
+export const clearOfflineQueue = () => {
+  saveOfflineQueue([]);
 };
 
 export const enqueueAction = (
@@ -66,6 +72,7 @@ export const enqueueAction = (
     type,
     payload: finalPayload,
     timestamp: Date.now(),
+    retries: 0,
   };
 
   if (existingIdx !== -1) {
@@ -97,7 +104,7 @@ export const setCachedAgenda = (agendaId: string, data: any) => {
 };
 
 export const processOfflineQueue = async (onSuccess?: (agendaId: string, updatedData: any) => void) => {
-  if (!navigator.onLine) return;
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
   const queue = getOfflineQueue();
   if (queue.length === 0) return;
 
@@ -124,13 +131,26 @@ export const processOfflineQueue = async (onSuccess?: (agendaId: string, updated
         if (onSuccess) {
           onSuccess(action.agendaId, updatedAgenda);
         }
+      } else if (response.status >= 400 && response.status < 500) {
+        // 4xx errors (e.g. 403 Forbidden, 404 Not Found) will never succeed — drop action from queue
+        console.warn(`Dropping unresolvable 4xx offline action (${response.status}):`, action);
       } else {
-        // Keep in queue if server error
-        remainingQueue.push(action);
+        // 5xx server errors — retry up to MAX_RETRIES times
+        const currentRetries = (action.retries || 0) + 1;
+        if (currentRetries < MAX_RETRIES) {
+          remainingQueue.push({ ...action, retries: currentRetries });
+        } else {
+          console.warn(`Dropping offline action after ${MAX_RETRIES} failed attempts:`, action);
+        }
       }
     } catch (err) {
       console.error('Sync action failed:', action, err);
-      remainingQueue.push(action);
+      const currentRetries = (action.retries || 0) + 1;
+      if (currentRetries < MAX_RETRIES) {
+        remainingQueue.push({ ...action, retries: currentRetries });
+      } else {
+        console.warn(`Dropping offline action after ${MAX_RETRIES} network errors:`, action);
+      }
     }
   }
 
@@ -166,6 +186,10 @@ if (typeof window !== 'undefined') {
     notifyOfflineState(false);
   });
   setInterval(() => {
-    notifyOfflineState(navigator.onLine);
-  }, 2000);
+    const isOnline = navigator.onLine;
+    notifyOfflineState(isOnline);
+    if (isOnline && getOfflineQueue().length > 0) {
+      processOfflineQueue();
+    }
+  }, 3000);
 }

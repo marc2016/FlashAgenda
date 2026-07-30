@@ -991,7 +991,11 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                       className="flex align-items-center gap-3 p-2 border-round bg-gray-800 hover:bg-gray-700 cursor-pointer transition-colors"
                       onClick={() => toggleAttendeeKey(key)}
                     >
-                      <Checkbox checked={isChecked} onChange={() => toggleAttendeeKey(key)} />
+                      <Checkbox
+                        checked={isChecked}
+                        onChange={() => {}}
+                        onClick={(e) => e.stopPropagation()}
+                      />
                       <span className="text-white text-sm font-semibold">{att.name}</span>
                     </div>
                   );
@@ -1031,7 +1035,11 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
                       onClick={() => toggleItemKey(key)}
                     >
                       <div className="flex align-items-center gap-3 min-w-0 flex-1">
-                        <Checkbox checked={isChecked} onChange={() => toggleItemKey(key)} />
+                        <Checkbox
+                          checked={isChecked}
+                          onChange={() => {}}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                         <span className="text-white text-sm font-semibold word-break-break-word">{item.title}</span>
                       </div>
                       {item.pinned && (

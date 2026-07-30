@@ -1168,13 +1168,17 @@ export default function AgendaTimeline({
                       />
                     </div>
 
-                    <div className="flex align-items-center gap-2 pt-2 border-top-1 border-gray-700">
+                    <div
+                      className="flex align-items-center gap-2 pt-2 border-top-1 border-gray-700 cursor-pointer"
+                      onClick={() => setPollAllowMultiple((m) => !m)}
+                    >
                       <Checkbox
                         inputId="pollAllowMultiple"
                         checked={pollAllowMultiple}
-                        onChange={(e) => setPollAllowMultiple(!!e.checked)}
+                        onChange={() => {}}
+                        onClick={(e) => e.stopPropagation()}
                       />
-                      <label htmlFor="pollAllowMultiple" className="text-xs text-gray-300 cursor-pointer font-bold">
+                      <label htmlFor="pollAllowMultiple" className="text-xs text-gray-300 cursor-pointer font-bold select-none">
                         Mehrfachauswahl erlauben
                       </label>
                     </div>
