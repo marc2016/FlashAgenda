@@ -32,9 +32,26 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
     if (storedUser) {
       onIdentified(JSON.parse(storedUser));
     } else {
+      const lastUserStr = localStorage.getItem('flashagenda_last_user');
+      if (lastUserStr) {
+        try {
+          const lastUser = JSON.parse(lastUserStr);
+          const match = attendees.find(
+            a => (a.id && a.id === lastUser.id) ||
+                 (a.name && lastUser.name && a.name.trim().toLowerCase() === lastUser.name.trim().toLowerCase())
+          );
+          if (match) {
+            localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(match));
+            onIdentified(match);
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to parse last user', err);
+        }
+      }
       setVisible(true);
     }
-  }, [agendaId, onIdentified, isOpen]);
+  }, [agendaId, attendees, onIdentified, isOpen]);
 
   const handleClose = () => {
     setVisible(false);
@@ -43,6 +60,7 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
 
   const handleSelectExisting = (user: Attendee) => {
     localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(user));
+    localStorage.setItem('flashagenda_last_user', JSON.stringify(user));
     handleClose();
     onIdentified(user);
   };
@@ -53,6 +71,7 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
     const newUser = { id: uuidv4(), name: newName.trim() };
     await onAddAttendee(newUser);
     localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(newUser));
+    localStorage.setItem('flashagenda_last_user', JSON.stringify(newUser));
     handleClose();
     onIdentified(newUser);
     setLoading(false);
