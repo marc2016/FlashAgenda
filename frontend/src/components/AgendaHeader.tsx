@@ -281,6 +281,72 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
     }
   };
 
+  const handleExportICS = () => {
+    const formatDateToICS = (date: Date): string => {
+      const pad = (n: number) => (n < 10 ? '0' + n : '' + n);
+      return (
+        date.getUTCFullYear() +
+        pad(date.getUTCMonth() + 1) +
+        pad(date.getUTCDate()) +
+        'T' +
+        pad(date.getUTCHours()) +
+        pad(date.getUTCMinutes()) +
+        pad(date.getUTCSeconds()) +
+        'Z'
+      );
+    };
+
+    const startDate = agenda.date ? new Date(agenda.date) : new Date();
+    const endDate = new Date(startDate.getTime() + 3 * 60 * 60 * 1000); // +3 hours duration
+
+    const now = new Date();
+    const dtStamp = formatDateToICS(now);
+    const dtStart = formatDateToICS(startDate);
+    const dtEnd = formatDateToICS(endDate);
+
+    const title = agenda.title || 'FlashAgenda Termin';
+    const location = agenda.location?.name || '';
+    const agendaUrl = window.location.href;
+
+    let descriptionText = `Link zur Agenda: ${agendaUrl}`;
+    if (agenda.items && agenda.items.length > 0) {
+      descriptionText += `\\n\\nAgendapunkte:\\n` + agenda.items.map((it: any) => `- ${it.title}`).join('\\n');
+    }
+
+    const escapedTitle = title.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+    const escapedLocation = location.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+
+    const icsLines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//FlashAgenda//NONSGML v1.0//DE',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:flashagenda-${(agenda as any)._id || Date.now()}@flashagenda`,
+      `DTSTAMP:${dtStamp}`,
+      `DTSTART:${dtStart}`,
+      `DTEND:${dtEnd}`,
+      `SUMMARY:${escapedTitle}`,
+      `LOCATION:${escapedLocation}`,
+      `DESCRIPTION:${descriptionText}`,
+      `URL:${agendaUrl}`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ];
+
+    const icsContent = icsLines.join('\r\n');
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const sanitizeFilename = (title || 'agenda').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+    link.setAttribute('download', `${sanitizeFilename}.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // New Agenda creation modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedAttendeeKeys, setSelectedAttendeeKeys] = useState<string[]>([]);
@@ -507,6 +573,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         >
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="pi pi-calendar-plus" rounded text size="small" onClick={handleExportICS} className="text-gray-300 hover:text-yellow-400" title="In Kalender exportieren (.ics)" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code anzeigen" style={{ width: '2.2rem', height: '2.2rem' }} />
@@ -527,6 +594,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         >
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda" style={{ width: '2rem', height: '2rem' }} />
+          <Button icon="pi pi-calendar-plus" rounded text size="small" onClick={handleExportICS} className="text-gray-300 hover:text-yellow-400" title="In Kalender exportieren (.ics)" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-copy" rounded text size="small" onClick={handleCopyLink} className="text-gray-300 hover:text-yellow-400" title="Link kopieren" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-share-alt" rounded text size="small" onClick={handleShare} className="text-gray-300 hover:text-yellow-400" title="Teilen" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-qrcode" rounded text size="small" onClick={() => setShowQR(true)} className="text-gray-300 hover:text-yellow-400" title="QR-Code" style={{ width: '2rem', height: '2rem' }} />

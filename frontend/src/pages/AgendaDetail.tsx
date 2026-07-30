@@ -318,6 +318,73 @@ export default function AgendaDetail() {
     );
   }
 
+  const handleExportICS = () => {
+    if (!agenda) return;
+    const formatDateToICS = (date: Date): string => {
+      const pad = (n: number) => (n < 10 ? '0' + n : '' + n);
+      return (
+        date.getUTCFullYear() +
+        pad(date.getUTCMonth() + 1) +
+        pad(date.getUTCDate()) +
+        'T' +
+        pad(date.getUTCHours()) +
+        pad(date.getUTCMinutes()) +
+        pad(date.getUTCSeconds()) +
+        'Z'
+      );
+    };
+
+    const startDate = agenda.date ? new Date(agenda.date) : new Date();
+    const endDate = new Date(startDate.getTime() + 3 * 60 * 60 * 1000);
+
+    const now = new Date();
+    const dtStamp = formatDateToICS(now);
+    const dtStart = formatDateToICS(startDate);
+    const dtEnd = formatDateToICS(endDate);
+
+    const title = agenda.title || 'FlashAgenda Termin';
+    const location = agenda.location?.name || '';
+    const agendaUrl = window.location.href;
+
+    let descriptionText = `Link zur Agenda: ${agendaUrl}`;
+    if (agenda.items && agenda.items.length > 0) {
+      descriptionText += `\\n\\nAgendapunkte:\\n` + agenda.items.map((it: any) => `- ${it.title}`).join('\\n');
+    }
+
+    const escapedTitle = title.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+    const escapedLocation = location.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
+
+    const icsLines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//FlashAgenda//NONSGML v1.0//DE',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:flashagenda-${agenda._id || Date.now()}@flashagenda`,
+      `DTSTAMP:${dtStamp}`,
+      `DTSTART:${dtStart}`,
+      `DTEND:${dtEnd}`,
+      `SUMMARY:${escapedTitle}`,
+      `LOCATION:${escapedLocation}`,
+      `DESCRIPTION:${descriptionText}`,
+      `URL:${agendaUrl}`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ];
+
+    const icsContent = icsLines.join('\r\n');
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const sanitizeFilename = (title || 'agenda').toLowerCase().replace(/[^a-z0-9]/gi, '_');
+    link.setAttribute('download', `${sanitizeFilename}.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (!agenda) {
     return (
       <div className="min-h-screen bg-comic-red text-white flex justify-content-center align-items-center flex-column relative">
@@ -368,17 +435,26 @@ export default function AgendaDetail() {
           onUpdateAgenda={handleUpdateAgenda}
         />
 
-        {/* Bottom Footer & Audit Button */}
+        {/* Bottom Footer & Buttons */}
         <div className="mt-3 sm:mt-4 mb-4 flex flex-column sm:flex-row align-items-center justify-content-between gap-3 border-top-1 border-gray-700 pt-4">
-          <Button
-            icon="pi pi-history"
-            label="Audit-Log"
-            onClick={() => setShowAuditModal(true)}
-            className="comic-button-secondary p-button-sm flex align-items-center gap-2"
-            title="Agenda Audit-Protokoll anzeigen"
-          />
+          <div className="flex align-items-center gap-2 flex-wrap justify-content-center sm:justify-content-start">
+            <Button
+              icon="pi pi-calendar-plus"
+              label="Kalender (.ics)"
+              onClick={handleExportICS}
+              className="comic-button-secondary p-button-sm flex align-items-center gap-2 font-bold"
+              title="Agenda in Kalender exportieren (.ics)"
+            />
+            <Button
+              icon="pi pi-history"
+              label="Audit-Log"
+              onClick={() => setShowAuditModal(true)}
+              className="comic-button-secondary p-button-sm flex align-items-center gap-2 font-bold"
+              title="Agenda Audit-Protokoll anzeigen"
+            />
+          </div>
           <div className="text-xs text-yellow-400 font-bold opacity-60">
-            FlashAgenda v{import.meta.env.VITE_APP_VERSION || '1.0.0'}
+            FlashAgenda v{import.meta.env.VITE_APP_VERSION || '2.1.0'}
           </div>
         </div>
       </div>
