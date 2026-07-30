@@ -566,12 +566,16 @@ export default function AgendaTimeline({
 
   const isClosed = useMemo(() => {
     if (agenda?.isManuallyClosed === true) return true;
-    if (agenda?.isManuallyClosed === false) return false;
     if (agenda?.date) {
       const agendaDate = new Date(agenda.date).getTime();
-      const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
-      return Date.now() > agendaDate - offsetMs;
+      if (!isNaN(agendaDate)) {
+        const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
+        if (Date.now() > agendaDate - offsetMs) {
+          return true;
+        }
+      }
     }
+    if (agenda?.isManuallyClosed === false) return false;
     return false;
   }, [agenda]);
 

@@ -122,7 +122,7 @@ const AgendaSchema = new Schema<IAgenda>({
   location: { type: LocationSchema },
   menuUrl: { type: String },
   closeBeforeHours: { type: Number, default: 12 },
-  isManuallyClosed: { type: Boolean, default: false },
+  isManuallyClosed: { type: Boolean },
   createdBy: { type: String },
   sortMode: { type: String, enum: ['date', 'rating', 'random'], default: 'date' },
   sortOrder: { type: String, enum: ['asc', 'desc'], default: 'asc' },

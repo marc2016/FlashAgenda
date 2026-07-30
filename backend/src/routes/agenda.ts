@@ -27,6 +27,21 @@ function isSafeImageUrl(url: any): boolean {
   return isHttp || isSafeDataUri;
 }
 
+export function isAgendaClosed(agenda: { isManuallyClosed?: boolean; date?: string; closeBeforeHours?: number }): boolean {
+  if (agenda.isManuallyClosed === true) return true;
+  if (agenda.date) {
+    const agendaDate = new Date(agenda.date).getTime();
+    if (!isNaN(agendaDate)) {
+      const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
+      if (Date.now() > (agendaDate - offsetMs)) {
+        return true;
+      }
+    }
+  }
+  if (agenda.isManuallyClosed === false) return false;
+  return false;
+}
+
 // Get an agenda by ID
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -113,8 +128,17 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     // Validation: Only creator can change closeBeforeHours or isManuallyClosed
     const isClosingSettingUpdate = req.body.closeBeforeHours !== undefined || req.body.isManuallyClosed !== undefined;
     if (isClosingSettingUpdate && existingAgenda.createdBy) {
-      const requestingUser = req.body.userId;
-      if (!requestingUser || requestingUser !== existingAgenda.createdBy) {
+      const requestingUserId = req.body.userId;
+      const requestingUserName = req.body.userName;
+      const createdBy = existingAgenda.createdBy;
+      const firstAttendee = existingAgenda.attendees?.[0];
+
+      const isMatch = (
+        (requestingUserId && (requestingUserId === createdBy || (firstAttendee && (requestingUserId === firstAttendee.id || requestingUserId === (firstAttendee as any)._id?.toString())))) ||
+        (requestingUserName && (requestingUserName.trim().toLowerCase() === createdBy.trim().toLowerCase() || (firstAttendee && requestingUserName.trim().toLowerCase() === firstAttendee.name.trim().toLowerCase())))
+      );
+
+      if (!isMatch) {
         res.status(403).json({ message: 'Nur der Ersteller kann die Agenda schließen/öffnen oder die Einstellungen dafür ändern.' });
         return;
       }
@@ -128,19 +152,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     // Validation: Check if adding new items after deadline
     if (req.body.items && Array.isArray(req.body.items)) {
       const hasNewItem = req.body.items.some((item: any) => !item._id);
-      if (hasNewItem) {
-        let isClosed = !!existingAgenda.isManuallyClosed;
-        if (!isClosed && existingAgenda.date) {
-          const agendaDate = new Date(existingAgenda.date).getTime();
-          const offsetMs = (existingAgenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
-          if (Date.now() > agendaDate - offsetMs) {
-            isClosed = true;
-          }
-        }
-        if (isClosed) {
-           res.status(403).json({ message: 'Agenda ist bereits geschlossen für neue Punkte' });
-           return;
-        }
+      if (hasNewItem && isAgendaClosed(existingAgenda)) {
+        res.status(403).json({ message: 'Agenda ist bereits geschlossen für neue Punkte' });
+        return;
       }
     }
 
@@ -320,16 +334,7 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
     }
     
     // Check deadline
-    let isClosed = !!agenda.isManuallyClosed;
-    if (!isClosed && agenda.date) {
-      const agendaDate = new Date(agenda.date).getTime();
-      const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
-      if (Date.now() > agendaDate - offsetMs) {
-        isClosed = true;
-      }
-    }
-    
-    if (isClosed) {
+    if (isAgendaClosed(agenda)) {
       res.status(403).json({ message: 'Agenda ist bereits geschlossen für neue Punkte' });
       return;
     }
