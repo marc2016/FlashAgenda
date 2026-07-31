@@ -51,8 +51,8 @@ export default function Home() {
         <div className="absolute top-50 left-50 w-30rem h-30rem bg-yellow-400 border-circle filter-blur blur-8xl" style={{ transform: 'translate(-50%, -50%)', opacity: 0.4 }}></div>
       </div>
 
-      <div className="z-1 text-center p-6 flex flex-column align-items-center">
-        <div className="mb-8 css-logo-container">
+      <div className="z-1 text-center p-3 sm:p-6 flex flex-column align-items-center max-w-full">
+        <div className="mb-4 sm:mb-8 css-logo-container">
           <i className="pi pi-bolt css-logo-bolt"></i>
           <h1 className="comic-font comic-text-shadow css-logo-text">FlashAgenda</h1>
         </div>
@@ -64,10 +64,10 @@ export default function Home() {
           loading={loading}
           onClick={handleStartAgenda}
           className={classNames(
-            "text-2xl px-5 py-3",
+            "text-xl sm:text-2xl px-4 sm:px-5 py-3",
             "bg-yellow-500 text-white comic-button"
           )}
-          style={{ marginTop: '7rem' }}
+          style={{ marginTop: 'clamp(2rem, 8vh, 7rem)' }}
         />
       </div>
 

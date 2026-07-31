@@ -275,30 +275,44 @@ body.p-overflow-hidden {
   background-color: #b71c1c !important;
 }
 
-/* CSS Logo */
+/* CSS Logo (Fully Responsive) */
 .css-logo-container {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  max-width: 95vw;
+  box-sizing: border-box;
 }
 .css-logo-bolt {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 28rem !important;
+  font-size: clamp(10rem, 35vw, 28rem) !important;
   color: #facc15;
-  text-shadow: 8px 8px 0 #000;
+  text-shadow: clamp(4px, 1vw, 8px) clamp(4px, 1vw, 8px) 0 #000;
   z-index: 0;
   opacity: 1;
+  pointer-events: none;
 }
 .css-logo-text {
   position: relative;
   z-index: 1;
-  font-size: 6rem;
+  font-size: clamp(2.5rem, 8vw, 6rem);
   color: #ffffff;
   margin: 0;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 480px) {
+  .css-logo-text {
+    font-size: clamp(2rem, 10vw, 3.2rem);
+  }
+  .css-logo-bolt {
+    font-size: clamp(8rem, 40vw, 14rem) !important;
+  }
 }
 
 /* PrimeReact Timeline alignment override - start from the left */
