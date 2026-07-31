@@ -19,7 +19,18 @@ export default function AgendaDetail() {
   const { id } = useParams();
   const [agenda, setAgenda] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    if (!id) return null;
+    const stored = localStorage.getItem(`flashagenda_${id}_user`);
+    if (stored) {
+      try { return JSON.parse(stored); } catch (e) {}
+    }
+    const lastUser = localStorage.getItem('flashagenda_last_user');
+    if (lastUser) {
+      try { return JSON.parse(lastUser); } catch (e) {}
+    }
+    return null;
+  });
   const [showUserModal, setShowUserModal] = useState<boolean | undefined>(undefined);
   const [showAuditModal, setShowAuditModal] = useState(false);
   
@@ -248,6 +259,21 @@ export default function AgendaDetail() {
     }
   };
 
+  const handleUpdateAttendee = async (updatedAttendee: any) => {
+    if (!agenda) return;
+    const updatedAttendees = (agenda.attendees || []).map((att: any) => {
+      const match = (updatedAttendee.id && att.id === updatedAttendee.id) ||
+                    (updatedAttendee._id && att._id === updatedAttendee._id) ||
+                    (updatedAttendee._id && updatedAttendee.id && att._id === updatedAttendee.id) ||
+                    (updatedAttendee.name && att.name && att.name.trim().toLowerCase() === updatedAttendee.name.trim().toLowerCase());
+      if (match) {
+        return { ...att, ...updatedAttendee };
+      }
+      return att;
+    });
+    await handleUpdateAgenda({ attendees: updatedAttendees });
+  };
+
   const handleAddAttendee = async (newAttendee: any) => {
     try {
       if (navigator.onLine) {
@@ -433,7 +459,10 @@ export default function AgendaDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-comic-red text-white p-2 sm:p-4 md:p-6 lg:p-8 relative overflow-x-hidden">
+    <div 
+      className="min-h-screen bg-comic-red text-white p-2 sm:p-4 md:p-6 lg:p-8 relative overflow-x-hidden transition-all duration-300"
+      style={!currentUser ? { filter: 'blur(20px)', WebkitFilter: 'blur(20px)', pointerEvents: 'none', userSelect: 'none' } : {}}
+    >
       {renderFloatingBanderole()}
       {/* Subtle background element - disabled on mobile screens for GPU speed */}
       <div className="hidden md:block fixed top-0 right-0 w-full h-full pointer-events-none opacity-20 z-0">
@@ -452,6 +481,7 @@ export default function AgendaDetail() {
         <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
 
         <AgendaAttendees 
+          agendaId={agenda._id}
           attendees={agenda.attendees || []} 
           items={agenda.items || []}
           currentUser={currentUser}
@@ -499,8 +529,10 @@ export default function AgendaDetail() {
       <UserIdentificationModal 
         agendaId={agenda._id}
         attendees={agenda.attendees || []}
+        currentUser={currentUser}
         onIdentified={setCurrentUser}
         onAddAttendee={handleAddAttendee}
+        onUpdateAttendee={handleUpdateAttendee}
         isOpen={showUserModal}
         onClose={() => setShowUserModal(false)}
       />

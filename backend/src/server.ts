@@ -14,13 +14,14 @@ const PORT: number = parseInt(process.env.PORT || '3001', 10);
 // Security Headers
 app.use(helmet());
 
-// Rate Limiting (Max 200 requests per 15 minutes per IP)
+// Rate Limiting (Max 10000 requests per 15 minutes per IP, excluding GET and /ping)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 10000,
   message: { message: 'Zu viele Anfragen von dieser IP, bitte versuche es später erneut.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'GET' || req.originalUrl.includes('/ping') || req.url.includes('/ping')
 });
 app.use('/api', limiter);
 

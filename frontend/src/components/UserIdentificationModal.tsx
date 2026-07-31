@@ -5,32 +5,84 @@ import { InputText } from 'primereact/inputtext';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Attendee {
+  _id?: string;
   id: string;
   name: string;
+  avatarUrl?: string;
+  email?: string;
+  securityCode?: string;
+  isRegistered?: boolean;
 }
 
 interface Props {
   agendaId: string;
   attendees: Attendee[];
+  currentUser?: any;
   onIdentified: (user: Attendee) => void;
   onAddAttendee: (user: Attendee) => Promise<void>;
+  onUpdateAttendee?: (user: Attendee) => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
 
-export default function UserIdentificationModal({ agendaId, attendees, onIdentified, onAddAttendee, isOpen, onClose }: Props) {
+const generateSecurityCode = () => Math.floor(1000 + Math.random() * 9000).toString();
+
+export default function UserIdentificationModal({ agendaId, attendees, currentUser, onIdentified, onAddAttendee, onUpdateAttendee, isOpen, onClose }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Security Code verification state
+  const [verifyingAttendee, setVerifyingAttendee] = useState<Attendee | null>(null);
+  const [enteredCode, setEnteredCode] = useState('');
+  const [codeError, setCodeError] = useState(false);
+
   useEffect(() => {
+    // Priority 1: Check URL for userTransfer parameter (scanned QR code)
+    const searchParams = new URLSearchParams(window.location.search);
+    const transferParam = searchParams.get('userTransfer');
+    if (transferParam) {
+      try {
+        const transferredUser = JSON.parse(decodeURIComponent(transferParam));
+        if (transferredUser && (transferredUser.name || transferredUser.id)) {
+          const claimedUser = { ...transferredUser, isRegistered: true };
+          localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(claimedUser));
+          localStorage.setItem('flashagenda_last_user', JSON.stringify(claimedUser));
+
+          // Clean URL parameter without page reload
+          const url = new URL(window.location.href);
+          url.searchParams.delete('userTransfer');
+          window.history.replaceState({}, '', url.toString());
+
+          onIdentified(claimedUser);
+          setVisible(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to parse userTransfer parameter:', err);
+      }
+    }
+
     if (isOpen !== undefined) {
       setVisible(isOpen);
       return;
     }
     const storedUser = localStorage.getItem(`flashagenda_${agendaId}_user`);
     if (storedUser) {
-      onIdentified(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        const match = attendees.find(
+          a => (a.id && a.id === parsed.id) ||
+               (a._id && a._id === parsed._id) ||
+               (a._id && parsed.id && a._id === parsed.id) ||
+               (a.name && parsed.name && a.name.trim().toLowerCase() === parsed.name.trim().toLowerCase())
+        );
+        onIdentified(match || parsed);
+        setVisible(false);
+        return;
+      } catch (err) {
+        console.error('Failed to parse stored user', err);
+      }
     } else {
       const lastUserStr = localStorage.getItem('flashagenda_last_user');
       if (lastUserStr) {
@@ -38,11 +90,14 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
           const lastUser = JSON.parse(lastUserStr);
           const match = attendees.find(
             a => (a.id && a.id === lastUser.id) ||
+                 (a._id && a._id === lastUser._id) ||
+                 (a._id && lastUser.id && a._id === lastUser.id) ||
                  (a.name && lastUser.name && a.name.trim().toLowerCase() === lastUser.name.trim().toLowerCase())
           );
           if (match) {
             localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(match));
             onIdentified(match);
+            setVisible(false);
             return;
           }
         } catch (err) {
@@ -56,43 +111,84 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
   const handleClose = () => {
     setVisible(false);
     if (onClose) onClose();
+    window.location.href = '/';
   };
 
   const handleSelectExisting = (user: Attendee) => {
-    localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(user));
-    localStorage.setItem('flashagenda_last_user', JSON.stringify(user));
-    handleClose();
-    onIdentified(user);
+    // Require security code ONLY IF attendee has ALREADY registered/claimed on a device
+    if (user.isRegistered && user.securityCode) {
+      setVerifyingAttendee(user);
+      setEnteredCode('');
+      setCodeError(false);
+      return;
+    }
+
+    // First time claiming this person on a device! Mark as registered and generate code if missing
+    const code = user.securityCode || generateSecurityCode();
+    const updatedUser = { ...user, isRegistered: true, securityCode: code };
+    localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(updatedUser));
+    localStorage.setItem('flashagenda_last_user', JSON.stringify(updatedUser));
+    
+    if (onUpdateAttendee) {
+      onUpdateAttendee(updatedUser);
+    }
+
+    setVisible(false);
+    if (onClose) onClose();
+    onIdentified(updatedUser);
+  };
+
+  const handleVerifyCode = () => {
+    if (!verifyingAttendee) return;
+    if (verifyingAttendee.securityCode && enteredCode.trim() === verifyingAttendee.securityCode.trim()) {
+      const confirmedUser = { ...verifyingAttendee, isRegistered: true };
+      localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(confirmedUser));
+      localStorage.setItem('flashagenda_last_user', JSON.stringify(confirmedUser));
+      setVerifyingAttendee(null);
+      setEnteredCode('');
+      setCodeError(false);
+      setVisible(false);
+      if (onClose) onClose();
+      onIdentified(confirmedUser);
+    } else {
+      setCodeError(true);
+    }
   };
 
   const handleCreateNew = async () => {
     if (!newName.trim()) return;
     setLoading(true);
-    const newUser = { id: uuidv4(), name: newName.trim() };
+    const code = generateSecurityCode();
+    const newUser = { id: uuidv4(), name: newName.trim(), securityCode: code, isRegistered: true };
     await onAddAttendee(newUser);
     localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(newUser));
     localStorage.setItem('flashagenda_last_user', JSON.stringify(newUser));
-    handleClose();
+    setVisible(false);
+    if (onClose) onClose();
     onIdentified(newUser);
     setLoading(false);
   };
 
   return (
-    <Dialog 
-      header={
-        <div className="flex align-items-center gap-2">
-          <i className="pi pi-user text-yellow-400 text-xl" />
-          <span>Wer bist du?</span>
-        </div>
-      } 
-      visible={visible} 
-      style={{ width: '90vw', maxWidth: '400px' }} 
-      closable={!!onClose}
-      modal
-      blockScroll
-      className="p-fluid glass-panel"
-      onHide={handleClose}
-    >
+    <>
+      <Dialog 
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-user text-yellow-400 text-xl" />
+            <span>Wer bist du?</span>
+          </div>
+        } 
+        visible={visible || !currentUser} 
+        style={{ width: '90vw', maxWidth: '400px' }} 
+        closable={false}
+        dismissableMask={false}
+        maskClassName="backdrop-blur-md bg-black-alpha-80"
+        maskStyle={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
+        modal
+        blockScroll
+        className="p-fluid glass-panel"
+        onHide={() => {}}
+      >
       <div className="flex flex-column gap-3 pt-3">
         {attendees.length > 0 && (
           <>
@@ -133,7 +229,90 @@ export default function UserIdentificationModal({ agendaId, attendees, onIdentif
             loading={loading}
           />
         </div>
+
+        <div className="pt-2 border-top-1 border-gray-700 mt-2">
+          <Button 
+            label="Abbrechen" 
+            icon="pi pi-times" 
+            className="p-button-outlined p-button-secondary w-full" 
+            onClick={handleClose} 
+          />
+        </div>
       </div>
     </Dialog>
+
+    {/* Security Code Verification Dialog */}
+    {verifyingAttendee && (
+      <Dialog
+        header={
+          <div className="flex align-items-center gap-2">
+            <i className="pi pi-key text-yellow-400 text-xl" />
+            <span>Sicherheitscode bestätigen</span>
+          </div>
+        }
+        visible={!!verifyingAttendee}
+        style={{ width: '90vw', maxWidth: '380px' }}
+        onHide={() => {
+          setVerifyingAttendee(null);
+          setEnteredCode('');
+          setCodeError(false);
+        }}
+        className="glass-panel text-center"
+        maskClassName="backdrop-blur-md bg-black-alpha-80"
+        maskStyle={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
+        dismissableMask={false}
+        modal
+        blockScroll
+      >
+        <div className="flex flex-column gap-3 pt-2">
+          <p className="m-0 text-sm text-gray-300">
+            Gib den 4-stelligen Sicherheitscode für <strong>{verifyingAttendee.name}</strong> ein. Du findest diesen auf dem Erstgerät unten links auf deiner Personenkarte:
+          </p>
+          <div className="p-inputgroup">
+            <span className="p-inputgroup-addon bg-gray-700 border-gray-600">
+              <i className="pi pi-lock text-yellow-400" />
+            </span>
+            <InputText
+              type="password"
+              placeholder="4-stelliger Code"
+              value={enteredCode}
+              onChange={(e) => {
+                setEnteredCode(e.target.value);
+                setCodeError(false);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
+              maxLength={6}
+              autoFocus
+              className="bg-gray-800 text-white border-gray-600 text-center font-mono text-xl"
+            />
+          </div>
+          {codeError && (
+            <p className="m-0 text-xs text-red-400 font-bold flex align-items-center justify-content-center gap-1">
+              <i className="pi pi-exclamation-circle" />
+              <span>Falscher Sicherheitscode! Bitte prüfe den Code auf dem Erstgerät.</span>
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button
+              label="Abbrechen"
+              className="p-button-outlined p-button-secondary flex-1"
+              onClick={() => {
+                setVerifyingAttendee(null);
+                setEnteredCode('');
+                setCodeError(false);
+              }}
+            />
+            <Button
+              label="Bestätigen"
+              icon="pi pi-check"
+              className="p-button-warning flex-1"
+              disabled={!enteredCode.trim()}
+              onClick={handleVerifyCode}
+            />
+          </div>
+        </div>
+      </Dialog>
+    )}
+    </>
   );
 }

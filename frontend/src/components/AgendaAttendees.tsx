@@ -1,9 +1,10 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface Attendee {
   _id?: string;
@@ -11,11 +12,14 @@ interface Attendee {
   name: string;
   avatarUrl?: string;
   email?: string;
+  securityCode?: string;
+  isRegistered?: boolean;
   joinedAt?: string;
   lastSeen?: string;
 }
 
 interface Props {
+  agendaId?: string;
   attendees: Attendee[];
   items?: any[];
   currentUser?: any;
@@ -71,7 +75,7 @@ const isUserOnline = (lastSeen?: string | Date) => {
   }
 };
 
-export default function AgendaAttendees({ attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser }: Props) {
+export default function AgendaAttendees({ agendaId, attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -86,6 +90,10 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
+
+  // Person Transfer QR Code Modal State
+  const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [qrUser, setQrUser] = useState<Attendee | null>(null);
 
   // Precompute item counts per attendee O(N + M)
   const itemCounts = useMemo(() => {
@@ -111,9 +119,29 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
     return counts;
   }, [items, attendees]);
 
+  const generateSecurityCode = () => Math.floor(1000 + Math.random() * 9000).toString();
+  const hasMigratedRef = useRef(false);
+
+  // Auto-generate security code for any legacy attendee that lacks one (run once per load)
+  useEffect(() => {
+    if (hasMigratedRef.current || !onUpdateAgenda || !attendees || attendees.length === 0) return;
+    const hasMissingCode = attendees.some(a => !a.securityCode);
+    if (hasMissingCode) {
+      hasMigratedRef.current = true;
+      const updated = attendees.map(a => {
+        if (!a.securityCode) {
+          return { ...a, securityCode: generateSecurityCode() };
+        }
+        return a;
+      });
+      onUpdateAgenda({ attendees: updated });
+    }
+  }, [attendees, onUpdateAgenda]);
+
   const handleAdd = useCallback(async () => {
     if (newName.trim()) {
-      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined });
+      const code = generateSecurityCode();
+      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined, securityCode: code, isRegistered: false });
       setNewName('');
       setNewEmail('');
       setVisible(false);
@@ -326,43 +354,54 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
               }}
             >
               {isSelf && (
-                <div className="corner-banderole">
-                  Das bist du
-                </div>
+                <>
+                  <div className="corner-banderole">
+                    Das bist du
+                  </div>
+                  <div 
+                    className="absolute bottom-0 left-0 px-2 py-1 text-white-alpha-50 hover:text-white font-mono text-3xs opacity-80 cursor-default select-none z-1"
+                    style={{ fontSize: '0.65rem', letterSpacing: '0.05em' }}
+                    title="Dein Sicherheitscode für neue Geräte"
+                  >
+                    Code: {att.securityCode || '----'}
+                  </div>
+                </>
               )}
               <div className="flex h-full text-white p-3 sm:p-4 align-items-center">
                 
                 {/* Left: Profile Icon or Custom Avatar */}
                 <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-2 sm:pr-4 mr-2 sm:mr-4 flex-shrink-0">
-                  {att.avatarUrl ? (
-                    <img 
-                      src={att.avatarUrl} 
-                      alt={att.name} 
-                      style={{ width: '4.5rem', height: '4.5rem', objectFit: 'cover' }} 
-                      className="border-circle border-2 border-white-alpha-40" 
-                      loading="lazy"
-                    />
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '4.5rem', height: '4.5rem' }} className="text-white-alpha-90">
-                      <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
-                    </svg>
-                  )}
+                  <div className="relative flex align-items-center justify-content-center">
+                    {att.avatarUrl ? (
+                      <img 
+                        src={att.avatarUrl} 
+                        alt={att.name} 
+                        style={{ width: '4.5rem', height: '4.5rem', objectFit: 'cover' }} 
+                        className="border-circle border-2 border-white-alpha-40" 
+                        loading="lazy"
+                      />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '4.5rem', height: '4.5rem' }} className="text-white-alpha-90">
+                        <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
+                      </svg>
+                    )}
 
-                  {/* Camera button only for current user's card */}
-                  {isSelf && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAvatarUrlInput(att.avatarUrl || '');
-                        setAvatarModalVisible(true);
-                      }}
-                      className="absolute bottom-0 right-0 bg-yellow-500 text-black border-circle border-1 border-black p-1 flex align-items-center justify-content-center cursor-pointer hover:scale-110 transition-transform shadow-2"
-                      style={{ width: '1.8rem', height: '1.8rem', margin: '0 0.25rem -0.25rem 0' }}
-                      title="Profilbild ändern"
-                    >
-                      <i className="pi pi-camera text-xs font-bold" />
-                    </button>
-                  )}
+                    {/* Camera button only for current user's card */}
+                    {isSelf && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAvatarUrlInput(att.avatarUrl || '');
+                          setAvatarModalVisible(true);
+                        }}
+                        className="absolute bottom-0 right-0 bg-yellow-500 text-black border-circle border-1 border-black p-1 flex align-items-center justify-content-center cursor-pointer hover:scale-110 transition-transform shadow-2"
+                        style={{ width: '1.8rem', height: '1.8rem', margin: '0 0.25rem -0.25rem 0' }}
+                        title="Profilbild ändern"
+                      >
+                        <i className="pi pi-camera text-xs font-bold" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Right: Details */}
@@ -376,13 +415,14 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleOpenEditAttendee(att);
+                            setQrUser(att);
+                            setQrModalVisible(true);
                           }}
                           className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
                           style={{ width: '1.75rem', height: '1.75rem' }}
-                          title="Eigene E-Mail bearbeiten"
+                          title="Person-Identität per QR-Code übertragen"
                         >
-                          <i className="mdi mdi-email-outline text-xs font-bold" />
+                          <i className="pi pi-qrcode text-xs font-bold" />
                         </button>
                         <button
                           onClick={(e) => {
@@ -391,7 +431,7 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                           }}
                           className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
                           style={{ width: '1.75rem', height: '1.75rem' }}
-                          title="Eigenen Namen bearbeiten"
+                          title="Eigene Daten bearbeiten"
                         >
                           <i className="pi pi-pencil text-xs font-bold" />
                         </button>
@@ -400,10 +440,6 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
                   </div>
                   
                   <div className="flex flex-column gap-1 text-xs sm:text-sm text-white-alpha-90">
-                    <div>
-                      <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide m-0">Registriert</strong>
-                      <span className="m-0 p-0 line-height-1">{formatDate(att.joinedAt)}</span>
-                    </div>
                     <div>
                       <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">E-Mail</strong>
                       {att.email ? (
@@ -645,6 +681,46 @@ export default function AgendaAttendees({ attendees, items = [], currentUser, on
           </div>
         </div>
       </Dialog>
+
+      {/* QR Code Person Transfer Modal */}
+      {qrUser && (
+        <Dialog
+          header={
+            <div className="flex align-items-center gap-2">
+              <i className="pi pi-qrcode text-yellow-400 text-xl" />
+              <span>Identität übertragen ({qrUser.name})</span>
+            </div>
+          }
+          visible={qrModalVisible}
+          style={{ width: '92vw', maxWidth: '380px' }}
+          onHide={() => {
+            setQrModalVisible(false);
+            setQrUser(null);
+          }}
+          className="glass-panel text-center"
+          modal
+          blockScroll
+        >
+          <div className="flex flex-column align-items-center gap-3 pt-2 pb-2">
+            <p className="text-sm text-gray-300 m-0">
+              Scanne diesen QR-Code mit deinem Smartphone oder einem anderen Gerät, um dich dort sofort als <strong>{qrUser.name}</strong> anzumelden.
+            </p>
+            <div className="p-3 bg-white border-round-xl border-3 border-black shadow-4">
+              <QRCodeSVG
+                value={`${window.location.origin}/agenda/${agendaId || ''}?userTransfer=${encodeURIComponent(JSON.stringify({ id: qrUser.id || qrUser._id, name: qrUser.name, email: qrUser.email, avatarUrl: qrUser.avatarUrl }))}`}
+                size={220}
+                bgColor="#ffffff"
+                fgColor="#1a1a1a"
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+            <div className="text-xs text-yellow-400 font-bold">
+              ⚡ FlashAgenda Person-Transfer
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }
