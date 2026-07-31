@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
 import AdminLoginModal from '../components/AdminLoginModal';
+import UserProfileModal from '../components/UserProfileModal';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [myAgendas, setMyAgendas] = useState<any[]>([]);
   const [agendasLoading, setAgendasLoading] = useState(false);
+  const [userState, setUserState] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,6 +19,7 @@ export default function Home() {
   }, []);
 
   const currentUser = useMemo(() => {
+    if (userState) return userState;
     const lastUserStr = localStorage.getItem('flashagenda_last_user');
     if (!lastUserStr) return null;
     try {
@@ -23,7 +27,7 @@ export default function Home() {
     } catch {
       return null;
     }
-  }, []);
+  }, [userState]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -70,8 +74,16 @@ export default function Home() {
 
   return (
     <div className="flex flex-column align-items-center justify-content-center min-h-screen relative overflow-hidden bg-comic-red text-white py-6">
-      {/* Top right admin entry button */}
-      <div className="absolute top-0 right-0 m-3 z-3">
+      {/* Top right admin entry & profile buttons */}
+      <div className="absolute top-0 right-0 m-3 z-3 flex align-items-center gap-2">
+        {currentUser && (
+          <Button
+            icon="pi pi-id-card text-xl"
+            onClick={() => setShowProfileModal(true)}
+            className="p-button-rounded p-button-warning p-button-text p-button-sm opacity-80 hover:opacity-100 transition-opacity"
+            title="Mein Benutzerprofil & Pass"
+          />
+        )}
         <Button
           icon="pi pi-shield text-xl"
           onClick={() => setShowAdminModal(true)}
@@ -168,6 +180,13 @@ export default function Home() {
       <AdminLoginModal
         visible={showAdminModal}
         onHide={() => setShowAdminModal(false)}
+      />
+
+      <UserProfileModal
+        visible={showProfileModal}
+        onHide={() => setShowProfileModal(false)}
+        currentUser={currentUser}
+        onUpdateUser={(updated) => setUserState(updated)}
       />
     </div>
   );

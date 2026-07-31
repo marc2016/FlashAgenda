@@ -79,6 +79,119 @@ router.get('/user-agendas', async (req: Request, res: Response): Promise<void> =
   }
 });
 
+// Get global statistics for a user (agendas count & total items contributed)
+router.get('/user-stats', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req.query.user as string || '').trim();
+    const name = (req.query.name as string || '').trim();
+
+    if (!user && !name) {
+      res.json({ agendasCount: 0, totalItemsContributed: 0 });
+      return;
+    }
+
+    const orConditions: any[] = [];
+    if (user) {
+      orConditions.push({ createdBy: user });
+      orConditions.push({ 'attendees.id': user });
+      if (mongoose.Types.ObjectId.isValid(user)) {
+        orConditions.push({ 'attendees._id': new mongoose.Types.ObjectId(user) });
+      }
+    }
+    if (name) {
+      const safeName = escapeRegExp(name);
+      orConditions.push({ createdBy: { $regex: new RegExp(`^${safeName}$`, 'i') } });
+      orConditions.push({ 'attendees.name': { $regex: new RegExp(`^${safeName}$`, 'i') } });
+    }
+
+    const userAgendas = await Agenda.find({ $or: orConditions });
+    const agendasCount = userAgendas.length;
+
+    let totalItemsContributed = 0;
+    const cleanUser = user.toLowerCase();
+    const cleanName = name.toLowerCase();
+
+    for (const ag of userAgendas) {
+      for (const item of (ag.items || [])) {
+        const itemCreatedBy = item.createdBy?.toLowerCase();
+        const itemAuthor = item.author?.toLowerCase();
+
+        if (
+          (cleanUser && itemCreatedBy === cleanUser) ||
+          (cleanName && (itemCreatedBy === cleanName || itemAuthor === cleanName))
+        ) {
+          totalItemsContributed++;
+        }
+      }
+    }
+
+    res.json({ agendasCount, totalItemsContributed });
+  } catch (error) {
+    console.error('Error GET /user-stats:', error);
+    res.status(500).json({ message: 'Failed to fetch user stats' });
+  }
+});
+
+// Bulk update user profile (name, email, avatarUrl) across all agendas
+router.put('/user-profile', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, oldName, name, email, avatarUrl } = req.body;
+    if (!userId && !oldName) {
+      res.status(400).json({ message: 'User ID or oldName is required' });
+      return;
+    }
+
+    const cleanUserId = (userId || '').trim();
+    const cleanOldName = (oldName || '').trim();
+
+    const orConditions: any[] = [];
+    if (cleanUserId) {
+      orConditions.push({ 'attendees.id': cleanUserId });
+      if (mongoose.Types.ObjectId.isValid(cleanUserId)) {
+        orConditions.push({ 'attendees._id': new mongoose.Types.ObjectId(cleanUserId) });
+      }
+    }
+    if (cleanOldName) {
+      const safeOldName = escapeRegExp(cleanOldName);
+      orConditions.push({ 'attendees.name': { $regex: new RegExp(`^${safeOldName}$`, 'i') } });
+    }
+
+    const userAgendas = await Agenda.find({ $or: orConditions });
+
+    for (const ag of userAgendas) {
+      let modified = false;
+      for (const att of (ag.attendees || [])) {
+        const match = (cleanUserId && (att.id === cleanUserId || (att as any)._id?.toString() === cleanUserId)) ||
+                      (cleanOldName && att.name && att.name.trim().toLowerCase() === cleanOldName.toLowerCase());
+        if (match) {
+          if (name !== undefined) att.name = name;
+          if (email !== undefined) att.email = email;
+          if (avatarUrl !== undefined) att.avatarUrl = avatarUrl;
+          modified = true;
+        }
+      }
+
+      // Also update author in items if name changed
+      if (modified && name && oldName && name !== oldName) {
+        for (const item of (ag.items || [])) {
+          if (item.author && item.author.trim().toLowerCase() === oldName.trim().toLowerCase()) {
+            item.author = name;
+          }
+        }
+      }
+
+      if (modified) {
+        await ag.save();
+      }
+    }
+
+    res.json({ message: 'User profile updated across agendas' });
+  } catch (error) {
+    console.error('Error PUT /user-profile:', error);
+    res.status(500).json({ message: 'Failed to update user profile' });
+  }
+});
+
 // Get an agenda by ID
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
