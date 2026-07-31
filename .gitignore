@@ -21,6 +21,8 @@ frontend/node_modules/
 backend/dist/
 frontend/dist/
 frontend/build/
+frontend/playwright-report/
+frontend/test-results/
 
 # Environment files
 .env

@@ -554,7 +554,7 @@ export default function AgendaDetail() {
             />
           </div>
           <div className="text-xs text-yellow-400 font-bold opacity-60">
-            FlashAgenda v{import.meta.env.VITE_APP_VERSION || '3.0.2'}
+            FlashAgenda v{import.meta.env.VITE_APP_VERSION || '3.1.0'}
           </div>
         </div>
       </div>

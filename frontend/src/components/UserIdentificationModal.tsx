@@ -50,13 +50,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
   }, [visible]);
 
   useEffect(() => {
-    // If currentUser is already identified, skip re-evaluating on every attendees array change
-    if (currentUser) {
-      setVisible(false);
-      return;
-    }
-
-    // Priority 1: Check URL for userTransfer parameter (scanned QR code)
+    // Priority 1 ALWAYS: Check URL for userTransfer parameter (scanned QR code)
     const searchParams = new URLSearchParams(window.location.search);
     const transferParam = searchParams.get('userTransfer');
     if (transferParam) {
@@ -64,7 +58,9 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
         const transferredUser = JSON.parse(decodeURIComponent(transferParam));
         if (transferredUser && (transferredUser.name || transferredUser.id)) {
           const claimedUser = { ...transferredUser, isRegistered: true };
-          localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(claimedUser));
+          if (agendaId) {
+            localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(claimedUser));
+          }
           localStorage.setItem('flashagenda_last_user', JSON.stringify(claimedUser));
 
           // Clean URL parameter without page reload
@@ -79,6 +75,12 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
       } catch (err) {
         console.error('Failed to parse userTransfer parameter:', err);
       }
+    }
+
+    // Priority 2: If currentUser is already identified, skip re-evaluating
+    if (currentUser) {
+      setVisible(false);
+      return;
     }
 
     if (isOpen !== undefined) {
