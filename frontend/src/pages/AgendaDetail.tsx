@@ -34,9 +34,14 @@ export default function AgendaDetail() {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [, setPendingCount] = useState<number>(0);
   const prevItemsRef = useRef<any[] | null>(null);
+  const agendaRef = useRef<any>(agenda);
+
+  useEffect(() => {
+    agendaRef.current = agenda;
+  }, [agenda]);
 
   const fetchAgenda = useCallback(async () => {
-    if (!id) return;
+    if (!id || (typeof document !== 'undefined' && document.hidden)) return;
     try {
       if (navigator.onLine) {
         const response = await fetch(`/api/agendas/${id}`);
@@ -58,6 +63,12 @@ export default function AgendaDetail() {
           if (data?.items) {
             prevItemsRef.current = data.items;
           }
+
+          // Skip state update if data JSON is identical to current state
+          if (agendaRef.current && JSON.stringify(data) === JSON.stringify(agendaRef.current)) {
+            return;
+          }
+
           setAgenda(data);
           setCachedAgenda(id, data);
           return;
@@ -141,9 +152,22 @@ export default function AgendaDetail() {
   useEffect(() => {
     if (!id || !isOnline) return;
     const pollInterval = setInterval(() => {
-      fetchAgenda();
+      if (typeof document !== 'undefined' && !document.hidden) {
+        fetchAgenda();
+      }
     }, 10000);
-    return () => clearInterval(pollInterval);
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isOnline) {
+        fetchAgenda();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [id, isOnline, fetchAgenda]);
 
   const currentUserId = currentUser?._id || currentUser?.id || currentUser?.name;
@@ -153,6 +177,7 @@ export default function AgendaDetail() {
     if (!currentUserId || !id || !isOnline) return;
 
     const pingServer = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       try {
         const response = await fetch(`/api/agendas/${id}/attendees/${currentUserId}/ping`, {
           method: 'PUT'
