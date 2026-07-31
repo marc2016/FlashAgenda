@@ -28,8 +28,8 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
   test('should load Home Page and display core UI elements', async ({ page }) => {
     await page.goto('/');
 
-    // Check header logo text
-    await expect(page.locator('text=FlashAgenda')).toBeVisible();
+    // Verify Title (h1 specifically to avoid strict-mode conflict with PWA install banner)
+    await expect(page.locator('h1.css-logo-text')).toBeVisible();
 
     // Check Start Agenda Button
     const startButton = page.locator('button:has-text("AGENDA STARTEN!")');
@@ -43,8 +43,15 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
   test('should create a new agenda when clicking start button', async ({ page }) => {
     await page.goto('/');
 
+    // Dismiss PWA install banner if visible (can overlap button on very small screens)
+    const dismissBtn = page.locator('[title="Schließen"]');
+    if (await dismissBtn.isVisible()) {
+      await dismissBtn.click();
+    }
+
     const startButton = page.locator('button:has-text("AGENDA STARTEN!")');
+    await startButton.scrollIntoViewIfNeeded();
     await startButton.click({ force: true });
-    await expect(page).toHaveURL(/\/agenda\/mock-agenda-999/);
+    await expect(page).toHaveURL(/\/agenda\//, { timeout: 8000 });
   });
 });

@@ -61,8 +61,8 @@ test.describe('FlashAgenda - Mobile Viewport & Responsiveness', () => {
   test('should render Home Page cleanly on mobile viewport without horizontal scroll overflow', async ({ page }) => {
     await page.goto('/');
 
-    // Verify Title and Start button
-    await expect(page.locator('text=FlashAgenda')).toBeVisible();
+    // Verify Title (h1 specifically to avoid strict-mode conflict with PWA install banner)
+    await expect(page.locator('h1.css-logo-text')).toBeVisible();
 
     const startButton = page.locator('button:has-text("AGENDA STARTEN!")');
     await expect(startButton).toBeVisible();
