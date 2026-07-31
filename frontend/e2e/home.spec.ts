@@ -34,6 +34,10 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
     // Check Start Agenda Button
     const startButton = page.locator('button:has-text("AGENDA STARTEN!")');
     await expect(startButton).toBeVisible();
+
+    // Check favicon link element
+    const faviconLink = page.locator('link[rel="icon"]');
+    await expect(faviconLink).toHaveAttribute('href', '/favicon.svg');
   });
 
   test('should create a new agenda when clicking start button', async ({ page }) => {
