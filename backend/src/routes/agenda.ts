@@ -42,6 +42,43 @@ export function isAgendaClosed(agenda: { isManuallyClosed?: boolean; date?: stri
   return false;
 }
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Get agendas associated with a specific user (created or joined)
+router.get('/user-agendas', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req.query.user as string || '').trim();
+    const name = (req.query.name as string || '').trim();
+
+    if (!user && !name) {
+      res.json([]);
+      return;
+    }
+
+    const orConditions: any[] = [];
+    if (user) {
+      orConditions.push({ createdBy: user });
+      orConditions.push({ 'attendees.id': user });
+      if (mongoose.Types.ObjectId.isValid(user)) {
+        orConditions.push({ 'attendees._id': new mongoose.Types.ObjectId(user) });
+      }
+    }
+    if (name) {
+      const safeName = escapeRegExp(name);
+      orConditions.push({ createdBy: { $regex: new RegExp(`^${safeName}$`, 'i') } });
+      orConditions.push({ 'attendees.name': { $regex: new RegExp(`^${safeName}$`, 'i') } });
+    }
+
+    const agendas = await Agenda.find({ $or: orConditions }).sort({ updatedAt: -1 }).limit(20);
+    res.json(agendas);
+  } catch (error) {
+    console.error('Error GET /user-agendas:', error);
+    res.status(500).json({ message: 'Failed to fetch user agendas' });
+  }
+});
+
 // Get an agenda by ID
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
