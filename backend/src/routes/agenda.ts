@@ -125,6 +125,11 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    if (existingAgenda.isArchived) {
+      res.status(403).json({ message: 'Diese Agenda ist archiviert und kann nicht mehr geändert werden.' });
+      return;
+    }
+
     // Validation: Only creator can change closeBeforeHours or isManuallyClosed
     const isClosingSettingUpdate = req.body.closeBeforeHours !== undefined || req.body.isManuallyClosed !== undefined;
     if (isClosingSettingUpdate && existingAgenda.createdBy) {
@@ -273,6 +278,10 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
       res.status(404).json({ message: 'Agenda not found' });
       return;
     }
+    if (agenda.isArchived) {
+      res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
+      return;
+    }
     const name = req.body?.name || 'Unbekannt';
     const customId = req.body?.id;
     const now = new Date();
@@ -333,6 +342,11 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
       return;
     }
     
+    if (agenda.isArchived) {
+      res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
+      return;
+    }
+    
     // Check deadline
     if (isAgendaClosed(agenda)) {
       res.status(403).json({ message: 'Agenda ist bereits geschlossen für neue Punkte' });
@@ -372,6 +386,10 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     const agenda = await Agenda.findById(req.params.id);
     if (!agenda) {
       res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    if (agenda.isArchived) {
+      res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
       return;
     }
     const item = agenda.items.find((i: any) => i._id.toString() === req.params.itemId);
@@ -438,6 +456,10 @@ router.delete('/:id/items/:itemId', async (req: Request, res: Response): Promise
     const agenda = await Agenda.findById(req.params.id);
     if (!agenda) {
       res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    if (agenda.isArchived) {
+      res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
       return;
     }
     const itemToDelete = agenda.items.find((i: any) => i._id.toString() === req.params.itemId);

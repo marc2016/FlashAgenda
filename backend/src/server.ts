@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import agendaRoutes from './routes/agenda';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ mongoose.connect(mongoUri)
 
 // Routes
 app.use('/api/agendas', agendaRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

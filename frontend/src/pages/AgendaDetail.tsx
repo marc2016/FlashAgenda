@@ -494,6 +494,15 @@ export default function AgendaDetail() {
       </div>
 
       <div className="max-w-4xl mx-auto relative z-1">
+        {agenda.isArchived && (
+          <div className="bg-yellow-500-alpha-20 border-2 border-yellow-400 border-round-xl p-3 mb-4 flex align-items-center justify-content-center gap-3 text-center shadow-4">
+            <i className="pi pi-lock text-yellow-400 text-2xl" />
+            <div>
+              <span className="font-bold text-yellow-400 text-lg block">Diese Agenda ist archiviert</span>
+              <span className="text-xs text-gray-300">Sie ist schreibgeschützt und kann nicht mehr verändert werden.</span>
+            </div>
+          </div>
+        )}
 
         <AgendaHeader 
           agenda={agenda} 

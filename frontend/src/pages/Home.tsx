@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
+import AdminLoginModal from '../components/AdminLoginModal';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,6 +36,16 @@ export default function Home() {
 
   return (
     <div className="flex flex-column align-items-center justify-content-center min-h-screen relative overflow-hidden bg-comic-red text-white">
+      {/* Top right admin entry button */}
+      <div className="absolute top-0 right-0 m-3 z-3">
+        <Button
+          icon="pi pi-shield text-xl"
+          onClick={() => setShowAdminModal(true)}
+          className="p-button-rounded p-button-warning p-button-text p-button-sm opacity-60 hover:opacity-100 transition-opacity"
+          title="Admin-Verwaltung"
+        />
+      </div>
+
       {/* Background glowing effects for comic feel */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-30">
         <div className="absolute top-50 left-50 w-30rem h-30rem bg-yellow-400 border-circle filter-blur blur-8xl" style={{ transform: 'translate(-50%, -50%)', opacity: 0.4 }}></div>
@@ -62,6 +74,11 @@ export default function Home() {
       <div className="absolute bottom-0 right-0 m-3 z-2 text-xs font-bold opacity-60 text-yellow-400">
         v{import.meta.env.VITE_APP_VERSION || '1.0.0'}
       </div>
+
+      <AdminLoginModal
+        visible={showAdminModal}
+        onHide={() => setShowAdminModal(false)}
+      />
     </div>
   );
 }
