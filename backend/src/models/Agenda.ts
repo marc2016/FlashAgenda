@@ -8,6 +8,7 @@ export interface IAttendee {
   email?: string;
   securityCode?: string;
   secretGuid?: string;
+  cardColor?: string;
   isRegistered?: boolean;
   joinedAt?: Date;
   lastSeen?: Date;
@@ -86,6 +87,7 @@ const AttendeeSchema = new Schema<IAttendee>({
   email: { type: String },
   securityCode: { type: String },
   secretGuid: { type: String },
+  cardColor: { type: String },
   isRegistered: { type: Boolean, default: false },
   joinedAt: { type: Date, default: Date.now },
   lastSeen: { type: Date, default: Date.now }

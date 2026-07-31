@@ -15,6 +15,7 @@ interface Attendee {
   email?: string;
   securityCode?: string;
   secretGuid?: string;
+  cardColor?: string;
   isRegistered?: boolean;
   joinedAt?: string;
   lastSeen?: string;
@@ -30,15 +31,26 @@ interface Props {
   onSwitchUser?: () => void;
 }
 
-const colors = [
-  'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', // blue
-  'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)', // red
-  'linear-gradient(135deg, #10b981 0%, #047857 100%)', // green
-  'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)', // orange
-  'linear-gradient(135deg, #8b5cf6 0%, #5b21b6 100%)', // purple
-  'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', // pink
-  'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)', // cyan
+export const CARD_COLOR_PALETTE = [
+  '#0a4b7c', // Deep Navy
+  '#8b0000', // Crimson Red
+  '#006400', // Forest Emerald
+  '#4b0082', // Indigo Purple
+  '#b8860b', // Golden Bronze
+  '#008b8b', // Dark Cyan
+  '#8b008b', // Dark Magenta
+  '#2f4f4f', // Slate Dark
+  '#a52a2a', // Amber Rust
+  '#1e3a8a', // Royal Sapphire
+  'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', // Blue gradient
+  'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)', // Red gradient
+  'linear-gradient(135deg, #10b981 0%, #047857 100%)', // Green gradient
+  'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)', // Orange gradient
+  'linear-gradient(135deg, #8b5cf6 0%, #5b21b6 100%)', // Purple gradient
+  'linear-gradient(135deg, #ec4899 0%, #be185d 100%)'  // Pink gradient
 ];
+
+const colors = CARD_COLOR_PALETTE;
 
 const formatDate = (dateInput?: string | Date) => {
   if (!dateInput) return 'Unbekannt';
@@ -131,6 +143,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
   const [editingAttendee, setEditingAttendee] = useState<Attendee | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const [editCardColor, setEditCardColor] = useState('#0a4b7c');
   const [editModalVisible, setEditModalVisible] = useState(false);
 
   // Person Transfer QR Code Modal State
@@ -185,7 +198,8 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
     if (newName.trim()) {
       const code = generateSecurityCode();
       const guid = uuidv4();
-      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined, securityCode: code, secretGuid: guid, isRegistered: false });
+      const randomColor = CARD_COLOR_PALETTE[Math.floor(Math.random() * CARD_COLOR_PALETTE.length)];
+      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined, securityCode: code, secretGuid: guid, cardColor: randomColor, isRegistered: false });
       setNewName('');
       setNewEmail('');
       setVisible(false);
@@ -287,6 +301,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
     setEditingAttendee(att);
     setEditName(att.name);
     setEditEmail(att.email || '');
+    setEditCardColor(att.cardColor || '#0a4b7c');
     setEditModalVisible(true);
   };
 
@@ -302,7 +317,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
         (editingAttendee._id && a._id === editingAttendee._id) ||
         a.name === oldName;
       if (isTarget) {
-        return { ...a, name: newNameStr, email: newEmailStr || undefined };
+        return { ...a, name: newNameStr, email: newEmailStr || undefined, cardColor: editCardColor };
       }
       return a;
     });
@@ -372,7 +387,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
       <div className="flex flex-wrap gap-3 sm:gap-4 justify-content-center md:justify-content-start">
         {attendees.map((att, index) => {
           const attendeeId = att._id || att.id || att.name;
-          const cardColor = colors[index % colors.length];
+          const cardColor = att.cardColor || colors[index % colors.length];
           const isSelf = currentUser && (
             (att.id && currentUser.id === att.id) ||
             (att._id && currentUser._id === att._id) ||
@@ -627,6 +642,19 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
               onKeyDown={(e) => e.key === 'Enter' && handleSaveEditAttendee()}
               className="bg-gray-800 text-white border-gray-600"
             />
+          </div>
+
+          <label className="text-sm font-bold text-gray-300 mt-2">Kartenfarbe wählen:</label>
+          <div className="flex flex-wrap gap-2 py-1">
+            {CARD_COLOR_PALETTE.map((c, i) => (
+              <div
+                key={i}
+                onClick={() => setEditCardColor(c)}
+                className={`cursor-pointer border-circle border-2 transition-transform hover:scale-110 shadow-2 ${editCardColor === c ? 'border-yellow-400 scale-125' : 'border-black opacity-80'}`}
+                style={{ width: '1.8rem', height: '1.8rem', background: c }}
+                title="Kartenfarbe wählen"
+              />
+            ))}
           </div>
 
           <div className="flex gap-2 mt-3">

@@ -132,10 +132,10 @@ router.get('/user-stats', async (req: Request, res: Response): Promise<void> => 
   }
 });
 
-// Bulk update user profile (name, email, avatarUrl) across all agendas
+// Bulk update user profile (name, email, avatarUrl, cardColor) across all agendas
 router.put('/user-profile', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, oldName, name, email, avatarUrl } = req.body;
+    const { userId, oldName, name, email, avatarUrl, cardColor } = req.body;
     if (!userId && !oldName) {
       res.status(400).json({ message: 'User ID or oldName is required' });
       return;
@@ -167,6 +167,7 @@ router.put('/user-profile', async (req: Request, res: Response): Promise<void> =
           if (name !== undefined) att.name = name;
           if (email !== undefined) att.email = email;
           if (avatarUrl !== undefined) att.avatarUrl = avatarUrl;
+          if (cardColor !== undefined) att.cardColor = cardColor;
           modified = true;
         }
       }
