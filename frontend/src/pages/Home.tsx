@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
@@ -11,7 +11,14 @@ export default function Home() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [myAgendas, setMyAgendas] = useState<any[]>([]);
   const [agendasLoading, setAgendasLoading] = useState(false);
-  const [userState, setUserState] = useState<any>(null);
+  const [userState, setUserState] = useState<any>(() => {
+    try {
+      const str = localStorage.getItem('flashagenda_last_user');
+      return str ? JSON.parse(str) : null;
+    } catch {
+      return null;
+    }
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,16 +48,7 @@ export default function Home() {
     }
   }, []);
 
-  const currentUser = useMemo(() => {
-    if (userState) return userState;
-    const lastUserStr = localStorage.getItem('flashagenda_last_user');
-    if (!lastUserStr) return null;
-    try {
-      return JSON.parse(lastUserStr);
-    } catch {
-      return null;
-    }
-  }, [userState]);
+  const currentUser = userState;
 
   useEffect(() => {
     if (!currentUser) return;
@@ -116,7 +114,7 @@ export default function Home() {
       </div>
 
       {/* Background glowing effects for comic feel */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-30">
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-30 hidden sm:block">
         <div className="absolute top-50 left-50 w-30rem h-30rem bg-yellow-400 border-circle filter-blur blur-8xl" style={{ transform: 'translate(-50%, -50%)', opacity: 0.4 }}></div>
       </div>
 

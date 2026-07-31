@@ -101,7 +101,7 @@ function RotatingTotpBadge({ secretGuid, fallbackCode }: { secretGuid?: string; 
     if (!secretGuid) return;
     const interval = setInterval(() => {
       setTotp(getTotpCode(secretGuid, 300));
-    }, 1000);
+    }, 10000);
     return () => clearInterval(interval);
   }, [secretGuid]);
 

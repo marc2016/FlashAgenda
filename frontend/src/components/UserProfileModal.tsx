@@ -40,12 +40,12 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
   });
 
   useEffect(() => {
-    if (!currentUser?.secretGuid) return;
+    if (!currentUser?.secretGuid || !visible) return;
     const interval = setInterval(() => {
       setTotp(getTotpCode(currentUser.secretGuid, 300));
     }, 1000);
     return () => clearInterval(interval);
-  }, [currentUser?.secretGuid]);
+  }, [currentUser?.secretGuid, visible]);
 
   useEffect(() => {
     if (currentUser) {

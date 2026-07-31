@@ -49,7 +49,7 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
       const url = route.request().url();
       const method = route.request().method();
 
-      if (url.includes('/audit-log')) {
+      if (url.includes('/audits') || url.includes('/audit-log')) {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
       } else if (url.includes('/user-stats')) {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ agendasCount: 2, totalItemsContributed: 5 }) });

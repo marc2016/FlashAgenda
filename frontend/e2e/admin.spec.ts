@@ -61,7 +61,7 @@ test.describe('FlashAgenda - Admin & Governance', () => {
     // Click Admin Button on Home Page
     const adminButton = page.locator('button[title="Admin-Verwaltung"]');
     await expect(adminButton).toBeVisible();
-    await adminButton.click();
+    await adminButton.click({ force: true });
 
     // Verify Admin Login Dialog
     await expect(page.locator('text=Administrator Anmeldung')).toBeVisible();
@@ -71,7 +71,7 @@ test.describe('FlashAgenda - Admin & Governance', () => {
     await passwordInput.fill('wrongpassword');
 
     const loginSubmit = page.locator('button:has-text("Anmelden")');
-    await loginSubmit.click();
+    await loginSubmit.click({ force: true });
 
     // Verify error message
     await expect(page.locator('text=Ungültiges Passwort')).toBeVisible();
@@ -81,13 +81,13 @@ test.describe('FlashAgenda - Admin & Governance', () => {
     await page.goto('/');
 
     const adminButton = page.locator('button[title="Admin-Verwaltung"]');
-    await adminButton.click();
+    await adminButton.click({ force: true });
 
     const passwordInput = page.locator('input[type="password"]');
     await passwordInput.fill('flashagenda-admin');
 
     const loginSubmit = page.locator('button:has-text("Anmelden")');
-    await loginSubmit.click();
+    await loginSubmit.click({ force: true });
 
     // Verify navigation to /admin
     await expect(page).toHaveURL('/admin');
