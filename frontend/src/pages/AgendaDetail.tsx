@@ -146,14 +146,15 @@ export default function AgendaDetail() {
     return () => clearInterval(pollInterval);
   }, [id, isOnline, fetchAgenda]);
 
+  const currentUserId = currentUser?._id || currentUser?.id || currentUser?.name;
+
   // Ping server periodically to update current user's lastSeen timestamp
   useEffect(() => {
-    const userId = currentUser?._id || currentUser?.id;
-    if (!userId || !id || !isOnline) return;
+    if (!currentUserId || !id || !isOnline) return;
 
     const pingServer = async () => {
       try {
-        const response = await fetch(`/api/agendas/${id}/attendees/${userId}/ping`, {
+        const response = await fetch(`/api/agendas/${id}/attendees/${currentUserId}/ping`, {
           method: 'PUT'
         });
         if (response.ok) {
@@ -161,16 +162,18 @@ export default function AgendaDetail() {
           if (data.lastSeen) {
             setAgenda((prev: any) => {
               if (!prev) return prev;
-              const updated = {
-                ...prev,
-                attendees: (prev.attendees || []).map((att: any) => {
-                  const attId = att._id || att.id;
-                  if (attId === userId || att.name === currentUser.name) {
-                    return { ...att, lastSeen: data.lastSeen };
-                  }
-                  return att;
-                })
-              };
+              let changed = false;
+              const updatedAttendees = (prev.attendees || []).map((att: any) => {
+                const attId = att._id || att.id;
+                if (attId === currentUserId || (currentUser?.name && att.name === currentUser.name)) {
+                  if (att.lastSeen === data.lastSeen) return att;
+                  changed = true;
+                  return { ...att, lastSeen: data.lastSeen };
+                }
+                return att;
+              });
+              if (!changed) return prev;
+              const updated = { ...prev, attendees: updatedAttendees };
               setCachedAgenda(id, updated);
               return updated;
             });
@@ -184,7 +187,7 @@ export default function AgendaDetail() {
     pingServer();
     const interval = setInterval(pingServer, 15000);
     return () => clearInterval(interval);
-  }, [currentUser, id, isOnline]);
+  }, [currentUserId, id, isOnline]);
 
   const userId = currentUser?._id || currentUser?.id;
 

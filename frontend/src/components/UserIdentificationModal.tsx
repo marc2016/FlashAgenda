@@ -48,6 +48,12 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
   }, [visible]);
 
   useEffect(() => {
+    // If currentUser is already identified, skip re-evaluating on every attendees array change
+    if (currentUser) {
+      setVisible(false);
+      return;
+    }
+
     // Priority 1: Check URL for userTransfer parameter (scanned QR code)
     const searchParams = new URLSearchParams(window.location.search);
     const transferParam = searchParams.get('userTransfer');
