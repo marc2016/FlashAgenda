@@ -1,16 +1,15 @@
-name: Playwright E2E Tests
+name: CI Pipeline (Backend Tests & Frontend Playwright E2E)
 
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  test-e2e:
-    timeout-minutes: 15
+  backend-unit-tests:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,10 +18,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install Backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run Backend Vitest Unit Tests
+        working-directory: ./backend
+        run: npm test
+
+  frontend-e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Frontend dependencies
         working-directory: ./frontend
         run: npm ci
 
@@ -30,7 +46,7 @@ jobs:
         working-directory: ./frontend
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests
+      - name: Run Playwright E2E Tests
         working-directory: ./frontend
         run: npm run test:e2e
 

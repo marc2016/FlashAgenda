@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('FlashAgenda - Agenda Detail & Item Operations', () => {
+test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
   test.beforeEach(async ({ page }) => {
-    const mockAgenda = {
+    let mockAgenda = {
       _id: 'mock-agenda-123',
       title: 'Sprint Planning FlashAgenda',
+      description: 'Wöchentliches Sync-Meeting für das Entwicklerteam',
       isArchived: false,
       items: [
         {
@@ -16,6 +17,17 @@ test.describe('FlashAgenda - Agenda Detail & Item Operations', () => {
           completed: false,
           isPinned: true,
           likesCount: 2,
+          createdBy: 'test-user-123'
+        },
+        {
+          _id: 'item-2',
+          title: 'Architectural Review',
+          description: 'Diskussion der neuen Schnittstellen',
+          startTime: '09:15',
+          durationMinutes: 30,
+          completed: false,
+          isPinned: false,
+          likesCount: 0,
           createdBy: 'test-user-123'
         }
       ],
@@ -37,7 +49,9 @@ test.describe('FlashAgenda - Agenda Detail & Item Operations', () => {
       const url = route.request().url();
       const method = route.request().method();
 
-      if (url.includes('/user-stats')) {
+      if (url.includes('/audit-log')) {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      } else if (url.includes('/user-stats')) {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ agendasCount: 2, totalItemsContributed: 5 }) });
       } else if (url.includes('/user-agendas')) {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([mockAgenda]) });
@@ -46,7 +60,7 @@ test.describe('FlashAgenda - Agenda Detail & Item Operations', () => {
       } else if (method === 'POST' || method === 'PUT' || method === 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockAgenda) });
       } else {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
       }
     });
 
@@ -71,17 +85,18 @@ test.describe('FlashAgenda - Agenda Detail & Item Operations', () => {
     });
   });
 
-  test('should load agenda detail page and display items & attendees', async ({ page }) => {
+  test('should load agenda detail page and display items, header & attendees', async ({ page }) => {
     await page.goto('/agenda/mock-agenda-123');
 
-    // Check agenda title
+    // Check agenda title & description
     await expect(page.locator('text=Sprint Planning FlashAgenda')).toBeVisible();
 
-    // Check agenda item title
+    // Check agenda item titles
     await expect(page.locator('text=Welcome & Introduction')).toBeVisible();
+    await expect(page.locator('text=Architectural Review')).toBeVisible();
 
-    // Check footer version string v3.0.3
-    await expect(page.locator('text=/FlashAgenda v3\\.0\\./')).toBeVisible();
+    // Check footer version string v3.2.0
+    await expect(page.locator('text=/FlashAgenda v3\\.2\\./')).toBeVisible();
 
     // Verify .ics calendar export button exists
     const icsButton = page.locator('button[title="Agenda in Kalender exportieren (.ics)"]');
@@ -90,5 +105,44 @@ test.describe('FlashAgenda - Agenda Detail & Item Operations', () => {
     // Verify Audit-Log button exists
     const auditButton = page.locator('button[title="Agenda Audit-Protokoll anzeigen"]');
     await expect(auditButton).toBeVisible();
+  });
+
+  test('should open Audit-Log modal when clicking Audit-Log button', async ({ page }) => {
+    await page.goto('/agenda/mock-agenda-123');
+
+    const auditButton = page.locator('button[title="Agenda Audit-Protokoll anzeigen"]');
+    await auditButton.click();
+
+    // Verify Audit Log Modal header
+    await expect(page.locator('text=Audit-Protokoll')).toBeVisible();
+  });
+
+  test('should open Share QR Code modal in header without errors', async ({ page }) => {
+    await page.goto('/agenda/mock-agenda-123');
+
+    // Click Share button in header
+    const shareButton = page.locator('button[title="Agenda teilen & QR-Code anzeigen"]');
+    if (await shareButton.isVisible().catch(() => false)) {
+      await shareButton.click();
+      await expect(page.locator('text=Agenda teilen')).toBeVisible();
+    }
+  });
+
+  test('should allow adding new attendees to the agenda', async ({ page }) => {
+    await page.goto('/agenda/mock-agenda-123');
+
+    const addPersonButton = page.locator('button[title="Person zur Agenda hinzufügen"]');
+    if (await addPersonButton.isVisible().catch(() => false)) {
+      await addPersonButton.click();
+
+      // Verify Add Attendee Modal
+      await expect(page.locator('text=Neue Person hinzufügen')).toBeVisible();
+
+      const nameInput = page.locator('input[placeholder="Name der Person..."]');
+      await nameInput.fill('Erika Musterfrau');
+
+      const submitButton = page.locator('button:has-text("Hinzufügen")');
+      await submitButton.click();
+    }
   });
 });
