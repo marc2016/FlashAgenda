@@ -4,6 +4,7 @@ import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
 import AdminLoginModal from '../components/AdminLoginModal';
 import UserProfileModal from '../components/UserProfileModal';
+import PwaInstallBanner from '../components/PwaInstallBanner';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -209,6 +210,8 @@ export default function Home() {
         currentUser={currentUser}
         onUpdateUser={(updated) => setUserState(updated)}
       />
+
+      <PwaInstallBanner />
     </div>
   );
 }

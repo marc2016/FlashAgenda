@@ -22,12 +22,24 @@ export default defineConfig({
         name: 'FlashAgenda',
         short_name: 'FlashAgenda',
         description: 'Blazingly fast agenda and event planner',
-        theme_color: '#b71c1c',
-        background_color: '#b71c1c',
+        theme_color: '#DC2626',
+        background_color: '#DC2626',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        launch_handler: {
+          client_mode: ['navigate-existing', 'auto']
+        },
+        share_target: {
+          action: '/',
+          method: 'GET',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url'
+          }
+        },
         icons: [
           {
             src: 'pwa-192x192.png',
