@@ -6,7 +6,7 @@ import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
 import { Checkbox } from 'primereact/checkbox';
 import { parseISO } from 'date-fns';
-import { QRCodeSVG } from 'qrcode.react';
+import SafeQRCode from './SafeQRCode';
 import { getNotificationPermissionState, requestNotificationPermission } from '../services/notificationService';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -570,12 +570,20 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
             padding: '16px',
             boxShadow: '0 4px 24px rgba(234,179,8,0.25)'
           }}>
-            <QRCodeSVG
-              value={window.location.href}
+            <SafeQRCode
+              value={(() => {
+                try {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('userTransfer');
+                  return url.toString();
+                } catch {
+                  return window.location.href;
+                }
+              })()}
               size={180}
               bgColor="#ffffff"
               fgColor="#1a1a1a"
-              level="H"
+              level="L"
               includeMargin={false}
             />
           </div>

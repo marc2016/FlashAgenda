@@ -4,7 +4,7 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
-import { QRCodeSVG } from 'qrcode.react';
+import SafeQRCode from './SafeQRCode';
 import { getTotpCode } from '../services/totpService';
 
 interface Attendee {
@@ -771,12 +771,11 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
               Scanne diesen QR-Code mit deinem Smartphone oder einem anderen Gerät, um dich dort sofort als <strong>{qrUser.name}</strong> anzumelden.
             </p>
             <div className="p-3 bg-white border-round-xl border-3 border-black shadow-4">
-              <QRCodeSVG
+              <SafeQRCode
                 value={`${window.location.origin}/agenda/${agendaId || ''}?userTransfer=${encodeURIComponent(JSON.stringify({ 
                   id: qrUser.id || qrUser._id, 
-                  name: qrUser.name, 
-                  email: qrUser.email, 
-                  avatarUrl: (qrUser.avatarUrl || '').startsWith('data:') ? undefined : qrUser.avatarUrl,
+                  name: (qrUser.name || '').slice(0, 40), 
+                  email: (qrUser.email || '').slice(0, 60), 
                   cardColor: qrUser.cardColor,
                   securityCode: qrUser.securityCode,
                   secretGuid: qrUser.secretGuid
@@ -784,7 +783,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
                 size={220}
                 bgColor="#ffffff"
                 fgColor="#1a1a1a"
-                level="M"
+                level="L"
                 includeMargin={false}
               />
             </div>

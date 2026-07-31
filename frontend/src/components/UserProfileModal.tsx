@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { QRCodeSVG } from 'qrcode.react';
 import { getTotpCode } from '../services/totpService';
 import { CARD_COLOR_PALETTE } from './AgendaAttendees';
+import SafeQRCode from './SafeQRCode';
 
 interface Props {
   visible: boolean;
@@ -136,14 +136,13 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
     setSaving(false);
   };
 
-  const rawAvatar = avatarUrl || currentUser.avatarUrl || '';
-  const cleanAvatar = rawAvatar.startsWith('data:') ? undefined : rawAvatar;
+  const safeName = (name || currentUser.name || '').slice(0, 40);
+  const safeEmail = (email || currentUser.email || '').slice(0, 60);
 
   const qrData = JSON.stringify({
     id: currentUser.id || currentUser._id,
-    name: name || currentUser.name,
-    email: email || currentUser.email,
-    avatarUrl: cleanAvatar,
+    name: safeName,
+    email: safeEmail,
     cardColor: cardColor || currentUser.cardColor,
     securityCode: currentUser.securityCode,
     secretGuid: currentUser.secretGuid
@@ -188,7 +187,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
               /* Card QR Code Mode */
               <div className="flex flex-column align-items-center justify-content-center h-full p-3 sm:p-4 text-center text-white gap-2">
                 <div className="bg-white p-2 border-round-xl border-2 border-black shadow-4">
-                  <QRCodeSVG value={transferUrl} size={150} level="M" />
+                  <SafeQRCode value={transferUrl} size={150} level="L" />
                 </div>
                 <span className="text-3xs sm:text-xs opacity-90 max-w-20rem">
                   Scanne diesen Code mit deinem Smartphone, um dich auf dem neuen Gerät anzumelden.
@@ -216,7 +215,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                       />
                     ) : (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '5.2rem', height: '5.2rem' }} className="text-white-alpha-90">
-                        <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
+                        <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
                       </svg>
                     )}
 
