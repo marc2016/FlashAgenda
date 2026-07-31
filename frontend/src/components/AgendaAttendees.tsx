@@ -5,6 +5,7 @@ import { InputText } from 'primereact/inputtext';
 import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { QRCodeSVG } from 'qrcode.react';
+import { getTotpCode } from '../services/totpService';
 
 interface Attendee {
   _id?: string;
@@ -13,6 +14,7 @@ interface Attendee {
   avatarUrl?: string;
   email?: string;
   securityCode?: string;
+  secretGuid?: string;
   isRegistered?: boolean;
   joinedAt?: string;
   lastSeen?: string;
@@ -75,6 +77,46 @@ const isUserOnline = (lastSeen?: string | Date) => {
   }
 };
 
+function RotatingTotpBadge({ secretGuid, fallbackCode }: { secretGuid?: string; fallbackCode?: string }) {
+  const [totp, setTotp] = useState(() => {
+    if (secretGuid) {
+      return getTotpCode(secretGuid, 300);
+    }
+    return { code: fallbackCode || '----', remainingSeconds: 300 };
+  });
+
+  useEffect(() => {
+    if (!secretGuid) return;
+    const interval = setInterval(() => {
+      setTotp(getTotpCode(secretGuid, 300));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [secretGuid]);
+
+  const displayCode = secretGuid ? totp.code : (fallbackCode || '----');
+  const formatTimer = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  };
+
+  return (
+    <div 
+      className="absolute bottom-0 left-0 m-1 px-1 text-2xs font-mono opacity-80 hover:opacity-100 text-white flex align-items-center gap-1 cursor-text select-text z-2"
+      style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
+      onClick={(e) => e.stopPropagation()}
+      title="Dynamischer Einmalcode (TOTP)"
+    >
+      <span className="select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>Code: {displayCode}</span>
+      {secretGuid && (
+        <span className="text-yellow-400 font-bold ml-1 opacity-90" style={{ fontSize: '0.75rem' }}>
+          ⏱️ {formatTimer(totp.remainingSeconds)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function AgendaAttendees({ agendaId, attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
@@ -122,17 +164,18 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
   const generateSecurityCode = () => Math.floor(1000 + Math.random() * 9000).toString();
   const hasMigratedRef = useRef(false);
 
-  // Auto-generate security code for any legacy attendee that lacks one (run once per load)
+  // Auto-generate secretGuid & security code for any legacy attendee that lacks one
   useEffect(() => {
     if (hasMigratedRef.current || !onUpdateAgenda || !attendees || attendees.length === 0) return;
-    const hasMissingCode = attendees.some(a => !a.securityCode);
-    if (hasMissingCode) {
+    const hasMissingSecret = attendees.some(a => !a.securityCode || !a.secretGuid);
+    if (hasMissingSecret) {
       hasMigratedRef.current = true;
       const updated = attendees.map(a => {
-        if (!a.securityCode) {
-          return { ...a, securityCode: generateSecurityCode() };
-        }
-        return a;
+        return {
+          ...a,
+          securityCode: a.securityCode || generateSecurityCode(),
+          secretGuid: a.secretGuid || uuidv4()
+        };
       });
       onUpdateAgenda({ attendees: updated });
     }
@@ -141,7 +184,8 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
   const handleAdd = useCallback(async () => {
     if (newName.trim()) {
       const code = generateSecurityCode();
-      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined, securityCode: code, isRegistered: false });
+      const guid = uuidv4();
+      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined, securityCode: code, secretGuid: guid, isRegistered: false });
       setNewName('');
       setNewEmail('');
       setVisible(false);
@@ -354,18 +398,9 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
               }}
             >
               {isSelf && (
-                <>
-                  <div className="corner-banderole">
-                    Das bist du
-                  </div>
-                  <div 
-                    className="absolute bottom-0 left-0 px-2 py-1 text-white-alpha-50 hover:text-white font-mono text-3xs opacity-80 cursor-default select-none z-1"
-                    style={{ fontSize: '0.65rem', letterSpacing: '0.05em' }}
-                    title="Dein Sicherheitscode für neue Geräte"
-                  >
-                    Code: {att.securityCode || '----'}
-                  </div>
-                </>
+                <div className="corner-banderole">
+                  Das bist du
+                </div>
               )}
               <div className="flex h-full text-white p-3 sm:p-4 align-items-center">
                 
@@ -481,11 +516,13 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
                       </span>
                     </div>
                   </div>
-                </div>
-                
+                {isSelf && (
+                  <RotatingTotpBadge secretGuid={att.secretGuid} fallbackCode={att.securityCode} />
+                )}
               </div>
             </div>
-          );
+          </div>
+        );
         })}
         
         {/* Person hinzufügen Card */}

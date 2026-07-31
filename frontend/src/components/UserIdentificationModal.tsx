@@ -3,6 +3,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { v4 as uuidv4 } from 'uuid';
+import { verifyTotpCode } from '../services/totpService';
 
 interface Attendee {
   _id?: string;
@@ -11,6 +12,7 @@ interface Attendee {
   avatarUrl?: string;
   email?: string;
   securityCode?: string;
+  secretGuid?: string;
   isRegistered?: boolean;
 }
 
@@ -162,7 +164,11 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
 
   const handleVerifyCode = () => {
     if (!verifyingAttendee) return;
-    if (verifyingAttendee.securityCode && enteredCode.trim() === verifyingAttendee.securityCode.trim()) {
+
+    const isTotpValid = verifyingAttendee.secretGuid && verifyTotpCode(enteredCode, verifyingAttendee.secretGuid, 60);
+    const isStaticValid = verifyingAttendee.securityCode && enteredCode.trim() === verifyingAttendee.securityCode.trim();
+
+    if (isTotpValid || isStaticValid) {
       const confirmedUser = { ...verifyingAttendee, isRegistered: true };
       localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(confirmedUser));
       localStorage.setItem('flashagenda_last_user', JSON.stringify(confirmedUser));
@@ -181,7 +187,8 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
     if (!newName.trim()) return;
     setLoading(true);
     const code = generateSecurityCode();
-    const newUser = { id: uuidv4(), name: newName.trim(), securityCode: code, isRegistered: true };
+    const guid = uuidv4();
+    const newUser = { id: uuidv4(), name: newName.trim(), securityCode: code, secretGuid: guid, isRegistered: true };
     await onAddAttendee(newUser);
     localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(newUser));
     localStorage.setItem('flashagenda_last_user', JSON.stringify(newUser));
