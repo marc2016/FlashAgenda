@@ -25,10 +25,6 @@ export default function AgendaDetail() {
     if (stored) {
       try { return JSON.parse(stored); } catch (e) {}
     }
-    const lastUser = localStorage.getItem('flashagenda_last_user');
-    if (lastUser) {
-      try { return JSON.parse(lastUser); } catch (e) {}
-    }
     return null;
   });
   const [showUserModal, setShowUserModal] = useState<boolean | undefined>(undefined);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
@@ -36,6 +36,16 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
   const [verifyingAttendee, setVerifyingAttendee] = useState<Attendee | null>(null);
   const [enteredCode, setEnteredCode] = useState('');
   const [codeError, setCodeError] = useState(false);
+
+  const rememberedUser = useMemo(() => {
+    const lastUserStr = localStorage.getItem('flashagenda_last_user');
+    if (!lastUserStr) return null;
+    try {
+      return JSON.parse(lastUserStr);
+    } catch {
+      return null;
+    }
+  }, [visible]);
 
   useEffect(() => {
     // Priority 1: Check URL for userTransfer parameter (scanned QR code)
@@ -84,26 +94,6 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
         console.error('Failed to parse stored user', err);
       }
     } else {
-      const lastUserStr = localStorage.getItem('flashagenda_last_user');
-      if (lastUserStr) {
-        try {
-          const lastUser = JSON.parse(lastUserStr);
-          const match = attendees.find(
-            a => (a.id && a.id === lastUser.id) ||
-                 (a._id && a._id === lastUser._id) ||
-                 (a._id && lastUser.id && a._id === lastUser.id) ||
-                 (a.name && lastUser.name && a.name.trim().toLowerCase() === lastUser.name.trim().toLowerCase())
-          );
-          if (match) {
-            localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(match));
-            onIdentified(match);
-            setVisible(false);
-            return;
-          }
-        } catch (err) {
-          console.error('Failed to parse last user', err);
-        }
-      }
       setVisible(true);
     }
   }, [agendaId, attendees, onIdentified, isOpen]);
@@ -112,6 +102,32 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
     setVisible(false);
     if (onClose) onClose();
     window.location.href = '/';
+  };
+
+  const handleUseRememberedUser = async (user: Attendee) => {
+    setLoading(true);
+    const code = user.securityCode || generateSecurityCode();
+    const claimedUser = { ...user, isRegistered: true, securityCode: code };
+    localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(claimedUser));
+    localStorage.setItem('flashagenda_last_user', JSON.stringify(claimedUser));
+    
+    const existing = attendees.find(
+      a => (a.id && a.id === claimedUser.id) ||
+           (a._id && a._id === claimedUser._id) ||
+           (a._id && claimedUser.id && a._id === claimedUser.id) ||
+           (a.name && claimedUser.name && a.name.trim().toLowerCase() === claimedUser.name.trim().toLowerCase())
+    );
+
+    if (!existing) {
+      await onAddAttendee(claimedUser);
+    } else if (onUpdateAttendee) {
+      onUpdateAttendee(claimedUser);
+    }
+
+    setVisible(false);
+    if (onClose) onClose();
+    onIdentified(claimedUser);
+    setLoading(false);
   };
 
   const handleSelectExisting = (user: Attendee) => {
@@ -190,6 +206,51 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
         onHide={() => {}}
       >
       <div className="flex flex-column gap-3 pt-3">
+
+        {/* Prominent Highlighted Box for Global Remembered Identity */}
+        {rememberedUser && rememberedUser.name && (
+          <div className="bg-yellow-500-alpha-20 border-2 border-yellow-400 border-round p-3 flex flex-column gap-2 text-center shadow-3 relative overflow-hidden mb-2">
+            <div className="text-xs font-bold uppercase tracking-wider text-yellow-400 flex align-items-center justify-content-center gap-1">
+              <i className="pi pi-star-fill text-xs" />
+              <span>Bestehende Identität</span>
+            </div>
+            <div className="flex align-items-center justify-content-center gap-3 my-1">
+              {rememberedUser.avatarUrl ? (
+                <img
+                  src={rememberedUser.avatarUrl}
+                  alt={rememberedUser.name}
+                  style={{ width: '3rem', height: '3rem', objectFit: 'cover' }}
+                  className="border-circle border-2 border-yellow-400"
+                />
+              ) : (
+                <div 
+                  className="border-circle border-2 border-yellow-400 bg-yellow-500 text-black font-bold flex align-items-center justify-content-center text-xl"
+                  style={{ width: '3rem', height: '3rem' }}
+                >
+                  {rememberedUser.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="text-left overflow-hidden">
+                <div className="font-bold text-white text-lg overflow-hidden text-overflow-ellipsis white-space-nowrap">
+                  {rememberedUser.name}
+                </div>
+                {rememberedUser.email && (
+                  <div className="text-xs text-yellow-300 overflow-hidden text-overflow-ellipsis white-space-nowrap">
+                    {rememberedUser.email}
+                  </div>
+                )}
+              </div>
+            </div>
+            <Button
+              label={`Als "${rememberedUser.name}" beitreten`}
+              icon="pi pi-bolt"
+              className="p-button-warning comic-button font-bold text-base mt-1"
+              loading={loading}
+              onClick={() => handleUseRememberedUser(rememberedUser)}
+            />
+          </div>
+        )}
+
         {attendees.length > 0 && (
           <>
             <p className="m-0 text-gray-300">Wähle deinen Namen aus der Liste:</p>
