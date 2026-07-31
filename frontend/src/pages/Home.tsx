@@ -18,6 +18,29 @@ export default function Home() {
     document.title = 'FlashAgenda';
   }, []);
 
+  // Handle QR code transfer parameter in URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const transferParam = searchParams.get('userTransfer');
+    if (transferParam) {
+      try {
+        const transferredUser = JSON.parse(decodeURIComponent(transferParam));
+        if (transferredUser && (transferredUser.name || transferredUser.id)) {
+          const claimedUser = { ...transferredUser, isRegistered: true };
+          localStorage.setItem('flashagenda_last_user', JSON.stringify(claimedUser));
+          setUserState(claimedUser);
+
+          // Clean URL parameter without page reload
+          const url = new URL(window.location.href);
+          url.searchParams.delete('userTransfer');
+          window.history.replaceState({}, '', url.toString());
+        }
+      } catch (err) {
+        console.error('Failed to parse userTransfer parameter:', err);
+      }
+    }
+  }, []);
+
   const currentUser = useMemo(() => {
     if (userState) return userState;
     const lastUserStr = localStorage.getItem('flashagenda_last_user');

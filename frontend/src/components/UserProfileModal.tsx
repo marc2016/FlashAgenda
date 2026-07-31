@@ -19,9 +19,9 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
   const [avatarUrl, setAvatarUrl] = useState('');
   const [cardColor, setCardColor] = useState('#0a4b7c');
   
-  // Modals for Edit and QR Code
+  // Modals / Toggles
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
@@ -136,11 +136,14 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
     setSaving(false);
   };
 
+  const rawAvatar = avatarUrl || currentUser.avatarUrl || '';
+  const cleanAvatar = rawAvatar.startsWith('data:') ? undefined : rawAvatar;
+
   const qrData = JSON.stringify({
     id: currentUser.id || currentUser._id,
     name: name || currentUser.name,
     email: email || currentUser.email,
-    avatarUrl: avatarUrl || currentUser.avatarUrl,
+    avatarUrl: cleanAvatar,
     cardColor: cardColor || currentUser.cardColor,
     securityCode: currentUser.securityCode,
     secretGuid: currentUser.secretGuid
@@ -178,126 +181,145 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
           >
             {/* Corner Banderole */}
             <div className="corner-banderole" style={{ fontSize: '0.75rem', padding: '0.35rem 2rem' }}>
-              Das bist du
+              {showQr ? 'Geräteübertragung' : 'Das bist du'}
             </div>
 
-            <div className="flex h-full text-white p-4 sm:p-5 align-items-center">
-              
-              {/* Left: Profile Avatar */}
-              <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-3 sm:pr-4 mr-3 sm:mr-4 flex-shrink-0">
-                <div className="relative flex align-items-center justify-content-center">
-                  {avatarUrl ? (
-                    <img 
-                      src={avatarUrl} 
-                      alt={name} 
-                      style={{ width: '5.2rem', height: '5.2rem', objectFit: 'cover' }} 
-                      className="border-circle border-2 border-white-alpha-40 shadow-3" 
-                    />
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '5.2rem', height: '5.2rem' }} className="text-white-alpha-90">
-                      <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
-                    </svg>
-                  )}
-
-                  {/* Camera edit button */}
-                  <button
-                    onClick={handleOpenEdit}
-                    className="absolute bottom-0 right-0 bg-yellow-500 text-black border-circle border-1 border-black p-1 flex align-items-center justify-content-center cursor-pointer hover:scale-110 transition-transform shadow-2"
-                    style={{ width: '2rem', height: '2rem', margin: '0 0.25rem -0.25rem 0' }}
-                    title="Profilbild ändern"
-                  >
-                    <i className="pi pi-camera text-xs font-bold" />
-                  </button>
+            {showQr ? (
+              /* Card QR Code Mode */
+              <div className="flex flex-column align-items-center justify-content-center h-full p-3 sm:p-4 text-center text-white gap-2">
+                <div className="bg-white p-2 border-round-xl border-2 border-black shadow-4">
+                  <QRCodeSVG value={transferUrl} size={150} level="M" />
                 </div>
+                <span className="text-3xs sm:text-xs opacity-90 max-w-20rem">
+                  Scanne diesen Code mit deinem Smartphone, um dich auf dem neuen Gerät anzumelden.
+                </span>
+                <Button
+                  label="Zurück zur Karte"
+                  icon="pi pi-arrow-left"
+                  onClick={() => setShowQr(false)}
+                  className="p-button-warning p-button-sm font-bold text-xs p-button-outlined border-1 py-1 px-3 mt-1"
+                />
               </div>
+            ) : (
+              /* Card Standard Mode */
+              <div className="flex h-full text-white p-4 sm:p-5 align-items-center">
+                
+                {/* Left: Profile Avatar */}
+                <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-3 sm:pr-4 mr-3 sm:mr-4 flex-shrink-0">
+                  <div className="relative flex align-items-center justify-content-center">
+                    {avatarUrl ? (
+                      <img 
+                        src={avatarUrl} 
+                        alt={name} 
+                        style={{ width: '5.2rem', height: '5.2rem', objectFit: 'cover' }} 
+                        className="border-circle border-2 border-white-alpha-40 shadow-3" 
+                      />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '5.2rem', height: '5.2rem' }} className="text-white-alpha-90">
+                        <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
+                      </svg>
+                    )}
 
-              {/* Right: Details */}
-              <div className="flex flex-column flex-1 justify-content-center m-0 p-0 min-w-0">
-                <div className="flex justify-content-between align-items-start mb-2 gap-2">
-                  <div className="font-bold text-xl sm:text-2xl overflow-hidden text-overflow-ellipsis white-space-nowrap text-white flex-1 min-w-0">
-                    {name || 'Unbekannt'}
-                  </div>
-                  
-                  {/* Exact Agenda Action Buttons: QR Code & Pencil */}
-                  <div className="flex align-items-center gap-2 flex-shrink-0 mr-4">
-                    <button
-                      onClick={() => setQrModalVisible(true)}
-                      className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
-                      style={{ width: '2rem', height: '2rem' }}
-                      title="Person-Identität per QR-Code übertragen"
-                    >
-                      <i className="pi pi-qrcode text-sm font-bold" />
-                    </button>
-
+                    {/* Camera edit button */}
                     <button
                       onClick={handleOpenEdit}
-                      className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
-                      style={{ width: '2rem', height: '2rem' }}
-                      title="Eigene Daten & Kartenfarbe bearbeiten"
+                      className="absolute bottom-0 right-0 bg-yellow-500 text-black border-circle border-1 border-black p-1 flex align-items-center justify-content-center cursor-pointer hover:scale-110 transition-transform shadow-2"
+                      style={{ width: '2rem', height: '2rem', margin: '0 0.25rem -0.25rem 0' }}
+                      title="Profilbild ändern"
                     >
-                      <i className="pi pi-pencil text-sm font-bold" />
+                      <i className="pi pi-camera text-xs font-bold" />
                     </button>
                   </div>
                 </div>
 
-                <div className="flex flex-column gap-2 text-sm text-white-alpha-90">
-                  <div>
-                    <strong className="block text-2xs text-white-alpha-60 uppercase tracking-wide">E-Mail</strong>
-                    {email ? (
-                      <a
-                        href={`mailto:${email}`}
-                        className="m-0 p-0 line-height-1 text-white-alpha-90 hover:text-yellow-300 flex align-items-center gap-1 font-semibold overflow-hidden text-overflow-ellipsis"
-                        title={email}
+                {/* Right: Details */}
+                <div className="flex flex-column flex-1 justify-content-center m-0 p-0 min-w-0">
+                  <div className="flex justify-content-between align-items-start mb-2 gap-2">
+                    <div className="font-bold text-xl sm:text-2xl overflow-hidden text-overflow-ellipsis white-space-nowrap text-white flex-1 min-w-0">
+                      {name || 'Unbekannt'}
+                    </div>
+                    
+                    {/* Action Buttons: QR Code & Pencil */}
+                    <div className="flex align-items-center gap-2 flex-shrink-0 mr-4">
+                      <button
+                        onClick={() => setShowQr(!showQr)}
+                        className={`bg-black-alpha-40 hover:bg-yellow-500 hover:text-black ${showQr ? 'bg-yellow-500 text-black' : 'text-white-alpha-80'} border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors`}
+                        style={{ width: '2rem', height: '2rem' }}
+                        title="Person-Identität per QR-Code übertragen"
                       >
-                        <i className="mdi mdi-email text-yellow-400 text-xs flex-shrink-0" />
-                        <span className="overflow-hidden text-overflow-ellipsis white-space-nowrap">{email}</span>
-                      </a>
-                    ) : (
-                      <span
+                        <i className="pi pi-qrcode text-sm font-bold" />
+                      </button>
+
+                      <button
                         onClick={handleOpenEdit}
-                        className="m-0 p-0 line-height-1 text-white-alpha-50 hover:text-yellow-300 flex align-items-center gap-1 cursor-pointer italic"
+                        className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
+                        style={{ width: '2rem', height: '2rem' }}
+                        title="Eigene Daten & Kartenfarbe bearbeiten"
                       >
-                        <i className="mdi mdi-email-plus-outline text-xs flex-shrink-0" />
-                        <span>E-Mail hinzufügen...</span>
+                        <i className="pi pi-pencil text-sm font-bold" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-column gap-2 text-sm text-white-alpha-90">
+                    <div>
+                      <strong className="block text-2xs text-white-alpha-60 uppercase tracking-wide">E-Mail</strong>
+                      {email ? (
+                        <a
+                          href={`mailto:${email}`}
+                          className="m-0 p-0 line-height-1 text-white-alpha-90 hover:text-yellow-300 flex align-items-center gap-1 font-semibold overflow-hidden text-overflow-ellipsis"
+                          title={email}
+                        >
+                          <i className="mdi mdi-email text-yellow-400 text-xs flex-shrink-0" />
+                          <span className="overflow-hidden text-overflow-ellipsis white-space-nowrap">{email}</span>
+                        </a>
+                      ) : (
+                        <span
+                          onClick={handleOpenEdit}
+                          className="m-0 p-0 line-height-1 text-white-alpha-50 hover:text-yellow-300 flex align-items-center gap-1 cursor-pointer italic"
+                        >
+                          <i className="mdi mdi-email-plus-outline text-xs flex-shrink-0" />
+                          <span>E-Mail hinzufügen...</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-nogutter border-top-1 border-white-alpha-20 pt-2 mt-1">
+                      <div className="col-6">
+                        <strong className="block text-2xs text-white-alpha-60 uppercase tracking-wide">Agenden</strong>
+                        <span className="m-0 p-0 line-height-1 font-bold text-base text-yellow-300">
+                          {statsLoading ? '...' : `${stats.agendasCount} Beigetreten`}
+                        </span>
+                      </div>
+                      <div className="col-6">
+                        <strong className="block text-2xs text-white-alpha-60 uppercase tracking-wide">Punkte</strong>
+                        <span className="m-0 p-0 line-height-1 font-bold text-base text-yellow-300">
+                          {statsLoading ? '...' : `${stats.totalItemsContributed} Erstellt`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TOTP Code Badge at Bottom Left */}
+                  <div 
+                    className="absolute bottom-0 left-0 m-1 px-2 py-1 text-xs font-mono opacity-90 hover:opacity-100 text-white flex align-items-center gap-2 cursor-text select-text z-2"
+                    style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
+                    onClick={(e) => e.stopPropagation()}
+                    title="Dynamischer Einmalcode (TOTP)"
+                  >
+                    <span className="select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
+                      Code: {currentUser.secretGuid ? totp.code : (currentUser.securityCode || '----')}
+                    </span>
+                    {currentUser.secretGuid && (
+                      <span className="text-yellow-400 font-bold ml-1 opacity-90" style={{ fontSize: '0.8rem' }}>
+                        ⏱️ {formatTimer(totp.remainingSeconds)}
                       </span>
                     )}
                   </div>
 
-                  <div className="grid grid-nogutter border-top-1 border-white-alpha-20 pt-2 mt-1">
-                    <div className="col-6">
-                      <strong className="block text-2xs text-white-alpha-60 uppercase tracking-wide">Agenden</strong>
-                      <span className="m-0 p-0 line-height-1 font-bold text-base text-yellow-300">
-                        {statsLoading ? '...' : `${stats.agendasCount} Beigetreten`}
-                      </span>
-                    </div>
-                    <div className="col-6">
-                      <strong className="block text-2xs text-white-alpha-60 uppercase tracking-wide">Punkte</strong>
-                      <span className="m-0 p-0 line-height-1 font-bold text-base text-yellow-300">
-                        {statsLoading ? '...' : `${stats.totalItemsContributed} Erstellt`}
-                      </span>
-                    </div>
-                  </div>
                 </div>
-
-                {/* TOTP Code Badge at Bottom Left */}
-                <div 
-                  className="absolute bottom-0 left-0 m-1 px-2 py-1 text-xs font-mono opacity-90 hover:opacity-100 text-white flex align-items-center gap-2 cursor-text select-text z-2"
-                  style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
-                  onClick={(e) => e.stopPropagation()}
-                  title="Dynamischer Einmalcode (TOTP)"
-                >
-                  <span className="select-text" style={{ userSelect: 'text', WebkitUserSelect: 'text' }}>
-                    Code: {currentUser.secretGuid ? totp.code : (currentUser.securityCode || '----')}
-                  </span>
-                  {currentUser.secretGuid && (
-                    <span className="text-yellow-400 font-bold ml-1 opacity-90" style={{ fontSize: '0.8rem' }}>
-                      ⏱️ {formatTimer(totp.remainingSeconds)}
-                    </span>
-                  )}
-                </div>
-
               </div>
-            </div>
+            )}
           </div>
 
           {/* Bottom Dialog Close Button */}
@@ -312,7 +334,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
         </div>
       </Dialog>
 
-      {/* Exact Agenda Edit Modal with Color Palette Picker */}
+      {/* Edit Modal */}
       <Dialog
         header="Profildaten & Kartenfarbe bearbeiten"
         visible={editModalVisible}
@@ -384,32 +406,6 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
               className="p-button-warning comic-button font-bold text-sm"
             />
           </div>
-        </div>
-      </Dialog>
-
-      {/* Exact Agenda QR Code Modal */}
-      <Dialog
-        header={`QR-Code von ${name}`}
-        visible={qrModalVisible}
-        onHide={() => setQrModalVisible(false)}
-        style={{ width: '90vw', maxWidth: '350px' }}
-        modal
-        dismissableMask
-        className="p-fluid glass-panel text-center"
-      >
-        <div className="flex flex-column align-items-center gap-3 py-3">
-          <div className="bg-white p-3 border-round-xl border-2 border-black shadow-4">
-            <QRCodeSVG value={transferUrl} size={180} level="M" />
-          </div>
-          <span className="text-xs text-gray-300">
-            Scanne diesen Code mit der Kamera eines Zweitgeräts, um dein Profil augenblicklich zu übernehmen.
-          </span>
-          <Button
-            label="Schließen"
-            icon="pi pi-check"
-            onClick={() => setQrModalVisible(false)}
-            className="p-button-warning p-button-sm font-bold text-xs"
-          />
         </div>
       </Dialog>
     </>

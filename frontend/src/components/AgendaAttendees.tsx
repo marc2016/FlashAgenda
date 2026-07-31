@@ -772,11 +772,19 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
             </p>
             <div className="p-3 bg-white border-round-xl border-3 border-black shadow-4">
               <QRCodeSVG
-                value={`${window.location.origin}/agenda/${agendaId || ''}?userTransfer=${encodeURIComponent(JSON.stringify({ id: qrUser.id || qrUser._id, name: qrUser.name, email: qrUser.email, avatarUrl: qrUser.avatarUrl }))}`}
+                value={`${window.location.origin}/agenda/${agendaId || ''}?userTransfer=${encodeURIComponent(JSON.stringify({ 
+                  id: qrUser.id || qrUser._id, 
+                  name: qrUser.name, 
+                  email: qrUser.email, 
+                  avatarUrl: (qrUser.avatarUrl || '').startsWith('data:') ? undefined : qrUser.avatarUrl,
+                  cardColor: qrUser.cardColor,
+                  securityCode: qrUser.securityCode,
+                  secretGuid: qrUser.secretGuid
+                }))}`}
                 size={220}
                 bgColor="#ffffff"
                 fgColor="#1a1a1a"
-                level="H"
+                level="M"
                 includeMargin={false}
               />
             </div>
