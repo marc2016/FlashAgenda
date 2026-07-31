@@ -120,8 +120,8 @@ export default function Home() {
       </div>
 
       <div className="z-1 text-center p-3 sm:p-6 flex flex-column align-items-center max-w-full w-full">
-        <div className="mb-4 sm:mb-8 css-logo-container">
-          <i className="pi pi-bolt css-logo-bolt"></i>
+        <div className="mb-2 sm:mb-4 css-logo-container">
+          <img src="/favicon.svg" alt="FlashAgenda Icon" className="css-logo-icon" />
           <h1 className="comic-font comic-text-shadow css-logo-text">FlashAgenda</h1>
         </div>
 

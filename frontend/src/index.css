@@ -287,29 +287,22 @@ body.p-overflow-hidden {
 
 /* CSS Logo (Fully Responsive) */
 .css-logo-container {
-  position: relative;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2rem;
   max-width: 95vw;
   box-sizing: border-box;
 }
-.css-logo-bolt {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: clamp(10rem, 35vw, 28rem) !important;
-  color: #facc15;
-  text-shadow: clamp(4px, 1vw, 8px) clamp(4px, 1vw, 8px) 0 #000;
-  z-index: 0;
-  opacity: 1;
-  pointer-events: none;
+.css-logo-icon {
+  width: clamp(7rem, 32vw, 16rem);
+  height: clamp(7rem, 32vw, 16rem);
+  flex-shrink: 0;
+  filter: drop-shadow(6px 6px 0 #000);
 }
 .css-logo-text {
-  position: relative;
-  z-index: 1;
-  font-size: clamp(2.5rem, 8vw, 6rem);
+  font-size: clamp(2.2rem, 6.5vw, 4.5rem);
   color: #ffffff;
   margin: 0;
   white-space: nowrap;
@@ -317,11 +310,12 @@ body.p-overflow-hidden {
 }
 
 @media (max-width: 480px) {
-  .css-logo-text {
-    font-size: clamp(2rem, 10vw, 3.2rem);
+  .css-logo-icon {
+    width: clamp(6rem, 40vw, 10rem);
+    height: clamp(6rem, 40vw, 10rem);
   }
-  .css-logo-bolt {
-    font-size: clamp(8rem, 40vw, 14rem) !important;
+  .css-logo-text {
+    font-size: clamp(1.8rem, 9vw, 3rem);
   }
 }
 
