@@ -24,6 +24,13 @@ export default defineConfig({
     {
       name: 'mobile-safari',
       use: { ...devices['iPhone 14'] },
+    },
+    {
+      name: 'small-mobile',
+      use: {
+        ...devices['iPhone SE'],
+        viewport: { width: 320, height: 568 }
+      },
     }
   ],
   webServer: {
