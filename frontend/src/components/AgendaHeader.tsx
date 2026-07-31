@@ -655,8 +655,8 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
         </div>
       </div>
 
-      <div className="flex align-items-center mb-3 sm:mb-4 gap-2 pt-1 md:pt-4 flex-wrap">
-        <i className="pi pi-bolt text-yellow-400 text-3xl sm:text-4xl md:text-6xl flex-shrink-0" />
+      <div className="flex align-items-center mb-3 sm:mb-4 gap-4 pt-1 md:pt-4 flex-wrap">
+        <img src="/favicon.svg" alt="FlashAgenda" className="flex-shrink-0" style={{ width: 'clamp(2.5rem, 8vw, 5rem)', height: 'clamp(2.5rem, 8vw, 5rem)', filter: 'drop-shadow(3px 3px 0 #000)' }} />
         <div className="flex align-items-center gap-2 flex-wrap flex-1 min-w-0">
           <h1
             className="text-3xl sm:text-4xl md:text-6xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 line-height-2 word-break-break-word"
