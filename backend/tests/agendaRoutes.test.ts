@@ -45,11 +45,14 @@ vi.mock('../src/models/Agenda', () => {
     return Promise.resolve({ ...mockAgendaData });
   });
 
-  MockAgendaClass.find = vi.fn().mockReturnValue(
-    Object.assign(Promise.resolve([mockAgendaData]), {
-      sort: vi.fn().mockResolvedValue([mockAgendaData])
-    })
-  );
+  MockAgendaClass.find = vi.fn().mockImplementation(() => {
+    const resArr = [mockAgendaData];
+    const promise = Promise.resolve(resArr);
+    (promise as any).sort = vi.fn().mockReturnValue({
+      limit: vi.fn().mockResolvedValue(resArr)
+    });
+    return promise;
+  });
 
   return {
     default: MockAgendaClass
@@ -70,6 +73,23 @@ describe('Agenda API Routes Unit Tests', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.message).toContain('archiviert und kann nicht mehr geändert werden');
+  });
+
+  it('should reject fetching user agendas without valid security code (401 Unauthorized)', async () => {
+    const res = await request(app)
+      .get('/api/agendas/user-agendas?user=test-user-123');
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toContain('Zugriff verweigert');
+  });
+
+  it('should return user agendas when valid security code is provided', async () => {
+    const res = await request(app)
+      .get('/api/agendas/user-agendas?user=test-user-123&code=1234');
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
   });
 
   it('should return user stats for valid user queries', async () => {
@@ -109,5 +129,25 @@ describe('Agenda API Routes Unit Tests', () => {
     // SVG Base64 containing script
     const svgScript = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert("virus")</script></svg>').toString('base64');
     expect(isSafeImageUrl(`data:image/svg+xml;base64,${svgScript}`)).toBe(false);
+  });
+
+  it('should login user by 4-digit security code successfully', async () => {
+    const res = await request(app)
+      .post('/api/agendas/login-by-code')
+      .send({ code: '1234' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.user).toBeDefined();
+    expect(res.body.user.name).toContain('Max Mustermann');
+  });
+
+  it('should reject login with invalid security code', async () => {
+    const res = await request(app)
+      .post('/api/agendas/login-by-code')
+      .send({ code: '9999' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toContain('Ungültiger Code');
   });
 });

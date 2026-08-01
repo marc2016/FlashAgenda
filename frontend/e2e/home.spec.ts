@@ -32,6 +32,15 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
               headers: { 'Content-Type': 'application/json' }
             });
           }
+          if (url.includes('login-by-code')) {
+            return new Response(JSON.stringify({
+              success: true,
+              user: { id: 'u123', name: 'Max Mustermann', isRegistered: true, securityCode: '1234' }
+            }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
           if (method === 'POST') {
             return new Response(JSON.stringify({ _id: 'mock-agenda-999', title: 'Neue Agenda' }), {
               status: 201,
@@ -58,6 +67,10 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
     const startButton = page.locator('button:has-text("AGENDA STARTEN!")');
     await expect(startButton).toBeVisible();
 
+    // Check Code Login Button
+    const codeLoginBtn = page.locator('#code-login-btn');
+    await expect(codeLoginBtn).toBeVisible();
+
     // Check favicon link element
     const faviconLink = page.locator('link[rel="icon"]');
     await expect(faviconLink).toHaveAttribute('href', '/favicon.svg');
@@ -76,5 +89,31 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
     await startButton.scrollIntoViewIfNeeded();
     await startButton.click();
     await expect(page).toHaveURL(/\/agenda\//, { timeout: 10000 });
+  });
+
+  test('should open code login modal and log in successfully with 4-digit code', async ({ page }) => {
+    await page.goto('/');
+
+    // Dismiss PWA banner if visible on small viewports
+    const dismissBtn = page.locator('[title="Schließen"]');
+    if (await dismissBtn.isVisible()) {
+      await dismissBtn.click().catch(() => {});
+    }
+
+    const codeLoginBtn = page.locator('#code-login-btn');
+    await codeLoginBtn.scrollIntoViewIfNeeded();
+    await codeLoginBtn.click({ force: true });
+
+    // Modal should be visible
+    await expect(page.locator('text=Mit Einmal-Code anmelden')).toBeVisible();
+
+    // Fill 4-digit code
+    await page.fill('#login-code-input', '1234');
+    await page.click('#submit-code-login-btn');
+
+    // Should close modal and display user agendas area
+    await expect(page.locator('text=Mit Einmal-Code anmelden')).toBeHidden();
+    await expect(page.locator('text=Deine Agenden')).toBeVisible();
+    await expect(page.locator('text=Max Mustermann')).toBeVisible();
   });
 });

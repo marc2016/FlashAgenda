@@ -2,6 +2,7 @@ import express, { Request, Response, Router } from 'express';
 import mongoose from 'mongoose';
 import Agenda from '../models/Agenda';
 import { broadcastAgendaEvent } from '../services/socketService';
+import { verifyTotpCode } from '../services/totpService';
 
 const router: Router = express.Router();
 
@@ -76,14 +77,20 @@ function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Get agendas associated with a specific user (created or joined)
+// Get agendas associated with a specific user (created or joined), requiring valid security code authorization
 router.get('/user-agendas', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req.query.user as string || '').trim();
     const name = (req.query.name as string || '').trim();
+    const code = (req.query.code as string || req.headers['x-user-code'] as string || '').trim();
 
     if (!user && !name) {
       res.json([]);
+      return;
+    }
+
+    if (!code) {
+      res.status(401).json({ message: 'Zugriff verweigert. Gültiger Code erforderlich.' });
       return;
     }
 
@@ -101,11 +108,82 @@ router.get('/user-agendas', async (req: Request, res: Response): Promise<void> =
       orConditions.push({ 'attendees.name': { $regex: new RegExp(`^${safeName}$`, 'i') } });
     }
 
-    const agendas = await Agenda.find({ $or: orConditions }).sort({ updatedAt: -1 }).limit(20);
-    res.json(agendas);
+    const candidateAgendas = await Agenda.find({ $or: orConditions }).sort({ updatedAt: -1 }).limit(50);
+
+    const verifiedAgendas = candidateAgendas.filter(agenda => {
+      const attendees = agenda.attendees || [];
+      return attendees.some(att => {
+        const matchesUser = (user && (att.id === user || att._id?.toString() === user)) ||
+                            (name && att.name?.trim().toLowerCase() === name.toLowerCase());
+        if (!matchesUser) return false;
+
+        if (att.securityCode && att.securityCode.toString().trim() === code) return true;
+        if (att.secretGuid && verifyTotpCode(code, att.secretGuid)) return true;
+        return false;
+      });
+    });
+
+    res.json(verifiedAgendas);
   } catch (error) {
     console.error('Error GET /user-agendas:', error);
     res.status(500).json({ message: 'Failed to fetch user agendas' });
+  }
+});
+
+// Login user by 4-digit code (securityCode or live TOTP)
+router.post('/login-by-code', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { code } = req.body;
+    const cleanCode = (code || '').toString().trim();
+
+    if (!cleanCode) {
+      res.status(400).json({ message: 'Code ist erforderlich' });
+      return;
+    }
+
+    const query: any = { attendees: { $exists: true } };
+
+    const agendas = await Agenda.find(query).sort({ updatedAt: -1 }).limit(50);
+
+    let matchedUser: any = null;
+
+    for (const agenda of agendas) {
+      for (const att of (agenda.attendees || [])) {
+        // 1. Verify static securityCode
+        if (att.securityCode && att.securityCode.toString().trim() === cleanCode) {
+          matchedUser = att;
+          break;
+        }
+
+        // 2. Verify live TOTP secretGuid
+        if (att.secretGuid && verifyTotpCode(cleanCode, att.secretGuid)) {
+          matchedUser = att;
+          break;
+        }
+      }
+      if (matchedUser) break;
+    }
+
+    if (!matchedUser) {
+      res.status(404).json({ message: 'Ungültiger Code oder kein passender Benutzer gefunden.' });
+      return;
+    }
+
+    const userObj = {
+      id: matchedUser.id || matchedUser._id?.toString(),
+      _id: matchedUser._id?.toString() || matchedUser.id,
+      name: matchedUser.name,
+      email: matchedUser.email || '',
+      avatarUrl: matchedUser.avatarUrl || '',
+      securityCode: matchedUser.securityCode || '',
+      secretGuid: matchedUser.secretGuid || '',
+      isRegistered: true
+    };
+
+    res.json({ success: true, user: userObj });
+  } catch (error) {
+    console.error('Error POST /login-by-code:', error);
+    res.status(500).json({ message: 'Serverfehler beim Login mit Code' });
   }
 });
 

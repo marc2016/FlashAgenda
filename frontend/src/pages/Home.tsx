@@ -4,12 +4,14 @@ import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
 import AdminLoginModal from '../components/AdminLoginModal';
 import UserProfileModal from '../components/UserProfileModal';
+import UserCodeLoginModal from '../components/UserCodeLoginModal';
 import PwaInstallBanner from '../components/PwaInstallBanner';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
   const [myAgendas, setMyAgendas] = useState<any[]>([]);
   const [agendasLoading, setAgendasLoading] = useState(false);
   const [userState, setUserState] = useState<any>(() => {
@@ -58,7 +60,8 @@ export default function Home() {
       try {
         const userId = currentUser.id || currentUser._id || '';
         const userName = currentUser.name || '';
-        const response = await fetch(`/api/agendas/user-agendas?user=${encodeURIComponent(userId)}&name=${encodeURIComponent(userName)}`);
+        const userCode = currentUser.securityCode || currentUser.secretGuid || '';
+        const response = await fetch(`/api/agendas/user-agendas?user=${encodeURIComponent(userId)}&name=${encodeURIComponent(userName)}&code=${encodeURIComponent(userCode)}`);
         if (response.ok) {
           const data = await response.json();
           setMyAgendas(data || []);
@@ -108,6 +111,13 @@ export default function Home() {
           />
         )}
         <Button
+          id="code-login-header-btn"
+          icon="pi pi-key text-xl"
+          onClick={() => setShowCodeModal(true)}
+          className="p-button-rounded p-button-warning p-button-text p-button-sm opacity-80 hover:opacity-100 transition-opacity"
+          title="Mit Einmal-Code / PIN anmelden"
+        />
+        <Button
           icon="pi pi-shield text-xl"
           onClick={() => setShowAdminModal(true)}
           className="p-button-rounded p-button-warning p-button-text p-button-sm opacity-60 hover:opacity-100 transition-opacity"
@@ -138,6 +148,14 @@ export default function Home() {
             "bg-yellow-500 text-white comic-button"
           )}
           style={{ marginTop: 'clamp(2rem, 6vh, 5rem)' }}
+        />
+
+        <Button
+          id="code-login-btn"
+          label="MIT CODE ANMELDEN"
+          icon="pi pi-key font-bold"
+          onClick={() => setShowCodeModal(true)}
+          className="mt-3 p-button-outlined p-button-warning p-button-sm font-bold border-round-xl comic-button-secondary text-white"
         />
 
         {/* User Agendas List */}
@@ -211,6 +229,14 @@ export default function Home() {
         onHide={() => setShowProfileModal(false)}
         currentUser={currentUser}
         onUpdateUser={(updated) => setUserState(updated)}
+      />
+
+      <UserCodeLoginModal
+        visible={showCodeModal}
+        onHide={() => setShowCodeModal(false)}
+        onLoginSuccess={(user) => {
+          setUserState(user);
+        }}
       />
 
       <PwaInstallBanner />
