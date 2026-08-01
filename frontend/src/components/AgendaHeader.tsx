@@ -60,6 +60,9 @@ interface Props {
   onUpdate: (updates: Partial<AgendaData>) => Promise<void>;
   currentUser?: any;
   isCreator?: boolean;
+  isConnected?: boolean;
+  activeCount?: number;
+  activeUsers?: { user: string; name: string }[];
 }
 
 interface NominatimResult {
@@ -166,7 +169,7 @@ function MapControls({
   );
 }
 
-export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator }: Props) {
+export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator, isConnected = false, activeCount = 0, activeUsers = [] }: Props) {
   const navigate = useNavigate();
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
@@ -605,6 +608,11 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
           }}
         >
+          <div className="flex align-items-center px-2 py-1 border-round-xl bg-black-alpha-40 text-xs font-bold gap-1" title={isConnected ? `${activeCount} Personen online` : 'Offline'}>
+            <span className={`inline-block w-2 h-2 border-circle ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} style={{ width: '8px', height: '8px' }}></span>
+            <span className="text-yellow-400">LIVE</span>
+            {activeCount > 0 && <span className="text-white text-xs">({activeCount})</span>}
+          </div>
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button
@@ -636,6 +644,11 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator 
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
           }}
         >
+          <div className="flex align-items-center px-2 py-1 border-round-xl bg-black-alpha-40 text-xs font-bold gap-1" title={isConnected ? `${activeCount} Personen online` : 'Offline'}>
+            <span className={`inline-block w-2 h-2 border-circle ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} style={{ width: '6px', height: '6px' }}></span>
+            <span className="text-yellow-400 text-xs">LIVE</span>
+            {activeCount > 0 && <span className="text-white text-xs">({activeCount})</span>}
+          </div>
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda" style={{ width: '2rem', height: '2rem' }} />
           <Button

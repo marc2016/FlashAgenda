@@ -14,6 +14,7 @@ import {
   processOfflineQueue,
   subscribeOfflineSync
 } from '../services/offlineSync';
+import { useAgendaSocket } from '../hooks/useAgendaSocket';
 
 export default function AgendaDetail() {
   const { id } = useParams();
@@ -97,6 +98,34 @@ export default function AgendaDetail() {
   useEffect(() => {
     fetchAgenda();
   }, [fetchAgenda]);
+
+  const handleLiveAgendaUpdate = useCallback((updatedData: any) => {
+    if (!updatedData) return;
+    if (updatedData.items && prevItemsRef.current !== null) {
+      const newItems = updatedData.items.filter((item: any) => {
+        return !prevItemsRef.current?.some((prev: any) => (prev._id || prev.id) === (item._id || item.id));
+      });
+      newItems.forEach((newItem: any) => {
+        const authorId = newItem.createdBy;
+        const authorName = newItem.author;
+        const isSelf = currentUser && (authorId === currentUser.id || authorId === currentUser._id || authorName === currentUser.name);
+        if (!isSelf) {
+          notifyNewItem(newItem.title, authorName);
+        }
+      });
+    }
+    if (updatedData.items) {
+      prevItemsRef.current = updatedData.items;
+    }
+    setAgenda(updatedData);
+    if (id) setCachedAgenda(id, updatedData);
+  }, [id, currentUser]);
+
+  const { isConnected, activeCount, activeUsers } = useAgendaSocket({
+    agendaId: id,
+    currentUser,
+    onAgendaUpdated: handleLiveAgendaUpdate
+  });
 
   // Banner state machine: 'OFFLINE' | 'SYNC' | 'ONLINE' | 'HIDDEN'
   const [bannerState, setBannerState] = useState<'OFFLINE' | 'SYNC' | 'ONLINE' | 'HIDDEN'>(() => {
@@ -509,6 +538,9 @@ export default function AgendaDetail() {
           onUpdate={handleUpdateAgenda}
           currentUser={currentUser}
           isCreator={isCreator}
+          isConnected={isConnected}
+          activeCount={activeCount}
+          activeUsers={activeUsers}
         />
 
         <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>

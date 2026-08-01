@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import mongoose from 'mongoose';
 import Agenda from '../models/Agenda';
+import { broadcastAgendaEvent } from '../services/socketService';
 
 const router: Router = express.Router();
 
@@ -397,6 +398,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
     try {
       const updatedAgenda = await existingAgenda.save();
+      broadcastAgendaEvent(id, 'agenda_updated', { agenda: updatedAgenda });
       res.json(updatedAgenda);
     } catch (saveError: any) {
       if (saveError && saveError.name === 'VersionError') {
@@ -409,6 +411,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
             }
           }
           const saved = await freshAgenda.save();
+          broadcastAgendaEvent(id, 'agenda_updated', { agenda: saved });
           res.json(saved);
           return;
         }
@@ -450,6 +453,7 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
     agenda.attendees.push(newAttendee);
     logAudit(agenda, 'Person beigetreten', name, `Teilnehmer "${name}" ist der Agenda beigetreten.`);
     const savedAgenda = await agenda.save();
+    broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });
     res.status(201).json(savedAgenda);
   } catch (error) {
     console.error('Error adding attendee:', error);
@@ -525,6 +529,7 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
 
     logAudit(agenda, 'Agendapunkt erstellt', authorName, `Agendapunkt "${itemTitle}" wurde hinzugefügt.`);
     const savedAgenda = await agenda.save();
+    broadcastAgendaEvent(req.params.id, 'agenda_updated', { agenda: savedAgenda });
     res.status(201).json(savedAgenda);
   } catch (error) {
     res.status(500).json({ message: 'Failed to add item' });
@@ -595,6 +600,7 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.poll !== undefined) item.poll = req.body.poll;
     
     const savedAgenda = await agenda.save();
+    broadcastAgendaEvent(req.params.id, 'agenda_updated', { agenda: savedAgenda });
     res.json(savedAgenda);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update item' });
@@ -621,6 +627,7 @@ router.delete('/:id/items/:itemId', async (req: Request, res: Response): Promise
     logAudit(agenda, 'Agendapunkt gelöscht', userName, `Agendapunkt "${itemTitle}" wurde gelöscht.`);
 
     const savedAgenda = await agenda.save();
+    broadcastAgendaEvent(req.params.id, 'agenda_updated', { agenda: savedAgenda });
     res.json(savedAgenda);
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete item' });

@@ -1,7 +1,9 @@
+import http from 'http';
 import mongoose from 'mongoose';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import app from './app';
+import { initSocketService } from './services/socketService';
 
 dotenv.config();
 
@@ -18,6 +20,10 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
+// HTTP Server for Express & Socket.io
+const server = http.createServer(app);
+initSocketService(server);
+
 // MongoDB connection
 const mongoUri: string = process.env.MONGO_URI || 'mongodb://localhost:27017/flashagenda';
 
@@ -25,6 +31,6 @@ mongoose.connect(mongoUri)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err: Error) => console.error('Failed to connect to MongoDB', err));
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} with WebSockets enabled`);
 });
