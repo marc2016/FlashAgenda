@@ -1,0 +1,12 @@
+{
+  "name": "flashagenda",
+  "private": true,
+  "version": "3.3.0",
+  "type": "module",
+  "scripts": {
+    "release": "./release.sh",
+    "test:backend": "cd backend && npm test",
+    "test:e2e": "cd frontend && npm run test:e2e",
+    "build": "cd frontend && npm run build"
+  }
+}

@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "release": "cd .. && ./release.sh"
   },
   "dependencies": {
     "@mdxeditor/editor": "^4.1.0",

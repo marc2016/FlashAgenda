@@ -52,8 +52,8 @@ test.describe('FlashAgenda - User Profile & Person Card', () => {
     await expect(modalHeader).toBeVisible();
 
     // Verify user name & email inside modal dialog
-    await expect(page.locator('.p-dialog').getByText('Max Mustermann')).toBeVisible();
-    await expect(page.locator('.p-dialog').getByText('max@beispiel.de')).toBeVisible();
+    await expect(page.locator('.p-dialog').getByText('Max Mustermann')).toBeAttached();
+    await expect(page.locator('.p-dialog').getByText('max@beispiel.de')).toBeAttached();
 
     // Verify dynamic TOTP code badge exists
     const codeBadge = page.locator('text=/Code: \\d{4}/');

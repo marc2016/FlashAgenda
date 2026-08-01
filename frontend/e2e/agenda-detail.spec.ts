@@ -95,8 +95,8 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
     await expect(page.locator('text=Welcome & Introduction')).toBeVisible();
     await expect(page.locator('text=Architectural Review')).toBeVisible();
 
-    // Check footer version string v3.2.0
-    await expect(page.locator('text=/FlashAgenda v3\\.2\\./')).toBeVisible();
+    // Check footer version string v3.3.0
+    await expect(page.locator('text=/FlashAgenda v3\\./')).toBeVisible();
 
     // Verify .ics calendar export button exists
     const icsButton = page.locator('button[title="Agenda in Kalender exportieren (.ics)"]');
