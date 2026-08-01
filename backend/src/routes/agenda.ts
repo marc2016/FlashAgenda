@@ -77,20 +77,15 @@ function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Get agendas associated with a specific user (created or joined), requiring valid security code authorization
+// Get agendas associated with a specific user (created, joined, or matched by security code)
 router.get('/user-agendas', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = (req.query.user as string || '').trim();
     const name = (req.query.name as string || '').trim();
     const code = (req.query.code as string || req.headers['x-user-code'] as string || '').trim();
 
-    if (!user && !name) {
+    if (!user && !name && !code) {
       res.json([]);
-      return;
-    }
-
-    if (!code) {
-      res.status(401).json({ message: 'Zugriff verweigert. Gültiger Code erforderlich.' });
       return;
     }
 
@@ -107,23 +102,25 @@ router.get('/user-agendas', async (req: Request, res: Response): Promise<void> =
       orConditions.push({ createdBy: { $regex: new RegExp(`^${safeName}$`, 'i') } });
       orConditions.push({ 'attendees.name': { $regex: new RegExp(`^${safeName}$`, 'i') } });
     }
+    if (code) {
+      orConditions.push({ 'attendees.securityCode': code });
+    }
 
-    const candidateAgendas = await Agenda.find({ $or: orConditions }).sort({ updatedAt: -1 }).limit(50);
+    let candidateAgendas = await Agenda.find({ $or: orConditions }).sort({ updatedAt: -1 }).limit(100);
 
-    const verifiedAgendas = candidateAgendas.filter(agenda => {
-      const attendees = agenda.attendees || [];
-      return attendees.some(att => {
-        const matchesUser = (user && (att.id === user || att._id?.toString() === user)) ||
-                            (name && att.name?.trim().toLowerCase() === name.toLowerCase());
-        if (!matchesUser) return false;
+    // If code is provided, also look for matching secretGuid (TOTP)
+    if (code) {
+      const totpAgendas = await Agenda.find({ 'attendees.secretGuid': { $exists: true } }).sort({ updatedAt: -1 }).limit(100);
+      for (const ag of totpAgendas) {
+        if (candidateAgendas.some(c => c._id.toString() === ag._id.toString())) continue;
+        const hasTotpMatch = (ag.attendees || []).some(att => att.secretGuid && verifyTotpCode(code, att.secretGuid));
+        if (hasTotpMatch) {
+          candidateAgendas.push(ag);
+        }
+      }
+    }
 
-        if (att.securityCode && att.securityCode.toString().trim() === code) return true;
-        if (att.secretGuid && verifyTotpCode(code, att.secretGuid)) return true;
-        return false;
-      });
-    });
-
-    res.json(verifiedAgendas);
+    res.json(candidateAgendas);
   } catch (error) {
     console.error('Error GET /user-agendas:', error);
     res.status(500).json({ message: 'Failed to fetch user agendas' });

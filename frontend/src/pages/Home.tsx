@@ -79,9 +79,25 @@ export default function Home() {
   const handleStartAgenda = async () => {
     setLoading(true);
     try {
+      const payload: any = { title: 'Neue Agenda' };
+      if (currentUser) {
+        payload.createdBy = currentUser.id || currentUser._id;
+        payload.userName = currentUser.name || 'Ersteller';
+        payload.attendees = [{
+          id: currentUser.id || currentUser._id || 'user-creator',
+          name: currentUser.name || 'Ersteller',
+          email: currentUser.email || '',
+          avatarUrl: currentUser.avatarUrl || '',
+          securityCode: currentUser.securityCode || '',
+          secretGuid: currentUser.secretGuid || '',
+          isRegistered: true
+        }];
+      }
+
       const response = await fetch('/api/agendas', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
       if (!response.ok) {
         throw new Error(`Server returned status ${response.status}`);
