@@ -7,6 +7,7 @@ on:
       - '*'
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_NODE_TYPE: node24
   REGISTRY: ghcr.io
   IMAGE_NAME_BACKEND: ${{ github.repository_owner }}/flashagenda-backend
   IMAGE_NAME_FRONTEND: ${{ github.repository_owner }}/flashagenda-frontend
