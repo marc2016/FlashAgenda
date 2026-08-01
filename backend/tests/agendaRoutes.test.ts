@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import app from '../src/app';
+import { isSafeImageUrl } from '../src/routes/agenda';
 
 vi.mock('../src/models/Agenda', () => {
   const mockAgendaData = {
@@ -92,5 +93,21 @@ describe('Agenda API Routes Unit Tests', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.message).toContain('User profile updated across agendas');
+  });
+
+  it('should validate and reject malicious image URLs, scripts, and virus payloads', () => {
+    // Safe URLs
+    expect(isSafeImageUrl('https://example.com/image.png')).toBe(true);
+    expect(isSafeImageUrl('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')).toBe(true);
+
+    // Malicious URLs / Scripts / Viruses
+    expect(isSafeImageUrl('javascript:alert("XSS")')).toBe(false);
+    expect(isSafeImageUrl('data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==')).toBe(false);
+    expect(isSafeImageUrl('data:application/x-msdownload;base64,TVqQAAMAAAAEAAAA')).toBe(false); // PE/EXE executable payload
+    expect(isSafeImageUrl('https://example.com/image.png<script>alert(1)</script>')).toBe(false);
+
+    // SVG Base64 containing script
+    const svgScript = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert("virus")</script></svg>').toString('base64');
+    expect(isSafeImageUrl(`data:image/svg+xml;base64,${svgScript}`)).toBe(false);
   });
 });

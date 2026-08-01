@@ -18,14 +18,43 @@ function logAudit(agenda: any, action: string, user?: string, details?: string) 
   });
 }
 
-// Helper to validate and sanitize image URLs / Data URIs against XSS (e.g. javascript: or data:text/html)
-function isSafeImageUrl(url: any): boolean {
+// Helper to validate and sanitize image URLs / Data URIs against XSS and malicious scripts (Anti-Virus & Malicious Payload Filter)
+export function isSafeImageUrl(url: any): boolean {
   if (!url || typeof url !== 'string') return true;
   const trimmed = url.trim();
   if (trimmed === '') return true;
-  const isHttp = /^https?:\/\//i.test(trimmed);
-  const isSafeDataUri = /^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,/i.test(trimmed);
-  return isHttp || isSafeDataUri;
+
+  // Block dangerous non-image schemes (executable scripts, HTML injection)
+  if (/^(javascript|vbscript|data:text\/html|data:text\/javascript|data:application\/)/i.test(trimmed)) {
+    return false;
+  }
+
+  // HTTP/HTTPS URLs: Check for script tags or inline event handlers
+  if (/^https?:\/\//i.test(trimmed)) {
+    if (/<script|javascript:|onerror=|onload=|onclick=/i.test(trimmed)) {
+      return false;
+    }
+    return true;
+  }
+
+  // Safe Image Data URIs (png, jpeg, webp, gif, svg+xml)
+  if (/^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,/i.test(trimmed)) {
+    // For SVG base64, decode payload and ensure no script or inline handlers exist
+    if (/^data:image\/svg\+xml/i.test(trimmed)) {
+      try {
+        const base64Content = trimmed.split(',')[1] || '';
+        const decoded = Buffer.from(base64Content, 'base64').toString('utf-8');
+        if (/<script|onload=|onerror=|onclick=|javascript:/i.test(decoded)) {
+          return false;
+        }
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
 }
 
 export function isAgendaClosed(agenda: { isManuallyClosed?: boolean; date?: string; closeBeforeHours?: number }): boolean {
