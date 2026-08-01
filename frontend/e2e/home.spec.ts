@@ -67,8 +67,8 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
     const startButton = page.locator('button:has-text("AGENDA STARTEN!")');
     await expect(startButton).toBeVisible();
 
-    // Check Code Login Button
-    const codeLoginBtn = page.locator('#code-login-btn');
+    // Check Code Login Header Button
+    const codeLoginBtn = page.locator('#code-login-header-btn');
     await expect(codeLoginBtn).toBeVisible();
 
     // Check favicon link element
@@ -94,13 +94,7 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
   test('should open code login modal and log in successfully with 4-digit code', async ({ page }) => {
     await page.goto('/');
 
-    // Dismiss PWA banner if visible on small viewports
-    const dismissBtn = page.locator('[title="Schließen"]');
-    if (await dismissBtn.isVisible()) {
-      await dismissBtn.click().catch(() => {});
-    }
-
-    const codeLoginBtn = page.locator('#code-login-btn');
+    const codeLoginBtn = page.locator('#code-login-header-btn');
     await codeLoginBtn.scrollIntoViewIfNeeded();
     await codeLoginBtn.click({ force: true });
 

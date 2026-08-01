@@ -70,7 +70,7 @@ export default function UserCodeLoginModal({ visible, onHide, onLoginSuccess }: 
       header={
         <div className="flex align-items-center gap-2">
           <i className="pi pi-key text-yellow-400 text-xl" />
-          <span className="comic-font text-white text-xl uppercase tracking-wider">Mit Einmal-Code anmelden</span>
+          <span>Mit Einmal-Code anmelden</span>
         </div>
       }
       style={{ width: '90vw', maxWidth: '380px' }}
@@ -79,7 +79,7 @@ export default function UserCodeLoginModal({ visible, onHide, onLoginSuccess }: 
     >
       <form onSubmit={handleLogin} className="flex flex-column gap-3 pt-2">
         <p className="text-sm text-gray-300 m-0 text-center">
-          Gib deinen 4-stelligen Sicherheitscode oder Live-TOTP-Code ein.
+          Gib deinen Sicherheitscode ein.
         </p>
 
         {errorMsg && (
@@ -91,7 +91,7 @@ export default function UserCodeLoginModal({ visible, onHide, onLoginSuccess }: 
 
         <div className="flex flex-column gap-1">
           <label htmlFor="login-code-input" className="text-xs font-bold uppercase tracking-wider text-yellow-400 text-center">
-            4-Stelliger Code / PIN *
+            Sicherheitscode *
           </label>
           <InputText
             id="login-code-input"
@@ -104,21 +104,15 @@ export default function UserCodeLoginModal({ visible, onHide, onLoginSuccess }: 
           />
         </div>
 
-        <div className="flex justify-content-end gap-2 mt-3">
-          <Button
-            type="button"
-            label="Abbrechen"
-            icon="pi pi-times"
-            onClick={handleClose}
-            className="p-button-text p-button-sm text-gray-300"
-          />
+        <div className="mt-3">
           <Button
             type="submit"
             id="submit-code-login-btn"
             label="ANMELDEN"
             icon="pi pi-check font-bold"
             loading={loading}
-            className="p-button-warning p-button-sm font-bold comic-button"
+            disabled={!code.trim()}
+            className="w-full p-button-warning p-button-sm font-bold comic-button"
           />
         </div>
       </form>

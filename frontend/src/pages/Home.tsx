@@ -150,16 +150,8 @@ export default function Home() {
           style={{ marginTop: 'clamp(2rem, 6vh, 5rem)' }}
         />
 
-        <Button
-          id="code-login-btn"
-          label="MIT CODE ANMELDEN"
-          icon="pi pi-key font-bold"
-          onClick={() => setShowCodeModal(true)}
-          className="mt-3 p-button-outlined p-button-warning p-button-sm font-bold border-round-xl comic-button-secondary text-white"
-        />
-
-        {/* User Agendas List */}
-        {currentUser && (
+        {/* User Agendas List (only shown if logged in) */}
+        {currentUser && (currentUser.id || currentUser.name) && (
           <div className="mt-5 w-full max-w-28rem flex flex-column gap-2 text-left z-2 px-3">
             <div className="flex align-items-center justify-content-between px-1 mb-1">
               <span className="text-xs font-bold uppercase tracking-wider text-yellow-400 flex align-items-center gap-2">

@@ -117,7 +117,15 @@ export default defineConfig({
       '/socket.io': {
         target: 'http://localhost:3001',
         changeOrigin: true,
-        ws: true
+        ws: true,
+        configure: (proxy) => {
+          proxy.on('error', (err: any) => {
+            if (err.code === 'EPIPE' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED') {
+              return;
+            }
+            console.error('Socket proxy error:', err);
+          });
+        }
       }
     }
   }
