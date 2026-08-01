@@ -608,7 +608,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
           }}
         >
-          <div className="flex align-items-center px-2 py-1 border-round-xl bg-black-alpha-40 text-xs font-bold gap-1" title={isConnected ? `${activeCount} Personen online` : 'Offline'}>
+          <div className="flex align-items-center px-2 py-1 border-round-xl bg-black-alpha-40 text-xs font-bold gap-1" title={isConnected ? (activeUsers.length > 0 ? `Online: ${activeUsers.map(u => u.name).join(', ')}` : `${activeCount} Personen online`) : 'Offline'}>
             <span className={`inline-block w-2 h-2 border-circle ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} style={{ width: '8px', height: '8px' }}></span>
             <span className="text-yellow-400">LIVE</span>
             {activeCount > 0 && <span className="text-white text-xs">({activeCount})</span>}
@@ -644,7 +644,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
           }}
         >
-          <div className="flex align-items-center px-2 py-1 border-round-xl bg-black-alpha-40 text-xs font-bold gap-1" title={isConnected ? `${activeCount} Personen online` : 'Offline'}>
+          <div className="flex align-items-center px-2 py-1 border-round-xl bg-black-alpha-40 text-xs font-bold gap-1" title={isConnected ? (activeUsers.length > 0 ? `Online: ${activeUsers.map(u => u.name).join(', ')}` : `${activeCount} Personen online`) : 'Offline'}>
             <span className={`inline-block w-2 h-2 border-circle ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} style={{ width: '6px', height: '6px' }}></span>
             <span className="text-yellow-400 text-xs">LIVE</span>
             {activeCount > 0 && <span className="text-white text-xs">({activeCount})</span>}

@@ -4,9 +4,12 @@
   "version": "3.3.0",
   "type": "module",
   "scripts": {
-    "release": "./release.sh",
+    "release": "node release.mjs",
     "test:backend": "cd backend && npm test",
     "test:e2e": "cd frontend && npm run test:e2e",
     "build": "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "@inquirer/prompts": "^8.5.2"
   }
 }

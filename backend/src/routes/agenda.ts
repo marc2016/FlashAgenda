@@ -456,7 +456,8 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 // Add an attendee
 router.post('/:id/attendees', async (req: Request, res: Response): Promise<void> => {
   try {
-    const agenda = await Agenda.findById(req.params.id);
+    const id = req.params.id as string;
+    const agenda = await Agenda.findById(id);
     if (!agenda) {
       res.status(404).json({ message: 'Agenda not found' });
       return;
@@ -520,7 +521,8 @@ router.put('/:id/attendees/:attendeeId/ping', async (req: Request, res: Response
 // Add an agenda item
 router.post('/:id/items', async (req: Request, res: Response): Promise<void> => {
   try {
-    const agenda = await Agenda.findById(req.params.id);
+    const id = req.params.id as string;
+    const agenda = await Agenda.findById(id);
     if (!agenda) {
       res.status(404).json({ message: 'Agenda not found' });
       return;
@@ -558,7 +560,7 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
 
     logAudit(agenda, 'Agendapunkt erstellt', authorName, `Agendapunkt "${itemTitle}" wurde hinzugefügt.`);
     const savedAgenda = await agenda.save();
-    broadcastAgendaEvent(req.params.id, 'agenda_updated', { agenda: savedAgenda });
+    broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });
     res.status(201).json(savedAgenda);
   } catch (error) {
     res.status(500).json({ message: 'Failed to add item' });
@@ -568,7 +570,8 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
 // Update an agenda item
 router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<void> => {
   try {
-    const agenda = await Agenda.findById(req.params.id);
+    const id = req.params.id as string;
+    const agenda = await Agenda.findById(id);
     if (!agenda) {
       res.status(404).json({ message: 'Agenda not found' });
       return;
@@ -629,7 +632,7 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.poll !== undefined) item.poll = req.body.poll;
     
     const savedAgenda = await agenda.save();
-    broadcastAgendaEvent(req.params.id, 'agenda_updated', { agenda: savedAgenda });
+    broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });
     res.json(savedAgenda);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update item' });
@@ -639,7 +642,8 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
 // Delete an agenda item
 router.delete('/:id/items/:itemId', async (req: Request, res: Response): Promise<void> => {
   try {
-    const agenda = await Agenda.findById(req.params.id);
+    const id = req.params.id as string;
+    const agenda = await Agenda.findById(id);
     if (!agenda) {
       res.status(404).json({ message: 'Agenda not found' });
       return;
@@ -656,7 +660,7 @@ router.delete('/:id/items/:itemId', async (req: Request, res: Response): Promise
     logAudit(agenda, 'Agendapunkt gelöscht', userName, `Agendapunkt "${itemTitle}" wurde gelöscht.`);
 
     const savedAgenda = await agenda.save();
-    broadcastAgendaEvent(req.params.id, 'agenda_updated', { agenda: savedAgenda });
+    broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });
     res.json(savedAgenda);
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete item' });
