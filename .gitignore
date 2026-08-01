@@ -17,10 +17,14 @@ frontend/node_modules/
 .AppleDouble
 .LSOverride
 
-# Build output
+# Build output & Test artifacts
 backend/dist/
 frontend/dist/
 frontend/build/
+frontend/dev-dist/
+playwright-report/
+test-results/
+blob-report/
 frontend/playwright-report/
 frontend/test-results/
 
