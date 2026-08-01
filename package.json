@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "release": "node release.mjs",
+    "test": "npm run test:backend && npm run test:e2e",
     "test:backend": "cd backend && npm test",
     "test:e2e": "cd frontend && npm run test:e2e",
     "build": "cd frontend && npm run build"

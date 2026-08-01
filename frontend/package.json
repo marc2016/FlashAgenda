@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "test": "playwright test",
     "test:e2e": "playwright test",
     "release": "cd .. && ./release.sh"
   },

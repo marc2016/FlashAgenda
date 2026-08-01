@@ -78,6 +78,7 @@ export default function Home() {
     try {
       const response = await fetch('/api/agendas', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
       });
       if (!response.ok) {
         throw new Error(`Server returned status ${response.status}`);
@@ -126,6 +127,7 @@ export default function Home() {
         </div>
 
         <Button 
+          id="start-agenda-btn"
           label="AGENDA STARTEN!" 
           icon="pi pi-bolt font-bold" 
           size="large"

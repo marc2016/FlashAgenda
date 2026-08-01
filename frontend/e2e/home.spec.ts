@@ -2,26 +2,49 @@ import { test, expect } from '@playwright/test';
 
 test.describe('FlashAgenda - Home Page & Navigation', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock user agendas endpoint
-    await page.route('**/api/agendas/user-agendas**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([])
-      });
-    });
-
-    // Mock new agenda creation POST endpoint
-    await page.route('**/api/agendas', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify({ _id: 'mock-agenda-999', title: 'Neue Agenda' })
-        });
-      } else {
-        await route.continue();
-      }
+    // Intercept window.fetch directly for 100% cross-browser reliability (Chromium & WebKit)
+    await page.addInitScript(() => {
+      const origFetch = window.fetch;
+      window.fetch = async (input: any, init?: any) => {
+        const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+        const method = (init?.method || 'GET').toUpperCase();
+        if (url.includes('/api/agendas')) {
+          if (url.includes('user-stats')) {
+            return new Response(JSON.stringify({ agendasCount: 0, totalItemsContributed: 0 }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url.includes('user-agendas')) {
+            return new Response(JSON.stringify([]), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url.includes('mock-agenda-999')) {
+            return new Response(JSON.stringify({
+              _id: 'mock-agenda-999',
+              title: 'Neue Agenda',
+              items: [],
+              attendees: []
+            }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (method === 'POST') {
+            return new Response(JSON.stringify({ _id: 'mock-agenda-999', title: 'Neue Agenda' }), {
+              status: 201,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          return new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return origFetch(input, init);
+      };
     });
   });
 
@@ -49,9 +72,9 @@ test.describe('FlashAgenda - Home Page & Navigation', () => {
       await dismissBtn.click();
     }
 
-    const startButton = page.locator('button:has-text("AGENDA STARTEN!")');
+    const startButton = page.locator('#start-agenda-btn');
     await startButton.scrollIntoViewIfNeeded();
-    await startButton.click({ force: true });
-    await expect(page).toHaveURL(/\/agenda\//, { timeout: 8000 });
+    await startButton.click();
+    await expect(page).toHaveURL(/\/agenda\//, { timeout: 10000 });
   });
 });
