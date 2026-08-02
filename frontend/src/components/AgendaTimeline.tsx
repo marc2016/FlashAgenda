@@ -67,6 +67,7 @@ interface AgendaItem {
   author?: string;
   createdBy?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   completed?: boolean;
   upvotes?: string[];
   pinned?: boolean;
@@ -144,7 +145,7 @@ const AgendaCard = memo(function AgendaCard({
 }: AgendaCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const hasDetails = !!(item.description || item.imageUrl || (item.upvotes && item.upvotes.length > 0));
+  const hasDetails = !!(item.description || item.imageUrl || (item.imageUrls && item.imageUrls.length > 0) || (item.upvotes && item.upvotes.length > 0));
   const isCompleted = !!item.completed;
   const isPinned = !!item.pinned;
   const hasUpvoted = useMemo(
@@ -473,20 +474,43 @@ const AgendaCard = memo(function AgendaCard({
               )}
             </div>
 
-            {/* Rechts: Bild (unverzerrt & skaliert) */}
-            {item.imageUrl && (
-              <div className="border-round-lg overflow-hidden flex-shrink-0 bg-black-alpha-40 border-1 border-gray-700 w-full md:w-auto p-1 self-center md:self-start">
-                <img
-                  src={item.imageUrl}
-                  alt={item.title}
-                  className="h-auto border-round cursor-pointer hover:opacity-90 transition-opacity"
-                  style={{ maxHeight: '220px', maxWidth: '280px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                  loading="lazy"
-                  onClick={() => onPreviewImage(item.imageUrl!)}
-                  title="Klicken zum Vergrößern"
-                />
-              </div>
-            )}
+            {/* Rechts: Bilder Gallery (unverzerrt & skaliert) */}
+            {(() => {
+              const itemImages = (item.imageUrls && item.imageUrls.length > 0)
+                ? item.imageUrls
+                : (item.imageUrl ? [item.imageUrl] : []);
+              if (itemImages.length === 0) return null;
+
+              return (
+                <div className="flex-shrink-0 w-full md:w-auto p-1 self-center md:self-start">
+                  <div className={`flex gap-2 flex-wrap justify-content-center ${itemImages.length > 1 ? 'max-w-20rem' : ''}`}>
+                    {itemImages.map((imgUrl, imgIdx) => (
+                      <div
+                        key={imgIdx}
+                        className="border-round-lg overflow-hidden bg-black-alpha-40 border-1 border-gray-700 relative p-1"
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`${item.title} - Bild ${imgIdx + 1}`}
+                          className="h-auto border-round cursor-pointer hover:opacity-90 transition-opacity"
+                          style={{
+                            maxHeight: itemImages.length === 1 ? '220px' : '110px',
+                            maxWidth: itemImages.length === 1 ? '280px' : '130px',
+                            width: 'auto',
+                            objectFit: 'contain',
+                            display: 'block',
+                            margin: '0 auto'
+                          }}
+                          loading="lazy"
+                          onClick={() => onPreviewImage(imgUrl)}
+                          title="Klicken zum Vergrößern"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -509,7 +533,9 @@ export default function AgendaTimeline({
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [newUrlInput, setNewUrlInput] = useState('');
+  const [uploadError, setUploadError] = useState('');
   const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -589,7 +615,9 @@ export default function AgendaTimeline({
   const openNew = useCallback(() => {
     setTitle('');
     setDescription('');
-    setImageUrl('');
+    setImageUrls([]);
+    setNewUrlInput('');
+    setUploadError('');
     setEnablePoll(false);
     setPollQuestion('');
     setPollOptions(['Option 1', 'Option 2']);
@@ -610,7 +638,12 @@ export default function AgendaTimeline({
       const newDesc = item.description || '';
       setTitle(item.title);
       setDescription(newDesc);
-      setImageUrl(item.imageUrl || '');
+      const imgs = (item.imageUrls && item.imageUrls.length > 0)
+        ? [...item.imageUrls]
+        : (item.imageUrl ? [item.imageUrl] : []);
+      setImageUrls(imgs);
+      setNewUrlInput('');
+      setUploadError('');
       setEditingIndex(index);
 
       if (item.poll) {
@@ -625,7 +658,7 @@ export default function AgendaTimeline({
         setPollAllowMultiple(false);
       }
 
-      setShowDetails(!!(item.description || item.imageUrl || item.poll));
+      setShowDetails(!!(item.description || imgs.length > 0 || item.poll));
       if (editorRef.current) {
         editorRef.current.setMarkdown(newDesc);
       } else {
@@ -636,40 +669,75 @@ export default function AgendaTimeline({
     [items]
   );
 
-  const handleImageFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const rawData = evt.target?.result as string;
-        if (!rawData) return;
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 1200;
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
+  const handleImageFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setUploadError('');
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      const maxAllowed = 5 - imageUrls.length;
+      if (maxAllowed <= 0) {
+        setUploadError('Es dürfen maximal 5 Bilder pro Punkt hochgeladen werden.');
+        return;
+      }
+
+      const fileList = Array.from(files).slice(0, maxAllowed);
+      let hasOverLimit = false;
+
+      fileList.forEach((file) => {
+        if (file.size > 10 * 1024 * 1024) {
+          hasOverLimit = true;
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const rawData = evt.target?.result as string;
+          if (!rawData) return;
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 1200;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
             }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-          setImageUrl(compressedDataUrl);
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            setImageUrls((prev) => (prev.length < 5 ? [...prev, compressedDataUrl] : prev));
+          };
+          img.src = rawData;
         };
-        img.src = rawData;
-      };
-      reader.readAsDataURL(file);
+        reader.readAsDataURL(file);
+      });
+
+      if (hasOverLimit) {
+        setUploadError('Einige Bilder wurden übersprungen, da sie das Limit von 10 MB überschreiten.');
+      }
+      e.target.value = '';
+    },
+    [imageUrls]
+  );
+
+  const handleAddUrlImage = useCallback(() => {
+    setUploadError('');
+    if (!newUrlInput.trim()) return;
+    if (imageUrls.length >= 5) {
+      setUploadError('Es dürfen maximal 5 Bilder pro Punkt hochgeladen werden.');
+      return;
     }
-  }, []);
+    setImageUrls((prev) => [...prev, newUrlInput.trim()]);
+    setNewUrlInput('');
+  }, [newUrlInput, imageUrls]);
 
   const toggleCompleted = useCallback(
     async (index: number) => {
@@ -786,12 +854,15 @@ export default function AgendaTimeline({
       }
     }
 
+    const mainImageUrl = imageUrls[0] || '';
+
     if (editingIndex !== null) {
       updatedItems[editingIndex] = {
         ...updatedItems[editingIndex],
         title,
         description,
-        imageUrl,
+        imageUrl: mainImageUrl,
+        imageUrls,
         poll: pollData,
         updatedAt: new Date().toISOString(),
       };
@@ -801,7 +872,8 @@ export default function AgendaTimeline({
       updatedItems.push({
         title,
         description,
-        imageUrl,
+        imageUrl: mainImageUrl,
+        imageUrls,
         poll: pollData,
         author: authorName,
         createdBy: createdById,
@@ -815,7 +887,7 @@ export default function AgendaTimeline({
   }, [
     title,
     description,
-    imageUrl,
+    imageUrls,
     enablePoll,
     pollQuestion,
     pollOptions,
@@ -1037,43 +1109,78 @@ export default function AgendaTimeline({
             <div className="flex flex-column gap-3">
               {/* Bild Upload / URL Feld */}
               <div className="flex flex-column gap-2">
-                <label className="text-sm font-bold text-gray-300">Bild hinzufügen:</label>
-                <div className="flex gap-2 align-items-center flex-wrap">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    id="agenda-image-upload"
-                    className="hidden"
-                    onChange={handleImageFileChange}
-                  />
-                  <label
-                    htmlFor="agenda-image-upload"
-                    className="p-button p-button-outlined p-button-warning cursor-pointer flex align-items-center gap-2 text-sm py-2 px-3 border-round"
-                  >
-                    <i className="pi pi-upload"></i>
-                    <span>Bild von Gerät hochladen</span>
+                <div className="flex align-items-center justify-content-between">
+                  <label className="text-sm font-bold text-gray-300">
+                    Bilder ({imageUrls.length}/5 - max. 10 MB je Bild):
                   </label>
-                  <span className="text-gray-400 text-xs">oder URL:</span>
-                  <InputText
-                    placeholder="https://..."
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="bg-gray-800 text-white flex-1 text-sm p-2 border-gray-600"
-                  />
-                  {imageUrl && (
-                    <Button
-                      icon="pi pi-times"
-                      rounded
-                      text
-                      className="text-red-400"
-                      title="Bild entfernen"
-                      onClick={() => setImageUrl('')}
-                    />
-                  )}
                 </div>
-                {imageUrl && (
-                  <div className="mt-2 border-round overflow-hidden max-h-12rem bg-black-alpha-40 flex justify-content-center p-2 border-1 border-gray-700 relative">
-                    <img src={imageUrl} alt="Vorschau" className="max-h-10rem object-contain border-round" />
+                {uploadError && (
+                  <div className="bg-red-900 border-1 border-red-500 text-white text-xs p-2 border-round flex align-items-center gap-2">
+                    <i className="pi pi-exclamation-triangle text-red-300" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+                {imageUrls.length < 5 && (
+                  <div className="flex gap-2 align-items-center flex-wrap">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      id="agenda-image-upload"
+                      className="hidden"
+                      onChange={handleImageFileChange}
+                    />
+                    <label
+                      htmlFor="agenda-image-upload"
+                      className="p-button p-button-outlined p-button-warning cursor-pointer flex align-items-center gap-2 text-sm py-2 px-3 border-round"
+                    >
+                      <i className="pi pi-upload"></i>
+                      <span>{imageUrls.length > 0 ? 'Weitere Bilder hochladen' : 'Bilder von Gerät hochladen'}</span>
+                    </label>
+                    <span className="text-gray-400 text-xs">oder URL:</span>
+                    <InputText
+                      placeholder="https://..."
+                      value={newUrlInput}
+                      onChange={(e) => setNewUrlInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddUrlImage();
+                        }
+                      }}
+                      className="bg-gray-800 text-white flex-1 text-sm p-2 border-gray-600"
+                    />
+                    <Button
+                      type="button"
+                      icon="pi pi-plus"
+                      className="p-button-warning p-button-sm"
+                      onClick={handleAddUrlImage}
+                      title="Bild-URL hinzufügen"
+                    />
+                  </div>
+                )}
+
+                {imageUrls.length > 0 && (
+                  <div className="mt-2 border-round overflow-hidden bg-black-alpha-40 p-2 border-1 border-gray-700 flex gap-2 flex-wrap">
+                    {imageUrls.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="relative border-round overflow-hidden bg-black-alpha-60 p-1 flex align-items-center justify-content-center"
+                        style={{ width: '80px', height: '80px' }}
+                      >
+                        <img src={url} alt={`Vorschau ${idx + 1}`} className="max-w-full max-h-full object-contain border-round" />
+                        <Button
+                          type="button"
+                          icon="pi pi-times"
+                          rounded
+                          severity="danger"
+                          className="absolute top-0 right-0 p-1"
+                          style={{ width: '1.25rem', height: '1.25rem', fontSize: '0.65rem' }}
+                          title="Bild entfernen"
+                          onClick={() => setImageUrls((prev) => prev.filter((_, i) => i !== idx))}
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

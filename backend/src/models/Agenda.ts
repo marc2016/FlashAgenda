@@ -39,6 +39,7 @@ export interface IAgendaItem {
   createdBy?: string; // Attendee ID
   author?: string; // Attendee Name
   imageUrl?: string;
+  imageUrls?: string[];
   completed?: boolean;
   upvotes?: string[];
   pinned?: boolean;
@@ -117,6 +118,7 @@ const AgendaItemSchema = new Schema<IAgendaItem>({
   createdBy: { type: String },
   author: { type: String },
   imageUrl: { type: String },
+  imageUrls: { type: [String], default: [] },
   completed: { type: Boolean, default: false },
   upvotes: { type: [String], default: [] },
   pinned: { type: Boolean, default: false },

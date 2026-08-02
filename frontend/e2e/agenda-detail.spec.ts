@@ -145,4 +145,47 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
       await submitButton.click();
     }
   });
+
+  test('should support adding an agenda item with multi-image URLs', async ({ page }) => {
+    await page.goto('/agenda/mock-agenda-123');
+
+    // Click Add Item button
+    const addItemBtn = page.locator('button:has-text("Neuer Punkt"), button[title="Neuen Punkt hinzufügen"]');
+    if (await addItemBtn.first().isVisible().catch(() => false)) {
+      await addItemBtn.first().click();
+
+      // Expand details
+      const expandBtn = page.locator('button:has-text("Details & Bild hinzufügen...")');
+      if (await expandBtn.isVisible().catch(() => false)) {
+        await expandBtn.click();
+      }
+
+      // Enter item title
+      const titleInput = page.locator('input[placeholder="Titel des Punkts..."]');
+      await titleInput.fill('Fotogalerie Präsentation');
+
+      // Add Image URL 1
+      const urlInput = page.locator('input[placeholder="https://..."]');
+      if (await urlInput.isVisible().catch(() => false)) {
+        await urlInput.fill('https://via.placeholder.com/300/007ad9/ffffff');
+        const addUrlBtn = page.locator('button[title="Bild-URL hinzufügen"]');
+        await addUrlBtn.click();
+
+        // Add Image URL 2
+        await urlInput.fill('https://via.placeholder.com/300/ed5565/ffffff');
+        await addUrlBtn.click();
+
+        // Verify 2 thumbnail previews exist in modal
+        await expect(page.locator('img[alt="Vorschau 1"]')).toBeVisible();
+        await expect(page.locator('img[alt="Vorschau 2"]')).toBeVisible();
+      }
+
+      // Save item
+      const saveBtn = page.locator('button:has-text("Speichern")');
+      await saveBtn.click();
+
+      // Verify item title is visible on timeline
+      await expect(page.locator('text=Fotogalerie Präsentation')).toBeVisible();
+    }
+  });
 });
