@@ -493,7 +493,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const allowedFields = ['title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed', 'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder'];
+    const allowedFields = ['title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed', 'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder', 'auditLogs'];
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         (existingAgenda as any)[field] = req.body[field];

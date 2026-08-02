@@ -21,9 +21,14 @@ export function useAgendaSocket({ agendaId, currentUser, onAgendaUpdated }: UseA
   useEffect(() => {
     if (!agendaId) return;
 
-    // Connect to Socket.io server (proxied via Vite /socket.io in dev, same origin in prod)
+    // Guard flag: prevents setState and double-disconnect when React Strict Mode
+    // unmounts the component before the WebSocket connection is established.
+    let destroyed = false;
+
+    // Use polling first so the Socket.IO handshake completes reliably;
+    // the client will upgrade to WebSocket automatically once connected.
     const socket = io({
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
     });
@@ -34,6 +39,7 @@ export function useAgendaSocket({ agendaId, currentUser, onAgendaUpdated }: UseA
     const userId = currentUser?.id || currentUser?.user || userName;
 
     socket.on('connect', () => {
+      if (destroyed) return;
       setIsConnected(true);
       socket.emit('join_agenda', {
         agendaId,
@@ -43,10 +49,12 @@ export function useAgendaSocket({ agendaId, currentUser, onAgendaUpdated }: UseA
     });
 
     socket.on('disconnect', () => {
+      if (destroyed) return;
       setIsConnected(false);
     });
 
     socket.on('presence_updated', (data: { agendaId: string; activeCount: number; activeUsers: ActiveUser[] }) => {
+      if (destroyed) return;
       if (data.agendaId === agendaId) {
         setActiveCount(data.activeCount);
         setActiveUsers(data.activeUsers);
@@ -54,13 +62,18 @@ export function useAgendaSocket({ agendaId, currentUser, onAgendaUpdated }: UseA
     });
 
     socket.on('agenda_updated', (data: { agendaId: string; agenda?: any }) => {
+      if (destroyed) return;
       if (data.agendaId === agendaId && onAgendaUpdated && data.agenda) {
         onAgendaUpdated(data.agenda);
       }
     });
 
     return () => {
-      socket.emit('leave_agenda', { agendaId });
+      destroyed = true;
+      // Only emit leave if the socket is actually connected to avoid errors
+      if (socket.connected) {
+        socket.emit('leave_agenda', { agendaId });
+      }
       socket.disconnect();
       socketRef.current = null;
     };

@@ -32,6 +32,28 @@ export interface IPoll {
   allowMultiple?: boolean;
 }
 
+export interface IAttachment {
+  name: string;
+  url: string;
+  type: 'image' | 'pdf' | string;
+  size?: number;
+}
+
+export interface IEmojiReaction {
+  emoji: string;
+  users: string[];
+}
+
+export interface IComment {
+  id: string;
+  author: string;
+  createdBy?: string;
+  text: string;
+  attachments?: IAttachment[];
+  reactions?: IEmojiReaction[];
+  createdAt: string | Date;
+}
+
 export interface IAgendaItem {
   _id?: string;
   title: string;
@@ -45,6 +67,7 @@ export interface IAgendaItem {
   pinned?: boolean;
   location?: ILocation;
   poll?: IPoll;
+  comments?: IComment[];
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -112,6 +135,28 @@ const PollSchema = new Schema<IPoll>({
   allowMultiple: { type: Boolean, default: false }
 });
 
+const AttachmentSchema = new Schema<IAttachment>({
+  name: { type: String, required: true },
+  url: { type: String, required: true },
+  type: { type: String, required: true },
+  size: { type: Number }
+});
+
+const EmojiReactionSchema = new Schema<IEmojiReaction>({
+  emoji: { type: String, required: true },
+  users: { type: [String], default: [] }
+});
+
+const CommentSchema = new Schema<IComment>({
+  id: { type: String, required: true },
+  author: { type: String, required: true },
+  createdBy: { type: String },
+  text: { type: String, default: '' },
+  attachments: [AttachmentSchema],
+  reactions: [EmojiReactionSchema],
+  createdAt: { type: Date, default: Date.now }
+});
+
 const AgendaItemSchema = new Schema<IAgendaItem>({
   title: { type: String, required: true },
   description: { type: String },
@@ -124,6 +169,7 @@ const AgendaItemSchema = new Schema<IAgendaItem>({
   pinned: { type: Boolean, default: false },
   location: { type: LocationSchema },
   poll: { type: PollSchema },
+  comments: [CommentSchema],
   createdAt: { type: Date },
   updatedAt: { type: Date }
 });

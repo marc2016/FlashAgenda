@@ -150,4 +150,37 @@ describe('Agenda API Routes Unit Tests', () => {
     expect(res.status).toBe(404);
     expect(res.body.message).toContain('Ungültiger Code');
   });
+  it('should accept agenda items with comments, attachments, and emoji reactions on PUT /api/agendas/:id', async () => {
+    const commentPayload = {
+      id: 'c123',
+      author: 'Max Mustermann',
+      createdBy: 'test-user-123',
+      text: 'Das ist ein Testkommentar.',
+      attachments: [
+        { name: 'bild.png', url: 'data:image/png;base64,iVBORw0KGgo...', type: 'image' },
+        { name: 'doku.pdf', url: 'data:application/pdf;base64,JVBERi0xLj...', type: 'pdf' }
+      ],
+      reactions: [{ emoji: '👍', users: ['test-user-123'] }],
+      createdAt: new Date().toISOString()
+    };
+
+    const res = await request(app)
+      .put('/api/agendas/507f1f77bcf86cd799439011')
+      .send({
+        items: [
+          {
+            _id: 'item-1',
+            title: 'Intro Task',
+            createdBy: 'test-user-123',
+            author: 'Max Mustermann',
+            comments: [commentPayload]
+          }
+        ],
+        auditLogs: [
+          { action: 'Kommentar hinzugefügt', user: 'Max Mustermann', details: 'Kommentar zu "Intro Task"', timestamp: new Date() }
+        ]
+      });
+
+    expect(res.status).toBe(200);
+  });
 });

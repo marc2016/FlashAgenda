@@ -3,6 +3,7 @@ import { Timeline } from 'primereact/timeline';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { Badge } from 'primereact/badge';
 import {
   MDXEditor,
@@ -60,7 +61,29 @@ const READONLY_PLUGINS = [
 import { Checkbox } from 'primereact/checkbox';
 import { PollVoteModal, type IPoll } from './PollVoteModal';
 
-interface AgendaItem {
+export interface IAttachment {
+  name: string;
+  url: string;
+  type: 'image' | 'pdf' | string;
+  size?: number;
+}
+
+export interface IEmojiReaction {
+  emoji: string;
+  users: string[];
+}
+
+export interface IComment {
+  id: string;
+  author: string;
+  createdBy?: string;
+  text: string;
+  attachments?: IAttachment[];
+  reactions?: IEmojiReaction[];
+  createdAt: string | Date;
+}
+
+export interface AgendaItem {
   _id?: string;
   title: string;
   description?: string;
@@ -72,6 +95,7 @@ interface AgendaItem {
   upvotes?: string[];
   pinned?: boolean;
   poll?: IPoll;
+  comments?: IComment[];
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -119,6 +143,7 @@ interface AgendaCardProps {
   item: AgendaItem;
   index: number;
   currentUserId: string | undefined;
+  currentUser: any;
   attendees: any[];
   isCreator: boolean;
   onToggleCompleted: (index: number) => void;
@@ -128,13 +153,18 @@ interface AgendaCardProps {
   onEdit: (index: number) => void;
   onPreviewImage: (url: string) => void;
   onOpenVoteModal: (index: number) => void;
+  onAddComment: (index: number, text: string, attachments: IAttachment[]) => Promise<void>;
+  onDeleteComment: (index: number, commentId: string) => Promise<void>;
+  onToggleCommentReaction: (index: number, commentId: string, emoji: string) => Promise<void>;
 }
 
 const AgendaCard = memo(function AgendaCard({
   item,
   index,
   currentUserId,
+  currentUser,
   attendees,
+  isCreator,
   onToggleCompleted,
   onToggleUpvote,
   onTogglePinned,
@@ -142,10 +172,29 @@ const AgendaCard = memo(function AgendaCard({
   onEdit,
   onPreviewImage,
   onOpenVoteModal,
+  onAddComment,
+  onDeleteComment,
+  onToggleCommentReaction,
 }: AgendaCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [showCommentForm, setShowCommentForm] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentAttachments, setCommentAttachments] = useState<IAttachment[]>([]);
+  const [commentError, setCommentError] = useState('');
+  const commentInputRef = useRef<HTMLDivElement>(null);
 
-  const hasDetails = !!(item.description || item.imageUrl || (item.imageUrls && item.imageUrls.length > 0) || (item.upvotes && item.upvotes.length > 0));
+  const commentsList = item.comments || [];
+  const commentsCount = commentsList.length;
+
+  const hasDetails = !!(
+    item.description ||
+    item.imageUrl ||
+    (item.imageUrls && item.imageUrls.length > 0) ||
+    (item.upvotes && item.upvotes.length > 0) ||
+    commentsCount > 0 ||
+    showCommentForm
+  );
+
   const isCompleted = !!item.completed;
   const isPinned = !!item.pinned;
   const hasUpvoted = useMemo(
@@ -153,6 +202,16 @@ const AgendaCard = memo(function AgendaCard({
     [currentUserId, item.upvotes]
   );
   const upvoteCount = item.upvotes?.length || 0;
+
+  const isItemCreator = useMemo(() => {
+    if (isCreator) return true;
+    if (!item.createdBy) return true;
+    if (!currentUserId) return false;
+    return (
+      item.createdBy === currentUserId ||
+      (currentUser?.name && item.author?.trim().toLowerCase() === currentUser.name.trim().toLowerCase())
+    );
+  }, [currentUserId, currentUser, isCreator, item.createdBy, item.author]);
 
   const authorName = useMemo(() => {
     if (item.createdBy) {
@@ -180,6 +239,61 @@ const AgendaCard = memo(function AgendaCard({
     const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
     return { attendee, chipColor };
   }, [item.createdBy, authorName, attendees]);
+
+  const getCommentAuthorData = useCallback(
+    (comment: IComment) => {
+      const personColors = ['#007ad9', '#ed5565', '#26a69a', '#ab47bc', '#d4e157', '#ff7043', '#ec407a', '#78909c'];
+      const personIndex = attendees.findIndex(
+        (a: any) =>
+          (a.id && a.id === comment.createdBy) ||
+          (a._id && a._id === comment.createdBy) ||
+          (a.name && a.name.trim().toLowerCase() === comment.author.trim().toLowerCase())
+      );
+      const attendee = personIndex !== -1 ? attendees[personIndex] : null;
+      const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
+      return { attendee, chipColor };
+    },
+    [attendees]
+  );
+
+  const handleCommentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCommentError('');
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      if (file.size > 10 * 1024 * 1024) {
+        setCommentError('Dateien dürfen maximal 10 MB groß sein.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const url = evt.target?.result as string;
+        if (!url) return;
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        setCommentAttachments((prev) => [
+          ...prev,
+          {
+            name: file.name,
+            url,
+            type: isPdf ? 'pdf' : 'image',
+            size: file.size,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const submitComment = async () => {
+    if (!commentText.trim() && commentAttachments.length === 0) return;
+    await onAddComment(index, commentText.trim(), commentAttachments);
+    setCommentText('');
+    setCommentAttachments([]);
+    setCommentError('');
+    setShowCommentForm(false);
+  };
 
   const createdAtLabel = useMemo(
     () =>
@@ -258,6 +372,25 @@ const AgendaCard = memo(function AgendaCard({
         </div>
         <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
           <Button
+            text
+            rounded
+            className="p-button-sm text-gray-400 hover:text-yellow-400"
+            title="Kommentare"
+            onClick={() => {
+              setDetailsOpen(true);
+              setShowCommentForm(true);
+              setTimeout(() => {
+                commentInputRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }, 100);
+            }}
+          >
+            <i className="pi pi-comment text-xl"></i>
+            {commentsCount > 0 && (
+              <Badge value={commentsCount} severity="info" className="ml-2" />
+            )}
+          </Button>
+
+          <Button
             icon={isPinned ? 'mdi mdi-pin text-xl text-yellow-400' : 'mdi mdi-pin-outline text-xl'}
             rounded
             text
@@ -290,9 +423,12 @@ const AgendaCard = memo(function AgendaCard({
             icon="pi pi-pencil"
             rounded
             text
-            className="text-gray-400 hover:text-yellow-400"
-            title="Bearbeiten"
-            onClick={() => onEdit(index)}
+            disabled={!isItemCreator}
+            className={isItemCreator ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-600 opacity-40 cursor-not-allowed'}
+            title={isItemCreator ? 'Titel & Beschreibung bearbeiten' : 'Nur der Ersteller kann Titel & Beschreibung bearbeiten'}
+            onClick={() => {
+              if (isItemCreator) onEdit(index);
+            }}
           />
           <Button
             icon="pi pi-trash"
@@ -415,7 +551,7 @@ const AgendaCard = memo(function AgendaCard({
       )}
 
       {/* Details are only rendered in the DOM when opened — avoids heavy MDXEditor instances */}
-      {hasDetails && detailsOpen && (
+      {(hasDetails || showCommentForm) && detailsOpen && (
         <div className="agenda-details-container mt-3 pt-3 border-top-1 border-gray-700 text-gray-300 line-height-3">
           <div className="flex flex-column md:flex-row gap-4 align-items-start justify-content-between">
             {/* Links: Details-Text */}
@@ -511,6 +647,217 @@ const AgendaCard = memo(function AgendaCard({
                 </div>
               );
             })()}
+          </div>
+
+          {/* Kommentare Sektion in Details */}
+          <div className="mt-4 pt-3 border-top-1 border-gray-700" ref={commentInputRef}>
+            <div className="flex align-items-center justify-content-between mb-3">
+              <span className="font-bold text-white text-sm flex align-items-center gap-2">
+                <i className="pi pi-comments text-yellow-400" />
+                <span>Kommentare ({commentsCount})</span>
+              </span>
+            </div>
+
+            {/* Kommentar-Liste */}
+            {commentsList.length > 0 && (
+              <div className="flex flex-column gap-3 mb-3">
+                {commentsList.map((comment) => {
+                  const commentAuthorData = getCommentAuthorData(comment);
+                  const isCommentAuthor =
+                    currentUserId &&
+                    (comment.createdBy === currentUserId ||
+                      (currentUser?.name && comment.author?.trim().toLowerCase() === currentUser.name.trim().toLowerCase()) ||
+                      isCreator);
+
+                  return (
+                    <div key={comment.id} className="bg-black-alpha-40 border-1 border-gray-700 border-round p-3 relative">
+                      <div className="flex align-items-center justify-content-between mb-2">
+                        <div className="flex align-items-center gap-2 flex-wrap">
+                          <span
+                            className="inline-flex align-items-center font-bold text-white text-xs"
+                            style={{
+                              backgroundColor: commentAuthorData.chipColor,
+                              border: '1.5px solid #000',
+                              borderRadius: '6px',
+                              padding: '0.2rem 0.6rem',
+                              gap: '0.4rem',
+                            }}
+                          >
+                            {commentAuthorData.attendee?.avatarUrl ? (
+                              <img src={commentAuthorData.attendee.avatarUrl} alt={comment.author} className="border-circle" style={{ width: '1rem', height: '1rem' }} />
+                            ) : (
+                              <i className="pi pi-user text-white" style={{ fontSize: '0.65rem' }} />
+                            )}
+                            <span>{comment.author}</span>
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(comment.createdAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+
+                        {isCommentAuthor && (
+                          <Button
+                            icon="pi pi-trash text-xs"
+                            rounded
+                            text
+                            className="text-gray-400 hover:text-red-400 p-0"
+                            title="Kommentar löschen"
+                            onClick={() => onDeleteComment(index, comment.id)}
+                          />
+                        )}
+                      </div>
+
+                      {comment.text && (
+                        <p className="m-0 text-sm text-gray-200 word-break-break-word whitespace-pre-wrap">{comment.text}</p>
+                      )}
+
+                      {/* Anhänge (Bilder & PDFs) */}
+                      {comment.attachments && comment.attachments.length > 0 && (
+                        <div className="flex gap-2 flex-wrap mt-2 pt-2 border-top-1 border-gray-800">
+                          {comment.attachments.map((att, attIdx) => (
+                            <div key={attIdx} className="border-round overflow-hidden bg-black-alpha-60 p-1 flex align-items-center gap-2">
+                              {att.type === 'image' || att.url.startsWith('data:image/') ? (
+                                <img
+                                  src={att.url}
+                                  alt={att.name}
+                                  className="max-h-6rem border-round cursor-pointer hover:opacity-90"
+                                  onClick={() => onPreviewImage(att.url)}
+                                />
+                              ) : (
+                                <a
+                                  href={att.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex align-items-center gap-2 text-xs text-yellow-400 hover:underline p-1 bg-yellow-900-alpha-30 border-round"
+                                >
+                                  <i className="pi pi-file-pdf text-red-400 text-lg" />
+                                  <span>{att.name} (PDF öffnen)</span>
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Emoji Reaktionen Bar */}
+                      <div className="flex align-items-center gap-1 mt-2 pt-2 border-top-1 border-gray-800 flex-wrap">
+                        {['👍', '❤️', '😂', '🎉', '🚀', '💡'].map((emoji) => {
+                          const reaction = (comment.reactions || []).find((r) => r.emoji === emoji);
+                          const userReacted = currentUserId && (reaction?.users || []).includes(currentUserId);
+                          const count = reaction?.users?.length || 0;
+
+                          return (
+                            <button
+                              key={emoji}
+                              type="button"
+                              className={`cursor-pointer border-round px-2 py-1 text-xs flex align-items-center gap-1 transition-colors ${
+                                userReacted
+                                  ? 'bg-yellow-500 text-black font-bold border-yellow-400'
+                                  : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'
+                              }`}
+                              style={{ border: '1px solid' }}
+                              onClick={() => onToggleCommentReaction(index, comment.id, emoji)}
+                            >
+                              <span>{emoji}</span>
+                              {count > 0 && <span>{count}</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Kommentar hinzufügen Button / Formular */}
+            <div className="mt-2">
+              {!showCommentForm ? (
+                <Button
+                  label="Kommentar hinzufügen"
+                  icon="pi pi-plus"
+                  className="p-button-outlined p-button-warning p-button-sm font-bold"
+                  onClick={() => setShowCommentForm(true)}
+                />
+              ) : (
+                <div className="bg-black-alpha-50 p-3 border-round border-1 border-gray-700 flex flex-column gap-2">
+                  <InputTextarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Schreibe einen Kommentar..."
+                    rows={2}
+                    autoResize
+                    className="bg-gray-800 text-white text-sm p-2 border-gray-600 w-full"
+                  />
+
+                  {/* Anhänge Vorschau */}
+                  {commentAttachments.length > 0 && (
+                    <div className="flex gap-2 flex-wrap bg-gray-900 p-2 border-round">
+                      {commentAttachments.map((att, idx) => (
+                        <div key={idx} className="relative bg-black-alpha-60 p-1 border-round flex align-items-center gap-2">
+                          <span className="text-xs text-white truncate max-w-10rem">{att.name}</span>
+                          <Button
+                            icon="pi pi-times"
+                            rounded
+                            text
+                            className="text-red-400 p-0"
+                            style={{ width: '1rem', height: '1rem' }}
+                            onClick={() => setCommentAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {commentError && (
+                    <div className="text-red-400 text-xs flex align-items-center gap-1">
+                      <i className="pi pi-exclamation-circle" />
+                      <span>{commentError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-content-between align-items-center flex-wrap gap-2 mt-1">
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        id={`comment-file-upload-${index}`}
+                        className="hidden"
+                        multiple
+                        onChange={handleCommentFileChange}
+                      />
+                      <label
+                        htmlFor={`comment-file-upload-${index}`}
+                        className="p-button p-button-text p-button-warning p-button-sm cursor-pointer flex align-items-center gap-1 text-xs"
+                      >
+                        <i className="pi pi-paperclip" />
+                        <span>Bild / PDF anhängen (max. 10 MB)</span>
+                      </label>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        label="Abbrechen"
+                        className="p-button-text p-button-secondary p-button-sm"
+                        onClick={() => {
+                          setShowCommentForm(false);
+                          setCommentText('');
+                          setCommentAttachments([]);
+                          setCommentError('');
+                        }}
+                      />
+                      <Button
+                        label="Kommentieren"
+                        icon="pi pi-send"
+                        className="p-button-warning p-button-sm font-bold"
+                        disabled={!commentText.trim() && commentAttachments.length === 0}
+                        onClick={submitComment}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -926,6 +1273,131 @@ export default function AgendaTimeline({
     [toggleCompleted]
   );
 
+  const handleAddComment = useCallback(
+    async (itemIndex: number, text: string, attachments: IAttachment[]) => {
+      const authorName = currentUser?.name || 'Unbekannt';
+      const createdById = currentUser?.id || currentUser?._id || authorName;
+
+      const newComment: IComment = {
+        id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        author: authorName,
+        createdBy: createdById,
+        text,
+        attachments,
+        reactions: [],
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedItems = [...items];
+      const targetItem = { ...updatedItems[itemIndex] };
+      targetItem.comments = [...(targetItem.comments || []), newComment];
+      targetItem.updatedAt = new Date().toISOString();
+      updatedItems[itemIndex] = targetItem;
+
+      // Combine items + auditLogs into ONE PUT call to avoid race conditions
+      const auditLog = {
+        action: 'Kommentar hinzugefügt',
+        user: authorName,
+        details: `Kommentar zu "${targetItem.title}": "${text.substring(0, 40)}${text.length > 40 ? '...' : ''}"`,
+        timestamp: new Date(),
+      };
+      if (onUpdateAgenda) {
+        await onUpdateAgenda({
+          items: updatedItems,
+          auditLogs: [...(agenda?.auditLogs || []), auditLog],
+        });
+      } else {
+        await onUpdate(updatedItems);
+      }
+    },
+    [currentUser, items, agenda?.auditLogs, onUpdate, onUpdateAgenda]
+  );
+
+  const handleDeleteComment = useCallback(
+    async (itemIndex: number, commentId: string) => {
+      const authorName = currentUser?.name || 'Unbekannt';
+      const updatedItems = [...items];
+      const targetItem = { ...updatedItems[itemIndex] };
+      targetItem.comments = (targetItem.comments || []).filter((c) => c.id !== commentId);
+      targetItem.updatedAt = new Date().toISOString();
+      updatedItems[itemIndex] = targetItem;
+
+      // Combine items + auditLogs into ONE PUT call to avoid race conditions
+      const auditLog = {
+        action: 'Kommentar gelöscht',
+        user: authorName,
+        details: `Kommentar in "${targetItem.title}" wurde gelöscht.`,
+        timestamp: new Date(),
+      };
+      if (onUpdateAgenda) {
+        await onUpdateAgenda({
+          items: updatedItems,
+          auditLogs: [...(agenda?.auditLogs || []), auditLog],
+        });
+      } else {
+        await onUpdate(updatedItems);
+      }
+    },
+    [currentUser, items, agenda?.auditLogs, onUpdate, onUpdateAgenda]
+  );
+
+  const handleToggleCommentReaction = useCallback(
+    async (itemIndex: number, commentId: string, emoji: string) => {
+      const uid = currentUserId;
+      if (!uid) return;
+      const authorName = currentUser?.name || 'Unbekannt';
+
+      const updatedItems = [...items];
+      const targetItem = { ...updatedItems[itemIndex] };
+      const comments = [...(targetItem.comments || [])];
+      const cIdx = comments.findIndex((c) => c.id === commentId);
+      if (cIdx === -1) return;
+
+      const comment = { ...comments[cIdx] };
+      const reactions = [...(comment.reactions || [])];
+      const rIdx = reactions.findIndex((r) => r.emoji === emoji);
+
+      if (rIdx !== -1) {
+        const existingUsers = reactions[rIdx].users || [];
+        const hasReacted = existingUsers.includes(uid);
+        const updatedUsers = hasReacted
+          ? existingUsers.filter((u) => u !== uid)
+          : [...existingUsers, uid];
+
+        if (updatedUsers.length > 0) {
+          reactions[rIdx] = { ...reactions[rIdx], users: updatedUsers };
+        } else {
+          reactions.splice(rIdx, 1);
+        }
+      } else {
+        reactions.push({ emoji, users: [uid] });
+      }
+
+      comment.reactions = reactions;
+      comments[cIdx] = comment;
+      targetItem.comments = comments;
+      targetItem.updatedAt = new Date().toISOString();
+      updatedItems[itemIndex] = targetItem;
+
+      // Combine items + auditLogs into ONE PUT call to avoid race conditions
+      const auditLog = {
+        action: 'Emoji-Reaktion',
+        user: authorName,
+        details: `Emoji ${emoji} zu Kommentar von ${comment.author}`,
+        timestamp: new Date(),
+      };
+      if (onUpdateAgenda) {
+        await onUpdateAgenda({
+          items: updatedItems,
+          auditLogs: [...(agenda?.auditLogs || []), auditLog],
+        });
+      } else {
+        await onUpdate(updatedItems);
+      }
+    },
+    [currentUserId, currentUser, items, agenda?.auditLogs, onUpdate, onUpdateAgenda]
+  );
+
   // Stable content renderer — index comes directly from PrimeReact, no indexOf needed
   const customizedContent = useCallback(
     (item: AgendaItem, index: number) => (
@@ -934,6 +1406,7 @@ export default function AgendaTimeline({
         item={item}
         index={index}
         currentUserId={currentUserId}
+        currentUser={currentUser}
         attendees={attendees}
         isCreator={isCreator}
         onToggleCompleted={toggleCompleted}
@@ -943,9 +1416,26 @@ export default function AgendaTimeline({
         onEdit={openEdit}
         onPreviewImage={setSelectedPreviewImage}
         onOpenVoteModal={openVoteModal}
+        onAddComment={handleAddComment}
+        onDeleteComment={handleDeleteComment}
+        onToggleCommentReaction={handleToggleCommentReaction}
       />
     ),
-    [currentUserId, attendees, isCreator, toggleCompleted, toggleUpvote, togglePinned, deleteItem, openEdit, openVoteModal]
+    [
+      currentUserId,
+      currentUser,
+      attendees,
+      isCreator,
+      toggleCompleted,
+      toggleUpvote,
+      togglePinned,
+      deleteItem,
+      openEdit,
+      openVoteModal,
+      handleAddComment,
+      handleDeleteComment,
+      handleToggleCommentReaction,
+    ]
   );
 
   const totalCount = items?.length || 0;
