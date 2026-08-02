@@ -171,7 +171,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
               maxWidth: '480px', 
               aspectRatio: '85.6 / 54',
               height: 'auto',
-              background: cardColor || '#0a4b7c', 
+              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${cardColor || '#0a4b7c'}`, 
               fontFamily: 'system-ui, -apple-system, sans-serif',
               border: '4px solid #000',
               boxShadow: '8px 8px 0px #000',

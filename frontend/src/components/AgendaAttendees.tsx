@@ -405,7 +405,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
                 maxWidth: '340px', 
                 minHeight: '190px',
                 height: 'auto',
-                background: cardColor, 
+                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${cardColor}`, 
                 fontFamily: 'system-ui, -apple-system, sans-serif',
                 border: '3px solid #000',
                 boxShadow: '4px 4px 0px #000',

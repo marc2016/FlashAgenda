@@ -176,7 +176,7 @@ const AgendaCard = memo(function AgendaCard({
         (a.name && a.name.trim().toLowerCase() === authorName.trim().toLowerCase())
     );
     const attendee = personIndex !== -1 ? attendees[personIndex] : null;
-    const chipColor = personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151';
+    const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
     return { attendee, chipColor };
   }, [item.createdBy, authorName, attendees]);
 
@@ -361,7 +361,7 @@ const AgendaCard = memo(function AgendaCard({
                         );
                         const attendee = personIndex !== -1 ? attendees[personIndex] : null;
                         const voterName = attendee ? attendee.name : voterId;
-                        const chipColor = personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151';
+                        const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
 
                         return (
                           <span
@@ -439,7 +439,7 @@ const AgendaCard = memo(function AgendaCard({
                     );
                     const attendee = personIndex !== -1 ? attendees[personIndex] : null;
                     const voterName = attendee ? attendee.name : voterId;
-                    const chipColor = personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151';
+                    const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
 
                     return (
                       <span
