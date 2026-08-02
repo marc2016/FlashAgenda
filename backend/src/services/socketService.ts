@@ -16,6 +16,8 @@ export function initSocketService(httpServer: HttpServer): SocketIOServer {
       origin: '*',
       methods: ['GET', 'POST', 'PUT', 'DELETE'],
     },
+    // Raise buffer limit to accommodate large agenda payloads (images, etc.)
+    maxHttpBufferSize: 10 * 1024 * 1024, // 10 MB
   });
 
   io.on('connection', (socket: Socket) => {
@@ -100,9 +102,29 @@ function broadcastPresence(agendaId: string) {
 
 export function broadcastAgendaEvent(agendaId: string, event: string, payload?: any) {
   if (!io) return;
+
+  // Strip large Base64 image data from items before broadcasting.
+  // Clients that need the full data will re-fetch via HTTP.
+  let broadcastPayload = payload;
+  if (payload?.agenda?.items) {
+    const strippedItems = payload.agenda.items.map((item: any) => {
+      const { imageUrl, imageUrls, ...rest } = item;
+      return {
+        ...rest,
+        // Keep a flag so the client knows images exist but aren't in the payload
+        imageUrl: imageUrl ? '[base64]' : undefined,
+        imageUrls: imageUrls?.length ? [`[${imageUrls.length} images]`] : undefined,
+      };
+    });
+    broadcastPayload = {
+      ...payload,
+      agenda: { ...payload.agenda, items: strippedItems },
+    };
+  }
+
   io.to(`agenda:${agendaId}`).emit(event, {
     agendaId,
     timestamp: new Date().toISOString(),
-    ...payload,
+    ...broadcastPayload,
   });
 }

@@ -117,9 +117,23 @@ export default function AgendaDetail() {
     if (updatedData.items) {
       prevItemsRef.current = updatedData.items;
     }
+
+    // Detect if the broadcast payload has stripped image placeholders (e.g. '[base64]', '[2 images]').
+    // In that case the socket payload is incomplete — re-fetch the full agenda from the server
+    // so images don't get replaced with placeholders.
+    const hasStrippedImages = updatedData.items?.some((item: any) =>
+      item.imageUrl === '[base64]' || (Array.isArray(item.imageUrls) && item.imageUrls[0]?.startsWith('['))
+    );
+
+    if (hasStrippedImages) {
+      // Re-fetch so the client gets the full data including images
+      fetchAgenda();
+      return;
+    }
+
     setAgenda(updatedData);
     if (id) setCachedAgenda(id, updatedData);
-  }, [id, currentUser]);
+  }, [id, currentUser, fetchAgenda]);
 
   const { isConnected, activeCount, activeUsers } = useAgendaSocket({
     agendaId: id,
