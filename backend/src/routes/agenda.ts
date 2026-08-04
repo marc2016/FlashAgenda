@@ -499,6 +499,11 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
         (existingAgenda as any)[field] = req.body[field];
       }
     }
+    // Explicitly mark array fields as modified so Mongoose persists all nested
+    // changes (e.g. imageUrls inside AgendaItemSchema) to MongoDB.
+    if (req.body.items !== undefined) existingAgenda.markModified('items');
+    if (req.body.attendees !== undefined) existingAgenda.markModified('attendees');
+    if (req.body.auditLogs !== undefined) existingAgenda.markModified('auditLogs');
 
     try {
       const updatedAgenda = await existingAgenda.save();
@@ -514,6 +519,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
               (freshAgenda as any)[field] = req.body[field];
             }
           }
+          if (req.body.items !== undefined) freshAgenda.markModified('items');
+          if (req.body.attendees !== undefined) freshAgenda.markModified('attendees');
+          if (req.body.auditLogs !== undefined) freshAgenda.markModified('auditLogs');
           const saved = await freshAgenda.save();
           broadcastAgendaEvent(id, 'agenda_updated', { agenda: saved });
           res.json(saved);

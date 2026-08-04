@@ -70,6 +70,35 @@ export default function AgendaDetail() {
             return;
           }
 
+          // Defensive merge: if the local state has images for an item but the server
+          // response doesn't (e.g. large Base64 not yet persisted, or stripped during transit),
+          // keep the local images rather than overwriting them with empty values.
+          if (data?.items && agendaRef.current?.items) {
+            data.items = data.items.map((serverItem: any) => {
+              const localItem = agendaRef.current.items.find(
+                (li: any) => (li._id || li.id) === (serverItem._id || serverItem.id)
+              );
+              if (!localItem) return serverItem;
+
+              const serverHasImages =
+                (serverItem.imageUrl && serverItem.imageUrl !== '') ||
+                (serverItem.imageUrls && serverItem.imageUrls.length > 0);
+              const localHasImages =
+                (localItem.imageUrl && localItem.imageUrl !== '') ||
+                (localItem.imageUrls && localItem.imageUrls.length > 0);
+
+              if (localHasImages && !serverHasImages) {
+                // Server lost/hasn't persisted the images yet — keep local copies
+                return {
+                  ...serverItem,
+                  imageUrl: localItem.imageUrl,
+                  imageUrls: localItem.imageUrls,
+                };
+              }
+              return serverItem;
+            });
+          }
+
           setAgenda(data);
           setCachedAgenda(id, data);
           return;
@@ -314,6 +343,7 @@ export default function AgendaDetail() {
         setAgenda(data);
         setCachedAgenda(id, data);
       } else {
+        console.warn(`[AgendaDetail] PUT /api/agendas/${id} failed: HTTP ${response.status}`, await response.text().catch(() => ''));
         const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
         const queuePayload = updates.items !== undefined ? updates.items : payload;
         enqueueAction(id, queueType, queuePayload);
