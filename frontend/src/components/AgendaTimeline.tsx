@@ -106,8 +106,8 @@ interface Props {
   attendees?: any[];
   currentUser: any;
   isCreator?: boolean;
-  onUpdate: (items: AgendaItem[]) => Promise<void>;
-  onUpdateAgenda?: (updates: any) => Promise<void>;
+  onUpdate: (items: AgendaItem[]) => void | Promise<void>;
+  onUpdateAgenda?: (updates: any) => void | Promise<void>;
 }
 
 // ─── Helper for sorting while retaining pinned items' positions ───────────

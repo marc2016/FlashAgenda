@@ -65,8 +65,12 @@ export default function AgendaDetail() {
             prevItemsRef.current = data.items;
           }
 
-          // Skip state update if data JSON is identical to current state
-          if (agendaRef.current && JSON.stringify(data) === JSON.stringify(agendaRef.current)) {
+          // Skip state update if data is effectively identical to current state.
+          // Use a lightweight signature instead of JSON.stringify on the full object
+          // (which can be very slow when items contain large Base64 image strings).
+          const makeSignature = (a: any) =>
+            `${a?.__v}|${a?.items?.length}|${a?.items?.map((i: any) => `${i._id || i.id}:${i.updatedAt || ''}`).join(',')}`;
+          if (agendaRef.current && makeSignature(data) === makeSignature(agendaRef.current)) {
             return;
           }
 
@@ -311,7 +315,7 @@ export default function AgendaDetail() {
     }
   }, [agenda?.createdBy, currentUser, isCreator, isOnline]);
 
-  const handleUpdateAgenda = async (updates: any) => {
+  const handleUpdateAgenda = (updates: any): void => {
     if (!id) return;
     const payload = { ...updates };
     if (userId && !payload.userId) {
@@ -321,7 +325,7 @@ export default function AgendaDetail() {
       payload.userName = currentUser.name;
     }
 
-    // Optimistic UI update & Cache update
+    // Optimistic UI update — apply immediately so dialogs can close without waiting
     const updatedLocal = { ...agenda, ...payload };
     setAgenda(updatedLocal);
     setCachedAgenda(id, updatedLocal);
@@ -332,28 +336,30 @@ export default function AgendaDetail() {
       return;
     }
 
-    try {
-      const response = await fetch(`/api/agendas/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAgenda(data);
-        setCachedAgenda(id, data);
-      } else {
-        console.warn(`[AgendaDetail] PUT /api/agendas/${id} failed: HTTP ${response.status}`, await response.text().catch(() => ''));
+    // Fire network request in the background — do NOT await so callers return immediately
+    fetch(`/api/agendas/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(async (response) => {
+        if (response.ok) {
+          const data = await response.json();
+          setAgenda(data);
+          setCachedAgenda(id, data);
+        } else {
+          console.warn(`[AgendaDetail] PUT /api/agendas/${id} failed: HTTP ${response.status}`, await response.text().catch(() => ''));
+          const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
+          const queuePayload = updates.items !== undefined ? updates.items : payload;
+          enqueueAction(id, queueType, queuePayload);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to update agenda online, queueing offline action', err);
         const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
         const queuePayload = updates.items !== undefined ? updates.items : payload;
         enqueueAction(id, queueType, queuePayload);
-      }
-    } catch (err) {
-      console.error('Failed to update agenda online, queueing offline action', err);
-      const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
-      const queuePayload = updates.items !== undefined ? updates.items : payload;
-      enqueueAction(id, queueType, queuePayload);
-    }
+      });
   };
 
   const handleUpdateAttendee = async (updatedAttendee: any) => {
@@ -368,7 +374,7 @@ export default function AgendaDetail() {
       }
       return att;
     });
-    await handleUpdateAgenda({ attendees: updatedAttendees });
+    handleUpdateAgenda({ attendees: updatedAttendees });
   };
 
   const handleAddAttendee = async (newAttendee: any) => {
@@ -393,12 +399,12 @@ export default function AgendaDetail() {
     
     // Offline / fallback addition
     const updatedAttendees = [...(agenda?.attendees || []), newAttendee];
-    await handleUpdateAgenda({ attendees: updatedAttendees });
+    handleUpdateAgenda({ attendees: updatedAttendees });
     return newAttendee;
   };
 
-  const handleUpdateItems = async (newItems: any[]) => {
-    await handleUpdateAgenda({ items: newItems });
+  const handleUpdateItems = (newItems: any[]) => {
+    handleUpdateAgenda({ items: newItems });
   };
 
   const renderFloatingBanderole = () => {
