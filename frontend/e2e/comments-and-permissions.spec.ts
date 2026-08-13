@@ -134,7 +134,7 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
     await expect(emojiBtn).toHaveClass(/text-yellow-400/, { timeout: 5000 });
   });
 
-  test('should restrict title/description editing to item creator', async ({ page }) => {
+  test('should restrict title/description editing and deletion to item creator', async ({ page }) => {
     await page.addInitScript(() => {
       const agendaId = 'mock-agenda-comments';
       localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify({ id: 'user-bob', name: 'Bob' }));
@@ -147,5 +147,22 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
     if (await editBtn.count() > 0) {
       await expect(editBtn).toBeDisabled();
     }
+
+    const deleteBtn = page.locator('button[title="Nur der Ersteller kann diesen Agendapunkt löschen"]').first();
+    await expect(deleteBtn).toBeVisible({ timeout: 5000 });
+    await expect(deleteBtn).toBeDisabled();
+  });
+
+  test('should allow item creator to delete their own item', async ({ page }) => {
+    // Default user is user-alice (creator of item-1)
+    await page.goto('/agenda/mock-agenda-comments');
+    await expect(page.locator('text=Ersteller Punkt')).toBeVisible({ timeout: 10000 });
+
+    const deleteBtn = page.locator('button[title="Agendapunkt löschen"]').first();
+    await expect(deleteBtn).toBeVisible({ timeout: 5000 });
+    await expect(deleteBtn).toBeEnabled();
+
+    await deleteBtn.click({ force: true });
+    await expect(page.locator('text=Ersteller Punkt')).not.toBeVisible({ timeout: 5000 });
   });
 });

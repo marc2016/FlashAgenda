@@ -7,6 +7,7 @@ vi.mock('../src/models/Agenda', () => {
   const mockAgendaData = {
     _id: '507f1f77bcf86cd799439011',
     title: 'Backend Test Agenda',
+    createdBy: 'agenda-creator-id',
     isArchived: false,
     items: [
       {
@@ -180,6 +181,31 @@ describe('Agenda API Routes Unit Tests', () => {
         auditLogs: [
           { action: 'Kommentar hinzugefügt', user: 'Max Mustermann', details: 'Kommentar zu "Intro Task"', timestamp: new Date() }
         ]
+      });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('should reject deleting another user\'s agenda item on PUT /api/agendas/:id', async () => {
+    const res = await request(app)
+      .put('/api/agendas/507f1f77bcf86cd799439011')
+      .send({
+        items: [],
+        userId: 'other-user-999',
+        userName: 'Other User'
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('Nur der Ersteller kann diesen Agendapunkt löschen.');
+  });
+
+  it('should allow item creator to delete their own agenda item on PUT /api/agendas/:id', async () => {
+    const res = await request(app)
+      .put('/api/agendas/507f1f77bcf86cd799439011')
+      .send({
+        items: [],
+        userId: 'test-user-123',
+        userName: 'Max Mustermann'
       });
 
     expect(res.status).toBe(200);

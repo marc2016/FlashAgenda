@@ -469,9 +469,12 @@ const AgendaCard = memo(function AgendaCard({
             icon="pi pi-trash"
             rounded
             text
-            className="text-gray-400 hover:text-red-400"
-            title="Löschen"
-            onClick={() => onDelete(index)}
+            disabled={!isItemCreator}
+            className={isItemCreator ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 opacity-40 cursor-not-allowed'}
+            title={isItemCreator ? 'Agendapunkt löschen' : 'Nur der Ersteller kann diesen Agendapunkt löschen'}
+            onClick={() => {
+              if (isItemCreator) onDelete(index);
+            }}
           />
         </div>
       </div>
@@ -1173,10 +1176,27 @@ export default function AgendaTimeline({
 
   const deleteItem = useCallback(
     async (index: number) => {
+      const itemToDelete = items[index];
+      if (itemToDelete) {
+        const itemCreatedBy = itemToDelete.createdBy;
+        const itemAuthor = itemToDelete.author;
+        const currentUserId = currentUser?.id || currentUser?._id;
+        const currentUserName = currentUser?.name;
+
+        const isItemCreator =
+          isCreator ||
+          !itemCreatedBy ||
+          (currentUserId && itemCreatedBy === currentUserId) ||
+          (currentUserName && itemAuthor?.trim().toLowerCase() === currentUserName.trim().toLowerCase());
+
+        if (!isItemCreator) {
+          return;
+        }
+      }
       const updatedItems = items.filter((_, i) => i !== index);
       await onUpdate(updatedItems);
     },
-    [items, onUpdate]
+    [items, onUpdate, isCreator, currentUser]
   );
 
   const sortByDate = useCallback(async () => {

@@ -417,6 +417,37 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
         res.status(403).json({ message: 'Agenda ist bereits geschlossen für neue Punkte' });
         return;
       }
+
+      // Validation: Only item creator (or agenda creator) can delete an item
+      const oldItems = existingAgenda.items || [];
+      const newItems = req.body.items;
+      const requestingUserId = req.body.userId;
+      const requestingUserName = (req.body.userName || req.body.author || '').trim().toLowerCase();
+      const agendaCreator = existingAgenda.createdBy;
+
+      const isAgendaCreator =
+        !agendaCreator ||
+        (requestingUserId && requestingUserId === agendaCreator) ||
+        (requestingUserName && requestingUserName === agendaCreator.trim().toLowerCase());
+
+      if (!isAgendaCreator && newItems.length < oldItems.length) {
+        const deletedItems = oldItems.filter(
+          (oi: any) => !newItems.some((ni: any) => (ni._id && oi._id && ni._id.toString() === oi._id.toString()) || (ni.title === oi.title && ni.createdBy === oi.createdBy))
+        );
+
+        for (const deletedItem of deletedItems) {
+          if (!deletedItem.createdBy && !deletedItem.author) continue;
+          const isItemCreator =
+            (requestingUserId && deletedItem.createdBy === requestingUserId) ||
+            (requestingUserName && deletedItem.author && deletedItem.author.trim().toLowerCase() === requestingUserName) ||
+            (requestingUserName && deletedItem.createdBy && deletedItem.createdBy.trim().toLowerCase() === requestingUserName);
+
+          if (!isItemCreator) {
+            res.status(403).json({ message: 'Nur der Ersteller kann diesen Agendapunkt löschen.' });
+            return;
+          }
+        }
+      }
     }
 
     const userName = req.body.userName || req.body.author || 'Benutzer';
