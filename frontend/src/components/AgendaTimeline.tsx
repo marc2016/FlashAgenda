@@ -379,7 +379,7 @@ const AgendaCard = memo(function AgendaCard({
               className="inline-flex align-items-center font-bold text-white text-xs"
               title={`Erstellt von ${authorName}`}
               style={{
-                backgroundColor: authorAttendeeData.chipColor,
+                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${authorAttendeeData.chipColor}`,
                 border: '2px solid #000000',
                 boxShadow: '2px 2px 0px #000000',
                 borderRadius: '8px',
@@ -540,7 +540,7 @@ const AgendaCard = memo(function AgendaCard({
                             key={voterId}
                             className="inline-flex align-items-center font-bold text-white text-xs"
                             style={{
-                              backgroundColor: chipColor,
+                              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${chipColor}`,
                               border: '2px solid #000000',
                               boxShadow: '2px 2px 0px #000000',
                               borderRadius: '8px',
@@ -618,7 +618,7 @@ const AgendaCard = memo(function AgendaCard({
                         key={voterId}
                         className="inline-flex align-items-center font-bold text-white text-xs"
                         style={{
-                          backgroundColor: chipColor,
+                          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${chipColor}`,
                           border: '2px solid #000000',
                           boxShadow: '2px 2px 0px #000000',
                           borderRadius: '8px',
@@ -711,7 +711,7 @@ const AgendaCard = memo(function AgendaCard({
                           <span
                             className="inline-flex align-items-center font-bold text-white text-xs"
                             style={{
-                              backgroundColor: commentAuthorData.chipColor,
+                              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${commentAuthorData.chipColor}`,
                               border: '1.5px solid #000',
                               borderRadius: '6px',
                               padding: '0.2rem 0.6rem',
