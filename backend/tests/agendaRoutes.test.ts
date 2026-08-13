@@ -26,7 +26,8 @@ vi.mock('../src/models/Agenda', () => {
         secretGuid: '550e8400-e29b-41d4-a716-446655440000'
       }
     ],
-    save: vi.fn().mockResolvedValue(true)
+    save: vi.fn().mockResolvedValue(true),
+    markModified: vi.fn()
   };
 
   const MockAgendaClass = function() {

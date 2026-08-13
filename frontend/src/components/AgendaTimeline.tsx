@@ -266,20 +266,55 @@ const AgendaCard = memo(function AgendaCard({
         setCommentError('Dateien dürfen maximal 10 MB groß sein.');
         return;
       }
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       const reader = new FileReader();
       reader.onload = (evt) => {
-        const url = evt.target?.result as string;
-        if (!url) return;
-        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-        setCommentAttachments((prev) => [
-          ...prev,
-          {
-            name: file.name,
-            url,
-            type: isPdf ? 'pdf' : 'image',
-            size: file.size,
-          },
-        ]);
+        const rawData = evt.target?.result as string;
+        if (!rawData) return;
+
+        if (isPdf) {
+          setCommentAttachments((prev) => [
+            ...prev,
+            {
+              name: file.name,
+              url: rawData,
+              type: 'pdf',
+              size: file.size,
+            },
+          ]);
+        } else {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 800;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            setCommentAttachments((prev) => [
+              ...prev,
+              {
+                name: file.name,
+                url: compressedDataUrl,
+                type: 'image',
+                size: Math.round(compressedDataUrl.length * 0.75),
+              },
+            ]);
+          };
+          img.src = rawData;
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -877,6 +912,12 @@ export default function AgendaTimeline({
 }: Props) {
   const [visible, setVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -971,6 +1012,7 @@ export default function AgendaTimeline({
     setPollAllowMultiple(false);
     setEditingIndex(null);
     setShowDetails(false);
+    setIsSaving(false);
     if (editorRef.current) {
       editorRef.current.setMarkdown('');
     } else {
@@ -981,7 +1023,7 @@ export default function AgendaTimeline({
 
   const openEdit = useCallback(
     (index: number) => {
-      const item = items[index];
+      const item = itemsRef.current[index];
       const newDesc = item.description || '';
       setTitle(item.title);
       setDescription(newDesc);
@@ -992,6 +1034,7 @@ export default function AgendaTimeline({
       setNewUrlInput('');
       setUploadError('');
       setEditingIndex(index);
+      setIsSaving(false);
 
       if (item.poll) {
         setEnablePoll(true);
@@ -1013,7 +1056,7 @@ export default function AgendaTimeline({
       }
       setVisible(true);
     },
-    [items]
+    []
   );
 
   const handleImageFileChange = useCallback(
@@ -1045,7 +1088,7 @@ export default function AgendaTimeline({
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-            const maxDim = 1200;
+            const maxDim = 800;
             if (width > maxDim || height > maxDim) {
               if (width > height) {
                 height = Math.round((height * maxDim) / width);
@@ -1059,7 +1102,7 @@ export default function AgendaTimeline({
             canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
             setImageUrls((prev) => (prev.length < 5 ? [...prev, compressedDataUrl] : prev));
           };
           img.src = rawData;
@@ -1088,7 +1131,7 @@ export default function AgendaTimeline({
 
   const toggleCompleted = useCallback(
     async (index: number) => {
-      const updatedItems = [...items];
+      const updatedItems = [...itemsRef.current];
       updatedItems[index] = {
         ...updatedItems[index],
         completed: !updatedItems[index].completed,
@@ -1096,13 +1139,13 @@ export default function AgendaTimeline({
       };
       await onUpdate(updatedItems);
     },
-    [items, onUpdate]
+    [onUpdate]
   );
 
   const toggleUpvote = useCallback(
     async (index: number) => {
       if (!currentUserId) return;
-      const updatedItems = [...items];
+      const updatedItems = [...itemsRef.current];
       const item = { ...updatedItems[index] };
       const upvotes = item.upvotes || [];
       item.upvotes = upvotes.includes(currentUserId)
@@ -1112,12 +1155,12 @@ export default function AgendaTimeline({
       updatedItems[index] = item;
       await onUpdate(updatedItems);
     },
-    [items, onUpdate, currentUserId]
+    [onUpdate, currentUserId]
   );
 
   const togglePinned = useCallback(
     async (index: number) => {
-      const updatedItems = [...items];
+      const updatedItems = [...itemsRef.current];
       updatedItems[index] = {
         ...updatedItems[index],
         pinned: !updatedItems[index].pinned,
@@ -1125,7 +1168,7 @@ export default function AgendaTimeline({
       };
       await onUpdate(updatedItems);
     },
-    [items, onUpdate]
+    [onUpdate]
   );
 
   const deleteItem = useCallback(
@@ -1178,59 +1221,66 @@ export default function AgendaTimeline({
   }, [items, onUpdate, onUpdateAgenda, sortOrder]);
 
   const saveItem = useCallback(async () => {
-    if (!title.trim()) return;
-    const updatedItems = [...items];
+    if (!title.trim() || isSaving) return;
+    setIsSaving(true);
+    try {
+      const updatedItems = [...items];
 
-    let pollData: IPoll | undefined = undefined;
-    if (enablePoll) {
-      const validOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
-      if (validOptions.length >= 2) {
-        const existingItem = editingIndex !== null ? items[editingIndex] : null;
-        pollData = {
-          question: pollQuestion.trim() || undefined,
-          allowMultiple: pollAllowMultiple,
-          options: validOptions.map((text, idx) => {
-            const existingOpt = existingItem?.poll?.options?.find((o) => o.text === text);
-            return {
-              id: existingOpt?.id || `opt_${Date.now()}_${idx}`,
-              text,
-              votes: existingOpt?.votes || [],
-            };
-          }),
-        };
+      let pollData: IPoll | undefined = undefined;
+      if (enablePoll) {
+        const validOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
+        if (validOptions.length >= 2) {
+          const existingItem = editingIndex !== null ? items[editingIndex] : null;
+          pollData = {
+            question: pollQuestion.trim() || undefined,
+            allowMultiple: pollAllowMultiple,
+            options: validOptions.map((text, idx) => {
+              const existingOpt = existingItem?.poll?.options?.find((o) => o.text === text);
+              return {
+                id: existingOpt?.id || `opt_${Date.now()}_${idx}`,
+                text,
+                votes: existingOpt?.votes || [],
+              };
+            }),
+          };
+        }
       }
-    }
 
-    const mainImageUrl = imageUrls[0] || '';
+      const mainImageUrl = imageUrls[0] || '';
 
-    if (editingIndex !== null) {
-      updatedItems[editingIndex] = {
-        ...updatedItems[editingIndex],
-        title,
-        description,
-        imageUrl: mainImageUrl,
-        imageUrls,
-        poll: pollData,
-        updatedAt: new Date().toISOString(),
-      };
-    } else {
-      const authorName = currentUser?.name || 'Unbekannt';
-      const createdById = currentUser?.id || currentUser?._id || authorName;
-      updatedItems.push({
-        title,
-        description,
-        imageUrl: mainImageUrl,
-        imageUrls,
-        poll: pollData,
-        author: authorName,
-        createdBy: createdById,
-        completed: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+      if (editingIndex !== null) {
+        updatedItems[editingIndex] = {
+          ...updatedItems[editingIndex],
+          title,
+          description,
+          imageUrl: mainImageUrl,
+          imageUrls,
+          poll: pollData,
+          updatedAt: new Date().toISOString(),
+        };
+      } else {
+        const authorName = currentUser?.name || 'Unbekannt';
+        const createdById = currentUser?.id || currentUser?._id || authorName;
+        updatedItems.push({
+          title,
+          description,
+          imageUrl: mainImageUrl,
+          imageUrls,
+          poll: pollData,
+          author: authorName,
+          createdBy: createdById,
+          completed: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      await onUpdate(updatedItems);
+      setVisible(false);
+    } catch (err) {
+      console.error('Failed to save agenda item:', err);
+    } finally {
+      setIsSaving(false);
     }
-    await onUpdate(updatedItems);
-    setVisible(false);
   }, [
     title,
     description,
@@ -1243,6 +1293,7 @@ export default function AgendaTimeline({
     items,
     currentUser,
     onUpdate,
+    isSaving,
   ]);
 
   // Stable marker renderer — avoids O(n²) indexOf
@@ -1288,7 +1339,7 @@ export default function AgendaTimeline({
         createdAt: new Date().toISOString(),
       };
 
-      const updatedItems = [...items];
+      const updatedItems = [...itemsRef.current];
       const targetItem = { ...updatedItems[itemIndex] };
       targetItem.comments = [...(targetItem.comments || []), newComment];
       targetItem.updatedAt = new Date().toISOString();
@@ -1310,13 +1361,13 @@ export default function AgendaTimeline({
         await onUpdate(updatedItems);
       }
     },
-    [currentUser, items, agenda?.auditLogs, onUpdate, onUpdateAgenda]
+    [currentUser, agenda?.auditLogs, onUpdate, onUpdateAgenda]
   );
 
   const handleDeleteComment = useCallback(
     async (itemIndex: number, commentId: string) => {
       const authorName = currentUser?.name || 'Unbekannt';
-      const updatedItems = [...items];
+      const updatedItems = [...itemsRef.current];
       const targetItem = { ...updatedItems[itemIndex] };
       targetItem.comments = (targetItem.comments || []).filter((c) => c.id !== commentId);
       targetItem.updatedAt = new Date().toISOString();
@@ -1338,7 +1389,7 @@ export default function AgendaTimeline({
         await onUpdate(updatedItems);
       }
     },
-    [currentUser, items, agenda?.auditLogs, onUpdate, onUpdateAgenda]
+    [currentUser, agenda?.auditLogs, onUpdate, onUpdateAgenda]
   );
 
   const handleToggleCommentReaction = useCallback(
@@ -1347,7 +1398,7 @@ export default function AgendaTimeline({
       if (!uid) return;
       const authorName = currentUser?.name || 'Unbekannt';
 
-      const updatedItems = [...items];
+      const updatedItems = [...itemsRef.current];
       const targetItem = { ...updatedItems[itemIndex] };
       const comments = [...(targetItem.comments || [])];
       const cIdx = comments.findIndex((c) => c.id === commentId);
@@ -1395,7 +1446,7 @@ export default function AgendaTimeline({
         await onUpdate(updatedItems);
       }
     },
-    [currentUserId, currentUser, items, agenda?.auditLogs, onUpdate, onUpdateAgenda]
+    [currentUserId, currentUser, agenda?.auditLogs, onUpdate, onUpdateAgenda]
   );
 
   // Stable content renderer — index comes directly from PrimeReact, no indexOf needed
@@ -1568,7 +1619,11 @@ export default function AgendaTimeline({
         visible={visible}
         style={{ width: '96vw', maxWidth: '1200px' }}
         contentStyle={{ maxHeight: '82vh', overflowY: 'auto' }}
-        onHide={() => setVisible(false)}
+        onHide={() => {
+          if (!isSaving) {
+            setVisible(false);
+          }
+        }}
         onShow={() => {
           setTimeout(() => {
             titleInputRef.current?.focus();
@@ -1790,6 +1845,7 @@ export default function AgendaTimeline({
               <Button
                 label="Löschen"
                 icon="pi pi-trash"
+                disabled={isSaving}
                 onClick={async () => {
                   await deleteItem(editingIndex);
                   setVisible(false);
@@ -1797,7 +1853,14 @@ export default function AgendaTimeline({
                 className="p-button-danger p-button-outlined flex-1"
               />
             )}
-            <Button label="Speichern" icon="pi pi-check" onClick={saveItem} className="p-button-warning flex-1" disabled={!title.trim()} />
+            <Button
+              label="Speichern"
+              icon="pi pi-check"
+              loading={isSaving}
+              onClick={saveItem}
+              className="p-button-warning flex-1"
+              disabled={!title.trim()}
+            />
           </div>
         </div>
       </Dialog>
