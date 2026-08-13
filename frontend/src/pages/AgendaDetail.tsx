@@ -315,7 +315,7 @@ export default function AgendaDetail() {
     }
   }, [agenda?.createdBy, currentUser, isCreator, isOnline]);
 
-  const handleUpdateAgenda = (updates: any): void => {
+  const handleUpdateAgenda = async (updates: any): Promise<void> => {
     if (!id) return;
     const payload = { ...updates };
     if (userId && !payload.userId) {

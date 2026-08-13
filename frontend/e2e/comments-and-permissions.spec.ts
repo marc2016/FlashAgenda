@@ -127,11 +127,11 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
 
     const emojiBtn = page.locator('button').filter({ hasText: '\uD83C\uDF89' }).first();
     await expect(emojiBtn).toBeVisible({ timeout: 3000 });
-    await expect(emojiBtn).toHaveClass(/bg-gray-800/);
+    await expect(emojiBtn).toHaveClass(/bg-transparent/);
 
     await emojiBtn.click({ force: true });
 
-    await expect(emojiBtn).toHaveClass(/bg-yellow-500/, { timeout: 5000 });
+    await expect(emojiBtn).toHaveClass(/text-yellow-400/, { timeout: 5000 });
   });
 
   test('should restrict title/description editing to item creator', async ({ page }) => {

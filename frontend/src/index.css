@@ -159,6 +159,17 @@ body {
   box-shadow: 2px 2px 0px #000 !important;
 }
 
+.comic-button:disabled,
+.comic-button.p-disabled,
+.comic-button-secondary:disabled,
+.comic-button-secondary.p-disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: 2px 2px 0px #000 !important;
+  pointer-events: none !important;
+}
+
 .comic-panel-dark {
   background-color: #1f2937 !important; /* dark gray */
   border: 3px solid #000 !important;

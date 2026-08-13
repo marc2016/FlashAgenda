@@ -695,7 +695,7 @@ const AgendaCard = memo(function AgendaCard({
 
             {/* Kommentar-Liste */}
             {commentsList.length > 0 && (
-              <div className="flex flex-column gap-3 mb-3">
+              <div className="flex flex-column gap-2 mb-3">
                 {commentsList.map((comment) => {
                   const commentAuthorData = getCommentAuthorData(comment);
                   const isCommentAuthor =
@@ -705,7 +705,7 @@ const AgendaCard = memo(function AgendaCard({
                       isCreator);
 
                   return (
-                    <div key={comment.id} className="bg-black-alpha-40 border-1 border-gray-700 border-round p-3 relative">
+                    <div key={comment.id} className="pt-2 pb-3.5 border-bottom-1 border-gray-700 relative">
                       <div className="flex align-items-center justify-content-between mb-2">
                         <div className="flex align-items-center gap-2 flex-wrap">
                           <span
@@ -743,12 +743,12 @@ const AgendaCard = memo(function AgendaCard({
                       </div>
 
                       {comment.text && (
-                        <p className="m-0 text-sm text-gray-200 word-break-break-word whitespace-pre-wrap">{comment.text}</p>
+                        <p className="my-1.5 text-sm text-gray-200 word-break-break-word whitespace-pre-wrap">{comment.text}</p>
                       )}
 
                       {/* Anhänge (Bilder & PDFs) */}
                       {comment.attachments && comment.attachments.length > 0 && (
-                        <div className="flex gap-2 flex-wrap mt-2 pt-2 border-top-1 border-gray-800">
+                        <div className="flex gap-2 flex-wrap mt-2.5 mb-1">
                           {comment.attachments.map((att, attIdx) => (
                             <div key={attIdx} className="border-round overflow-hidden bg-black-alpha-60 p-1 flex align-items-center gap-2">
                               {att.type === 'image' || att.url.startsWith('data:image/') ? (
@@ -775,7 +775,7 @@ const AgendaCard = memo(function AgendaCard({
                       )}
 
                       {/* Emoji Reaktionen Bar */}
-                      <div className="flex align-items-center gap-1 mt-2 pt-2 border-top-1 border-gray-800 flex-wrap">
+                      <div className="flex align-items-center gap-1 mt-2.5 mb-1 flex-wrap">
                         {['👍', '❤️', '😂', '🎉', '🚀', '💡'].map((emoji) => {
                           const reaction = (comment.reactions || []).find((r) => r.emoji === emoji);
                           const userReacted = currentUserId && (reaction?.users || []).includes(currentUserId);
@@ -785,12 +785,12 @@ const AgendaCard = memo(function AgendaCard({
                             <button
                               key={emoji}
                               type="button"
-                              className={`cursor-pointer border-round px-2 py-1 text-xs flex align-items-center gap-1 transition-colors ${
+                              className={`cursor-pointer border-none border-round px-1.5 py-0.5 text-xs flex align-items-center gap-1 transition-colors ${
                                 userReacted
-                                  ? 'bg-yellow-500 text-black font-bold border-yellow-400'
-                                  : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'
+                                  ? 'bg-yellow-500-alpha-20 text-yellow-400 font-bold'
+                                  : 'bg-transparent text-gray-400 hover:text-white hover:bg-white-alpha-10'
                               }`}
-                              style={{ border: '1px solid' }}
+                              style={{ border: 'none' }}
                               onClick={() => onToggleCommentReaction(index, comment.id, emoji)}
                             >
                               <span>{emoji}</span>
@@ -811,18 +811,18 @@ const AgendaCard = memo(function AgendaCard({
                 <Button
                   label="Kommentar hinzufügen"
                   icon="pi pi-plus"
-                  className="p-button-outlined p-button-warning p-button-sm font-bold"
+                  className="comic-button-secondary p-button-sm font-bold"
                   onClick={() => setShowCommentForm(true)}
                 />
               ) : (
-                <div className="bg-black-alpha-50 p-3 border-round border-1 border-gray-700 flex flex-column gap-2">
+                <div className="flex flex-column gap-2 mt-2">
                   <InputTextarea
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Schreibe einen Kommentar..."
                     rows={2}
                     autoResize
-                    className="bg-gray-800 text-white text-sm p-2 border-gray-600 w-full"
+                    className="comic-input text-white text-sm p-2 w-full"
                   />
 
                   {/* Anhänge Vorschau */}
@@ -863,7 +863,7 @@ const AgendaCard = memo(function AgendaCard({
                       />
                       <label
                         htmlFor={`comment-file-upload-${index}`}
-                        className="p-button p-button-text p-button-warning p-button-sm cursor-pointer flex align-items-center gap-1 text-xs"
+                        className="p-button comic-button-secondary p-button-sm cursor-pointer flex align-items-center gap-1 text-xs font-bold py-2 px-3"
                       >
                         <i className="pi pi-paperclip" />
                         <span>Bild / PDF anhängen (max. 10 MB)</span>
@@ -873,7 +873,7 @@ const AgendaCard = memo(function AgendaCard({
                     <div className="flex gap-2">
                       <Button
                         label="Abbrechen"
-                        className="p-button-text p-button-secondary p-button-sm"
+                        className="comic-button-secondary p-button-sm"
                         onClick={() => {
                           setShowCommentForm(false);
                           setCommentText('');
@@ -884,7 +884,7 @@ const AgendaCard = memo(function AgendaCard({
                       <Button
                         label="Kommentieren"
                         icon="pi pi-send"
-                        className="p-button-warning p-button-sm font-bold"
+                        className="p-button-warning comic-button p-button-sm font-bold"
                         disabled={!commentText.trim() && commentAttachments.length === 0}
                         onClick={submitComment}
                       />
