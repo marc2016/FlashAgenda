@@ -734,6 +734,25 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.poll !== undefined && JSON.stringify(req.body.poll) !== JSON.stringify(item.poll)) {
       logAudit(agenda, 'Abstimmung', userName, `Abstimmung für "${item.title}" aktualisiert.`);
     }
+    if (req.body?.transferredTo !== undefined) {
+      const oldTransfer = item.transferredTo;
+      const newTransfer = req.body.transferredTo;
+      if (newTransfer === null) {
+        logAudit(agenda, 'Übertragung abgebrochen', userName, `Übertragung für "${item.title}" wurde zurückgezogen.`);
+        item.transferredTo = undefined;
+      } else {
+        if (!oldTransfer || oldTransfer.status !== newTransfer.status) {
+          if (newTransfer.status === 'pending') {
+            logAudit(agenda, 'Agendapunkt übertragen', userName, `Agendapunkt "${item.title}" an ${newTransfer.toUserName} übertragen.`);
+          } else if (newTransfer.status === 'accepted') {
+            logAudit(agenda, 'Übertragung angenommen', userName, `Übernahme von Agendapunkt "${item.title}" bestätigt.`);
+          } else if (newTransfer.status === 'rejected') {
+            logAudit(agenda, 'Übertragung abgelehnt', userName, `Übernahme von Agendapunkt "${item.title}" abgelehnt.`);
+          }
+        }
+        item.transferredTo = newTransfer;
+      }
+    }
 
     if (req.body?.title !== undefined) item.title = req.body.title;
     if (req.body?.description !== undefined) item.description = req.body.description;

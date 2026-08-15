@@ -184,8 +184,12 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
       const saveBtn = page.locator('button:has-text("Speichern")');
       await saveBtn.click();
 
-      // Verify item title is visible on timeline
+      // Verify item title is visible on timeline immediately
       await expect(page.locator('text=Fotogalerie Präsentation')).toBeVisible();
+
+      // Verify existing agenda title and attendees did not disappear
+      await expect(page.locator('text=Strategy Meeting 2026').first()).toBeVisible();
+      await expect(page.locator('text=Alice').first()).toBeVisible();
     }
   });
 });

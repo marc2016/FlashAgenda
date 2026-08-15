@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import AgendaHeader from '../components/AgendaHeader';
@@ -6,6 +6,7 @@ import AgendaAttendees from '../components/AgendaAttendees';
 import AgendaTimeline from '../components/AgendaTimeline';
 import UserIdentificationModal from '../components/UserIdentificationModal';
 import AuditLogModal from '../components/AuditLogModal';
+import { PendingTransfersModal } from '../components/PendingTransfersModal';
 import { notifyNewItem } from '../services/notificationService';
 import {
   getCachedAgenda,
@@ -30,6 +31,8 @@ export default function AgendaDetail() {
   });
   const [showUserModal, setShowUserModal] = useState<boolean | undefined>(undefined);
   const [showAuditModal, setShowAuditModal] = useState(false);
+  const [showTransfersModal, setShowTransfersModal] = useState(false);
+  const prevPendingCountRef = useRef<number>(0);
   
   // Offline state tracking
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -40,6 +43,11 @@ export default function AgendaDetail() {
   useEffect(() => {
     agendaRef.current = agenda;
   }, [agenda]);
+
+  const currentUserRef = useRef<any>(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
 
   const fetchAgenda = useCallback(async () => {
     if (!id || (typeof document !== 'undefined' && document.hidden)) return;
@@ -55,7 +63,8 @@ export default function AgendaDetail() {
             newItems.forEach((newItem: any) => {
               const authorId = newItem.createdBy;
               const authorName = newItem.author;
-              const isSelf = currentUser && (authorId === currentUser.id || authorId === currentUser._id || authorName === currentUser.name);
+              const cu = currentUserRef.current;
+              const isSelf = cu && (authorId === cu.id || authorId === cu._id || authorName === cu.name);
               if (!isSelf) {
                 notifyNewItem(newItem.title, authorName);
               }
@@ -85,11 +94,11 @@ export default function AgendaDetail() {
               if (!localItem) return serverItem;
 
               const serverHasImages =
-                (serverItem.imageUrl && serverItem.imageUrl !== '') ||
-                (serverItem.imageUrls && serverItem.imageUrls.length > 0);
+                (serverItem.imageUrl && serverItem.imageUrl !== '' && serverItem.imageUrl !== '[base64]') ||
+                (serverItem.imageUrls && serverItem.imageUrls.length > 0 && !serverItem.imageUrls[0]?.startsWith('['));
               const localHasImages =
-                (localItem.imageUrl && localItem.imageUrl !== '') ||
-                (localItem.imageUrls && localItem.imageUrls.length > 0);
+                (localItem.imageUrl && localItem.imageUrl !== '' && localItem.imageUrl !== '[base64]') ||
+                (localItem.imageUrls && localItem.imageUrls.length > 0 && !localItem.imageUrls[0]?.startsWith('['));
 
               if (localHasImages && !serverHasImages) {
                 // Server lost/hasn't persisted the images yet — keep local copies
@@ -103,7 +112,7 @@ export default function AgendaDetail() {
             });
           }
 
-          setAgenda(data);
+          setAgenda((prev: any) => ({ ...(prev || {}), ...data }));
           setCachedAgenda(id, data);
           return;
         }
@@ -112,7 +121,7 @@ export default function AgendaDetail() {
       const cached = getCachedAgenda(id);
       if (cached) {
         setAgenda(cached);
-      } else {
+      } else if (!agendaRef.current) {
         setAgenda(null);
       }
     } catch (err) {
@@ -120,13 +129,13 @@ export default function AgendaDetail() {
       const cached = getCachedAgenda(id);
       if (cached) {
         setAgenda(cached);
-      } else {
+      } else if (!agendaRef.current) {
         setAgenda(null);
       }
     } finally {
       setLoading(false);
     }
-  }, [id, currentUser]);
+  }, [id]);
 
   useEffect(() => {
     fetchAgenda();
@@ -141,7 +150,8 @@ export default function AgendaDetail() {
       newItems.forEach((newItem: any) => {
         const authorId = newItem.createdBy;
         const authorName = newItem.author;
-        const isSelf = currentUser && (authorId === currentUser.id || authorId === currentUser._id || authorName === currentUser.name);
+        const cu = currentUserRef.current;
+        const isSelf = cu && (authorId === cu.id || authorId === cu._id || authorName === cu.name);
         if (!isSelf) {
           notifyNewItem(newItem.title, authorName);
         }
@@ -151,22 +161,35 @@ export default function AgendaDetail() {
       prevItemsRef.current = updatedData.items;
     }
 
-    // Detect if the broadcast payload has stripped image placeholders (e.g. '[base64]', '[2 images]').
-    // In that case the socket payload is incomplete — re-fetch the full agenda from the server
-    // so images don't get replaced with placeholders.
-    const hasStrippedImages = updatedData.items?.some((item: any) =>
-      item.imageUrl === '[base64]' || (Array.isArray(item.imageUrls) && item.imageUrls[0]?.startsWith('['))
-    );
+    setAgenda((prev: any) => {
+      const merged = { ...(prev || {}), ...updatedData };
+      if (prev?.items && updatedData?.items) {
+        merged.items = updatedData.items.map((serverItem: any) => {
+          const localItem = prev.items.find(
+            (li: any) => (li._id || li.id) === (serverItem._id || serverItem.id)
+          );
+          if (!localItem) return serverItem;
+          const serverHasImages =
+            (serverItem.imageUrl && serverItem.imageUrl !== '' && serverItem.imageUrl !== '[base64]') ||
+            (serverItem.imageUrls && serverItem.imageUrls.length > 0 && !serverItem.imageUrls[0]?.startsWith('['));
+          const localHasImages =
+            (localItem.imageUrl && localItem.imageUrl !== '' && localItem.imageUrl !== '[base64]') ||
+            (localItem.imageUrls && localItem.imageUrls.length > 0 && !localItem.imageUrls[0]?.startsWith('['));
+          if (localHasImages && !serverHasImages) {
+            return {
+              ...serverItem,
+              imageUrl: localItem.imageUrl,
+              imageUrls: localItem.imageUrls,
+            };
+          }
+          return serverItem;
+        });
+      }
+      return merged;
+    });
 
-    if (hasStrippedImages) {
-      // Re-fetch so the client gets the full data including images
-      fetchAgenda();
-      return;
-    }
-
-    setAgenda(updatedData);
     if (id) setCachedAgenda(id, updatedData);
-  }, [id, currentUser, fetchAgenda]);
+  }, [id]);
 
   const { isConnected, activeCount, activeUsers } = useAgendaSocket({
     agendaId: id,
@@ -326,9 +349,11 @@ export default function AgendaDetail() {
     }
 
     // Optimistic UI update — apply immediately so dialogs can close without waiting
-    const updatedLocal = { ...agenda, ...payload };
-    setAgenda(updatedLocal);
-    setCachedAgenda(id, updatedLocal);
+    setAgenda((prev: any) => {
+      const updated = { ...(prev || {}), ...payload };
+      setCachedAgenda(id, updated);
+      return updated;
+    });
 
     if (!navigator.onLine) {
       const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
@@ -345,8 +370,11 @@ export default function AgendaDetail() {
       .then(async (response) => {
         if (response.ok) {
           const data = await response.json();
-          setAgenda(data);
-          setCachedAgenda(id, data);
+          setAgenda((prev: any) => {
+            const merged = { ...(prev || {}), ...data };
+            setCachedAgenda(id, merged);
+            return merged;
+          });
         } else {
           console.warn(`[AgendaDetail] PUT /api/agendas/${id} failed: HTTP ${response.status}`, await response.text().catch(() => ''));
           const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
@@ -405,6 +433,156 @@ export default function AgendaDetail() {
 
   const handleUpdateItems = (newItems: any[]) => {
     handleUpdateAgenda({ items: newItems });
+  };
+
+  // Pending transfers for the currently active user
+  const pendingTransfers = useMemo(() => {
+    if (!agenda?.items || !currentUser) return [];
+    const currentName = currentUser.name?.trim().toLowerCase();
+    const currentId = currentUser.id || currentUser._id;
+
+    return agenda.items.filter((item: any) => {
+      if (!item.transferredTo || item.transferredTo.status !== 'pending') return false;
+      const toId = item.transferredTo.toUserId;
+      const toName = item.transferredTo.toUserName?.trim().toLowerCase();
+      return (toId && toId === currentId) || (toName && toName === currentName);
+    });
+  }, [agenda?.items, currentUser]);
+
+  // Automatically open modal when new pending transfers are received
+  useEffect(() => {
+    if (pendingTransfers.length > 0 && pendingTransfers.length > prevPendingCountRef.current) {
+      setShowTransfersModal(true);
+    }
+    prevPendingCountRef.current = pendingTransfers.length;
+  }, [pendingTransfers.length]);
+
+  const handleAcceptTransfer = async (itemToAccept: any) => {
+    if (!agenda) return;
+    const currentName = currentUser?.name || 'Teilnehmer';
+    const itemId = itemToAccept._id || itemToAccept.id || itemToAccept.title;
+
+    const updatedItems = (agenda.items || []).map((it: any) => {
+      const itId = it._id || it.id || it.title;
+      if (itId === itemId) {
+        return {
+          ...it,
+          transferredTo: {
+            ...it.transferredTo,
+            status: 'accepted',
+            transferredAt: it.transferredTo?.transferredAt || new Date().toISOString(),
+          },
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return it;
+    });
+
+    const auditLog = {
+      action: 'Übertragung angenommen',
+      user: currentName,
+      details: `Übernahme von Agendapunkt "${itemToAccept.title}" bestätigt.`,
+      timestamp: new Date(),
+    };
+
+    await handleUpdateAgenda({
+      items: updatedItems,
+      auditLogs: [...(agenda.auditLogs || []), auditLog],
+    });
+  };
+
+  const handleRejectTransfer = async (itemToReject: any) => {
+    if (!agenda) return;
+    const currentName = currentUser?.name || 'Teilnehmer';
+    const itemId = itemToReject._id || itemToReject.id || itemToReject.title;
+
+    const updatedItems = (agenda.items || []).map((it: any) => {
+      const itId = it._id || it.id || it.title;
+      if (itId === itemId) {
+        return {
+          ...it,
+          transferredTo: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return it;
+    });
+
+    const auditLog = {
+      action: 'Übertragung abgelehnt',
+      user: currentName,
+      details: `Übernahme von Agendapunkt "${itemToReject.title}" abgelehnt.`,
+      timestamp: new Date(),
+    };
+
+    await handleUpdateAgenda({
+      items: updatedItems,
+      auditLogs: [...(agenda.auditLogs || []), auditLog],
+    });
+  };
+
+  const handleBatchAcceptTransfers = async (itemsToAccept: any[]) => {
+    if (!agenda || itemsToAccept.length === 0) return;
+    const currentName = currentUser?.name || 'Teilnehmer';
+    const acceptIds = new Set(itemsToAccept.map((it) => it._id || it.id || it.title));
+
+    const updatedItems = (agenda.items || []).map((it: any) => {
+      const itId = it._id || it.id || it.title;
+      if (acceptIds.has(itId)) {
+        return {
+          ...it,
+          transferredTo: {
+            ...it.transferredTo,
+            status: 'accepted',
+            transferredAt: it.transferredTo?.transferredAt || new Date().toISOString(),
+          },
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return it;
+    });
+
+    const auditLog = {
+      action: 'Übertragungen angenommen',
+      user: currentName,
+      details: `${itemsToAccept.length} Agendapunkte übernommen: ${itemsToAccept.map((i) => `"${i.title}"`).join(', ')}`,
+      timestamp: new Date(),
+    };
+
+    await handleUpdateAgenda({
+      items: updatedItems,
+      auditLogs: [...(agenda.auditLogs || []), auditLog],
+    });
+  };
+
+  const handleBatchRejectTransfers = async (itemsToReject: any[]) => {
+    if (!agenda || itemsToReject.length === 0) return;
+    const currentName = currentUser?.name || 'Teilnehmer';
+    const rejectIds = new Set(itemsToReject.map((it) => it._id || it.id || it.title));
+
+    const updatedItems = (agenda.items || []).map((it: any) => {
+      const itId = it._id || it.id || it.title;
+      if (rejectIds.has(itId)) {
+        return {
+          ...it,
+          transferredTo: undefined,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return it;
+    });
+
+    const auditLog = {
+      action: 'Übertragungen abgelehnt',
+      user: currentName,
+      details: `${itemsToReject.length} übertragene Agendapunkte abgelehnt: ${itemsToReject.map((i) => `"${i.title}"`).join(', ')}`,
+      timestamp: new Date(),
+    };
+
+    await handleUpdateAgenda({
+      items: updatedItems,
+      auditLogs: [...(agenda.auditLogs || []), auditLog],
+    });
   };
 
   const renderFloatingBanderole = () => {
@@ -583,6 +761,34 @@ export default function AgendaDetail() {
           </div>
         )}
 
+        {pendingTransfers.length > 0 && !showTransfersModal && (
+          <div
+            className="mb-4 p-3 border-round-xl flex flex-column sm:flex-row align-items-center justify-content-between gap-3 bg-gray-900 border-1 border-yellow-500 shadow-4"
+            style={{ border: '2px solid #eab308', boxShadow: '3px 3px 0px #000000' }}
+          >
+            <div className="flex align-items-center gap-3">
+              <span className="p-2 border-circle bg-yellow-500 text-black flex align-items-center justify-content-center flex-shrink-0">
+                <i className="pi pi-send text-lg font-bold" />
+              </span>
+              <div>
+                <span className="font-bold text-white text-base block">
+                  Du hast {pendingTransfers.length} {pendingTransfers.length === 1 ? 'offenen übertragenen Agendapunkt' : 'offene übertragene Agendapunkte'}!
+                </span>
+                <span className="text-xs text-gray-300">
+                  Möchtest du diese Punkte annehmen oder ablehnen?
+                </span>
+              </div>
+            </div>
+            <Button
+              label="Jetzt prüfen"
+              icon="pi pi-check-circle"
+              className="p-button-warning comic-button font-bold text-xs sm:text-sm py-2 px-3 flex-shrink-0"
+              onClick={() => setShowTransfersModal(true)}
+              data-testid="open-pending-transfers-btn"
+            />
+          </div>
+        )}
+
         <AgendaHeader 
           agenda={agenda} 
           onUpdate={handleUpdateAgenda}
@@ -656,6 +862,17 @@ export default function AgendaDetail() {
         agendaId={agenda._id}
         visible={showAuditModal}
         onHide={() => setShowAuditModal(false)}
+      />
+
+      <PendingTransfersModal
+        visible={showTransfersModal}
+        onHide={() => setShowTransfersModal(false)}
+        items={pendingTransfers}
+        attendees={agenda.attendees || []}
+        onAccept={handleAcceptTransfer}
+        onReject={handleRejectTransfer}
+        onBatchAccept={handleBatchAcceptTransfers}
+        onBatchReject={handleBatchRejectTransfers}
       />
     </div>
   );

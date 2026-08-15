@@ -54,12 +54,22 @@ export interface IComment {
   createdAt: string | Date;
 }
 
+export interface IItemTransfer {
+  toUserId?: string;
+  toUserName: string;
+  fromUserId?: string;
+  fromUserName?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  transferredAt?: string | Date;
+}
+
 export interface IAgendaItem {
   _id?: string;
   title: string;
   description?: string;
   createdBy?: string; // Attendee ID
   author?: string; // Attendee Name
+  transferredTo?: IItemTransfer;
   imageUrl?: string;
   imageUrls?: string[];
   completed?: boolean;
@@ -157,11 +167,21 @@ const CommentSchema = new Schema<IComment>({
   createdAt: { type: Date, default: Date.now }
 });
 
+const ItemTransferSchema = new Schema<IItemTransfer>({
+  toUserId: { type: String },
+  toUserName: { type: String, required: true },
+  fromUserId: { type: String },
+  fromUserName: { type: String },
+  status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+  transferredAt: { type: Date, default: Date.now }
+}, { _id: false });
+
 const AgendaItemSchema = new Schema<IAgendaItem>({
   title: { type: String, required: true },
   description: { type: String },
   createdBy: { type: String },
   author: { type: String },
+  transferredTo: { type: ItemTransferSchema },
   imageUrl: { type: String },
   imageUrls: { type: [String], default: [] },
   completed: { type: Boolean, default: false },

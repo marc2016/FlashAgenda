@@ -60,6 +60,7 @@ const READONLY_PLUGINS = [
 
 import { Checkbox } from 'primereact/checkbox';
 import { PollVoteModal, type IPoll } from './PollVoteModal';
+import { TransferItemModal } from './TransferItemModal';
 
 export interface IAttachment {
   name: string;
@@ -83,12 +84,23 @@ export interface IComment {
   createdAt: string | Date;
 }
 
+export interface IItemTransfer {
+  toUserId?: string;
+  toUserName: string;
+  fromUserId?: string;
+  fromUserName?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  transferredAt?: string | Date;
+}
+
 export interface AgendaItem {
   _id?: string;
+  id?: string;
   title: string;
   description?: string;
   author?: string;
   createdBy?: string;
+  transferredTo?: IItemTransfer;
   imageUrl?: string;
   imageUrls?: string[];
   completed?: boolean;
@@ -153,6 +165,8 @@ interface AgendaCardProps {
   onEdit: (index: number) => void;
   onPreviewImage: (url: string) => void;
   onOpenVoteModal: (index: number) => void;
+  onOpenTransferModal?: (index: number) => void;
+  onCancelTransfer?: (index: number) => void;
   onAddComment: (index: number, text: string, attachments: IAttachment[]) => Promise<void>;
   onDeleteComment: (index: number, commentId: string) => Promise<void>;
   onToggleCommentReaction: (index: number, commentId: string, emoji: string) => Promise<void>;
@@ -172,6 +186,8 @@ const AgendaCard = memo(function AgendaCard({
   onEdit,
   onPreviewImage,
   onOpenVoteModal,
+  onOpenTransferModal,
+  onCancelTransfer,
   onAddComment,
   onDeleteComment,
   onToggleCommentReaction,
@@ -205,13 +221,22 @@ const AgendaCard = memo(function AgendaCard({
 
   const isItemCreator = useMemo(() => {
     if (isCreator) return true;
-    if (!item.createdBy) return true;
     if (!currentUserId) return false;
+    // If transferred and accepted, recipient is the active owner
+    if (item.transferredTo && item.transferredTo.status === 'accepted') {
+      const recId = item.transferredTo.toUserId;
+      const recName = item.transferredTo.toUserName?.trim().toLowerCase();
+      if (recId && recId === currentUserId) return true;
+      if (currentUser?.name && recName === currentUser.name.trim().toLowerCase()) return true;
+      return false;
+    }
+    // Otherwise original creator
+    if (!item.createdBy) return true;
     return (
       item.createdBy === currentUserId ||
       (currentUser?.name && item.author?.trim().toLowerCase() === currentUser.name.trim().toLowerCase())
     );
-  }, [currentUserId, currentUser, isCreator, item.createdBy, item.author]);
+  }, [currentUserId, currentUser, isCreator, item.createdBy, item.author, item.transferredTo]);
 
   const authorName = useMemo(() => {
     if (item.createdBy) {
@@ -239,6 +264,21 @@ const AgendaCard = memo(function AgendaCard({
     const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
     return { attendee, chipColor };
   }, [item.createdBy, authorName, attendees]);
+
+  const recipientAttendeeData = useMemo(() => {
+    if (!item.transferredTo) return null;
+    const recipientName = item.transferredTo.toUserName;
+    const recipientId = item.transferredTo.toUserId;
+    const personColors = ['#0a4b7c', '#8b0000', '#006400', '#4b0082', '#b8860b', '#008b8b', '#8b008b', '#2f4f4f'];
+    const personIndex = attendees.findIndex(
+      (a: any) =>
+        (recipientId && (a.id === recipientId || a._id === recipientId)) ||
+        (a.name && a.name.trim().toLowerCase() === recipientName.trim().toLowerCase())
+    );
+    const attendee = personIndex !== -1 ? attendees[personIndex] : null;
+    const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#4b5563');
+    return { name: recipientName, attendee, chipColor, status: item.transferredTo.status };
+  }, [item.transferredTo, attendees]);
 
   const getCommentAuthorData = useCallback(
     (comment: IComment) => {
@@ -375,31 +415,87 @@ const AgendaCard = memo(function AgendaCard({
                 {updatedAtLabel}
               </span>
             )}
-            <span
-              className="inline-flex align-items-center font-bold text-white text-xs"
-              title={`Erstellt von ${authorName}`}
-              style={{
-                background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${authorAttendeeData.chipColor}`,
-                border: '2px solid #000000',
-                boxShadow: '2px 2px 0px #000000',
-                borderRadius: '8px',
-                lineHeight: 1.2,
-                gap: '0.5rem',
-                padding: '0.35rem 0.85rem',
-              }}
-            >
-              {authorAttendeeData.attendee?.avatarUrl ? (
-                <img
-                  src={authorAttendeeData.attendee.avatarUrl}
-                  alt={authorName}
-                  className="border-circle object-cover flex-shrink-0"
-                  style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
-                />
-              ) : (
-                <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
+            {/* Author Chip & Optional Transferred Chip */}
+            <div className="inline-flex align-items-center flex-wrap gap-1">
+              <span
+                className="inline-flex align-items-center font-bold text-white text-xs"
+                title={`Erstellt von ${authorName}`}
+                style={{
+                  background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${authorAttendeeData.chipColor}`,
+                  border: '2px solid #000000',
+                  boxShadow: '2px 2px 0px #000000',
+                  borderRadius: '8px',
+                  lineHeight: 1.2,
+                  gap: '0.5rem',
+                  padding: '0.35rem 0.85rem',
+                }}
+              >
+                {authorAttendeeData.attendee?.avatarUrl ? (
+                  <img
+                    src={authorAttendeeData.attendee.avatarUrl}
+                    alt={authorName}
+                    className="border-circle object-cover flex-shrink-0"
+                    style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
+                  />
+                ) : (
+                  <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
+                )}
+                <span>{authorName}</span>
+              </span>
+
+              {recipientAttendeeData && (
+                <>
+                  <i className="pi pi-arrow-right text-yellow-400 font-bold text-xs mx-1" title="Übertragen an" />
+                  <span
+                    className="inline-flex align-items-center font-bold text-white text-xs"
+                    title={
+                      recipientAttendeeData.status === 'pending'
+                        ? `Übertragung an ${recipientAttendeeData.name} (ausstehend)`
+                        : recipientAttendeeData.status === 'rejected'
+                        ? `Übertragung an ${recipientAttendeeData.name} (abgelehnt)`
+                        : `Übertragen an ${recipientAttendeeData.name}`
+                    }
+                    style={{
+                      background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${recipientAttendeeData.chipColor}`,
+                      border: recipientAttendeeData.status === 'pending' ? '2px dashed #eab308' : '2px solid #000000',
+                      boxShadow: '2px 2px 0px #000000',
+                      borderRadius: '8px',
+                      lineHeight: 1.2,
+                      gap: '0.4rem',
+                      padding: '0.35rem 0.85rem',
+                    }}
+                  >
+                    {recipientAttendeeData.attendee?.avatarUrl ? (
+                      <img
+                        src={recipientAttendeeData.attendee.avatarUrl}
+                        alt={recipientAttendeeData.name}
+                        className="border-circle object-cover flex-shrink-0"
+                        style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
+                      />
+                    ) : (
+                      <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
+                    )}
+                    <span>{recipientAttendeeData.name}</span>
+                    {recipientAttendeeData.status === 'pending' && (
+                      <span className="text-yellow-300 text-2xs font-normal italic ml-1">
+                        (ausstehend)
+                      </span>
+                    )}
+                  </span>
+                  {recipientAttendeeData.status === 'pending' && isItemCreator && onCancelTransfer && (
+                    <Button
+                      icon="pi pi-times"
+                      rounded
+                      text
+                      className="p-button-xs text-yellow-400 hover:text-red-400 p-0 ml-1"
+                      title="Übertragung abbrechen"
+                      onClick={() => onCancelTransfer(index)}
+                      style={{ width: '1.4rem', height: '1.4rem' }}
+                    />
+                  )}
+                </>
               )}
-              <span>{authorName}</span>
-            </span>
+            </div>
           </div>
           <div className={`text-xl font-bold mb-1 word-break-break-word ${isCompleted ? 'line-through text-gray-400' : ''}`}>
             {item.title}
@@ -453,6 +549,18 @@ const AgendaCard = memo(function AgendaCard({
             className={isCompleted ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}
             title={isCompleted ? 'Als noch nicht besprochen markieren' : 'Als besprochen markieren'}
             onClick={() => onToggleCompleted(index)}
+          />
+          <Button
+            icon="pi pi-share-alt"
+            rounded
+            text
+            disabled={!isItemCreator}
+            className={isItemCreator ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-600 opacity-40 cursor-not-allowed'}
+            title={isItemCreator ? 'Agendapunkt an Teilnehmer übertragen' : 'Nur der Ersteller kann diesen Agendapunkt übertragen'}
+            onClick={() => {
+              if (isItemCreator && onOpenTransferModal) onOpenTransferModal(index);
+            }}
+            data-testid={`transfer-item-${index}`}
           />
           <Button
             icon="pi pi-pencil"
@@ -948,6 +1056,84 @@ export default function AgendaTimeline({
   const [voteModalVisible, setVoteModalVisible] = useState(false);
   const [activeVoteIndex, setActiveVoteIndex] = useState<number | null>(null);
 
+  // Transfer state
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [activeTransferIndex, setActiveTransferIndex] = useState<number | null>(null);
+
+  const openTransferModal = useCallback((index: number) => {
+    setActiveTransferIndex(index);
+    setTransferModalVisible(true);
+  }, []);
+
+  const handleTransferItem = useCallback(
+    async (targetAttendee: any) => {
+      if (activeTransferIndex === null) return;
+      const targetId = targetAttendee.id || targetAttendee._id;
+      const targetName = targetAttendee.name;
+      const senderId = currentUser?.id || currentUser?._id;
+      const senderName = currentUser?.name || 'Ersteller';
+
+      const updatedItems = [...itemsRef.current];
+      const targetItem = { ...updatedItems[activeTransferIndex] };
+      targetItem.transferredTo = {
+        toUserId: targetId,
+        toUserName: targetName,
+        fromUserId: senderId,
+        fromUserName: senderName,
+        status: 'pending',
+        transferredAt: new Date().toISOString(),
+      };
+      targetItem.updatedAt = new Date().toISOString();
+      updatedItems[activeTransferIndex] = targetItem;
+
+      const auditLog = {
+        action: 'Agendapunkt übertragen',
+        user: senderName,
+        details: `Agendapunkt "${targetItem.title}" an ${targetName} übertragen.`,
+        timestamp: new Date(),
+      };
+
+      if (onUpdateAgenda) {
+        await onUpdateAgenda({
+          items: updatedItems,
+          auditLogs: [...(agenda?.auditLogs || []), auditLog],
+        });
+      } else {
+        await onUpdate(updatedItems);
+      }
+    },
+    [activeTransferIndex, currentUser, agenda?.auditLogs, onUpdate, onUpdateAgenda]
+  );
+
+  const handleCancelTransfer = useCallback(
+    async (index: number) => {
+      const senderName = currentUser?.name || 'Ersteller';
+      const updatedItems = [...itemsRef.current];
+      const targetItem = { ...updatedItems[index] };
+      const previousTarget = targetItem.transferredTo?.toUserName;
+      targetItem.transferredTo = undefined;
+      targetItem.updatedAt = new Date().toISOString();
+      updatedItems[index] = targetItem;
+
+      const auditLog = {
+        action: 'Übertragung abgebrochen',
+        user: senderName,
+        details: `Übertragung von "${targetItem.title}"${previousTarget ? ` an ${previousTarget}` : ''} abgebrochen.`,
+        timestamp: new Date(),
+      };
+
+      if (onUpdateAgenda) {
+        await onUpdateAgenda({
+          items: updatedItems,
+          auditLogs: [...(agenda?.auditLogs || []), auditLog],
+        });
+      } else {
+        await onUpdate(updatedItems);
+      }
+    },
+    [currentUser, agenda?.auditLogs, onUpdate, onUpdateAgenda]
+  );
+
   const openVoteModal = useCallback((index: number) => {
     setActiveVoteIndex(index);
     setVoteModalVisible(true);
@@ -1282,6 +1468,7 @@ export default function AgendaTimeline({
         const authorName = currentUser?.name || 'Unbekannt';
         const createdById = currentUser?.id || currentUser?._id || authorName;
         updatedItems.push({
+          id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
           title,
           description,
           imageUrl: mainImageUrl,
@@ -1473,7 +1660,7 @@ export default function AgendaTimeline({
   const customizedContent = useCallback(
     (item: AgendaItem, index: number) => (
       <AgendaCard
-        key={item._id ?? index}
+        key={item._id || item.id || `item_${index}`}
         item={item}
         index={index}
         currentUserId={currentUserId}
@@ -1487,6 +1674,8 @@ export default function AgendaTimeline({
         onEdit={openEdit}
         onPreviewImage={setSelectedPreviewImage}
         onOpenVoteModal={openVoteModal}
+        onOpenTransferModal={openTransferModal}
+        onCancelTransfer={handleCancelTransfer}
         onAddComment={handleAddComment}
         onDeleteComment={handleDeleteComment}
         onToggleCommentReaction={handleToggleCommentReaction}
@@ -1503,6 +1692,8 @@ export default function AgendaTimeline({
       deleteItem,
       openEdit,
       openVoteModal,
+      openTransferModal,
+      handleCancelTransfer,
       handleAddComment,
       handleDeleteComment,
       handleToggleCommentReaction,
@@ -1919,6 +2110,22 @@ export default function AgendaTimeline({
           poll={items[activeVoteIndex].poll}
           currentUserId={currentUserId || currentUser?.name || 'Unbekannt'}
           onVote={handleVoteOnItem}
+        />
+      )}
+
+      {/* Transfer Item Modal */}
+      {activeTransferIndex !== null && items[activeTransferIndex] && (
+        <TransferItemModal
+          visible={transferModalVisible}
+          onHide={() => {
+            setTransferModalVisible(false);
+            setActiveTransferIndex(null);
+          }}
+          itemTitle={items[activeTransferIndex].title}
+          attendees={attendees}
+          currentUserId={currentUserId}
+          currentUserName={currentUser?.name}
+          onTransfer={handleTransferItem}
         />
       )}
     </div>

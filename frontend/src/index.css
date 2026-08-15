@@ -159,6 +159,50 @@ body {
   box-shadow: 2px 2px 0px #000 !important;
 }
 
+.comic-button-success {
+  box-shadow: 3px 3px 0px #000 !important;
+  border: 2px solid #000 !important;
+  border-radius: 8px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: bold !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+  background-color: #16a34a !important; /* green-600 */
+  color: #ffffff !important;
+}
+
+.comic-button-success:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 5px 5px 0px #000 !important;
+  background-color: #22c55e !important; /* green-500 */
+}
+
+.comic-button-success:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 1px 1px 0px #000 !important;
+}
+
+.comic-button-danger {
+  box-shadow: 3px 3px 0px #000 !important;
+  border: 2px solid #000 !important;
+  border-radius: 8px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: bold !important;
+  transition: transform 0.1s, box-shadow 0.1s !important;
+  background-color: #dc2626 !important; /* red-600 */
+  color: #ffffff !important;
+}
+
+.comic-button-danger:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 5px 5px 0px #000 !important;
+  background-color: #ef4444 !important; /* red-500 */
+}
+
+.comic-button-danger:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 1px 1px 0px #000 !important;
+}
+
 .comic-button:disabled,
 .comic-button.p-disabled,
 .comic-button-secondary:disabled,

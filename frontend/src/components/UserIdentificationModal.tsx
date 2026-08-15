@@ -97,7 +97,12 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
                (a._id && parsed.id && a._id === parsed.id) ||
                (a.name && parsed.name && a.name.trim().toLowerCase() === parsed.name.trim().toLowerCase())
         );
-        onIdentified(match || parsed);
+        const identified = match || parsed;
+        const currentId = currentUser?.id || currentUser?._id;
+        const newId = identified?.id || identified?._id;
+        if (!currentUser || (newId && newId !== currentId) || (!newId && currentUser.name !== identified.name)) {
+          onIdentified(identified);
+        }
         setVisible(false);
         return;
       } catch (err) {
@@ -106,7 +111,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
     } else {
       setVisible(true);
     }
-  }, [agendaId, attendees, onIdentified, isOpen]);
+  }, [agendaId, attendees, onIdentified, isOpen, currentUser]);
 
   const handleClose = () => {
     setVisible(false);

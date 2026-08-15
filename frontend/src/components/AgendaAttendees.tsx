@@ -155,6 +155,28 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
     const counts = new Map<string, number>();
     for (const item of items) {
       if (!item) continue;
+
+      // If transferred and accepted, attribute count exclusively to recipient
+      if (item.transferredTo && item.transferredTo.status === 'accepted') {
+        const toUserId = item.transferredTo.toUserId?.toLowerCase();
+        const toUserName = item.transferredTo.toUserName?.trim().toLowerCase();
+
+        for (const att of attendees) {
+          const attKey = att._id || att.id || att.name;
+          const attId = (att._id || att.id)?.toLowerCase();
+          const attName = att.name?.trim().toLowerCase();
+
+          if (
+            (attId && toUserId && attId === toUserId) ||
+            (attName && toUserName && attName === toUserName)
+          ) {
+            counts.set(attKey, (counts.get(attKey) || 0) + 1);
+          }
+        }
+        continue;
+      }
+
+      // Otherwise attribute to original creator
       const createdBy = item.createdBy?.trim().toLowerCase();
       const author = item.author?.trim().toLowerCase();
       
