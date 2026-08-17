@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { Checkbox } from 'primereact/checkbox';
+import { PersonChip, getAttendeeColor } from './PersonChip';
 
 export interface IItemTransfer {
   toUserId?: string;
@@ -155,15 +156,8 @@ export const PendingTransfersModal: React.FC<PendingTransfersModalProps> = ({
   const getSenderData = (item: PendingItem) => {
     const senderName = item.transferredTo?.fromUserName || item.author || item.createdBy || 'Jemand';
     const senderId = item.transferredTo?.fromUserId || item.createdBy;
-    const personColors = ['#0a4b7c', '#8b0000', '#006400', '#4b0082', '#b8860b', '#008b8b', '#8b008b', '#2f4f4f'];
-    const personIndex = attendees.findIndex(
-      (a: any) =>
-        (senderId && (a.id === senderId || a._id === senderId)) ||
-        (a.name && a.name.trim().toLowerCase() === senderName.trim().toLowerCase())
-    );
-    const attendee = personIndex !== -1 ? attendees[personIndex] : null;
-    const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#4b5563');
-    return { senderName, attendee, chipColor };
+    const { attendee, color } = getAttendeeColor(attendees, senderId || senderName);
+    return { senderName, attendee, chipColor: color };
   };
 
   if (!renderItems || renderItems.length === 0) return null;
@@ -285,27 +279,12 @@ export const PendingTransfersModal: React.FC<PendingTransfersModalProps> = ({
 
                     <div className="flex align-items-center gap-2 mt-1">
                       <span className="text-xs text-gray-400">von:</span>
-                      <span
-                        className="inline-flex align-items-center font-bold text-white text-xs px-2 py-1"
-                        style={{
-                          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${chipColor}`,
-                          border: '1px solid #000000',
-                          borderRadius: '6px',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        {attendee?.avatarUrl ? (
-                          <img
-                            src={attendee.avatarUrl}
-                            alt={senderName}
-                            className="border-circle object-cover flex-shrink-0"
-                            style={{ width: '1rem', height: '1rem' }}
-                          />
-                        ) : (
-                          <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.65rem' }} />
-                        )}
-                        <span>{senderName}</span>
-                      </span>
+                      <PersonChip
+                        name={senderName}
+                        avatarUrl={attendee?.avatarUrl}
+                        color={chipColor}
+                        size="xs"
+                      />
                     </div>
                   </div>
                 </div>

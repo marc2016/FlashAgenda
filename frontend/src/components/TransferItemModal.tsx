@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
+import { PersonChip, getAttendeeColor } from './PersonChip';
 
 interface TransferItemModalProps {
   visible: boolean;
@@ -109,8 +110,7 @@ export const TransferItemModal: React.FC<TransferItemModalProps> = ({
             {filteredAttendees.map((att, idx) => {
               const attId = att.id || att._id || att.name;
               const isSelected = selectedAttendee && (selectedAttendee.id === att.id || selectedAttendee._id === att._id || selectedAttendee.name === att.name);
-              const personColors = ['#0a4b7c', '#8b0000', '#006400', '#4b0082', '#b8860b', '#008b8b', '#8b008b', '#2f4f4f'];
-              const chipColor = att.cardColor || personColors[idx % personColors.length];
+              const { attendee, color } = getAttendeeColor(attendees, att.id || att._id || att.name, idx);
 
               return (
                 <div
@@ -128,26 +128,12 @@ export const TransferItemModal: React.FC<TransferItemModalProps> = ({
                   data-testid={`transfer-target-${att.name}`}
                 >
                   <div className="flex align-items-center gap-2">
-                    <span
-                      className="inline-flex align-items-center justify-content-center border-circle"
-                      style={{
-                        width: '2rem',
-                        height: '2rem',
-                        background: chipColor,
-                        border: '1px solid #000',
-                      }}
-                    >
-                      {att.avatarUrl ? (
-                        <img
-                          src={att.avatarUrl}
-                          alt={att.name}
-                          className="border-circle object-cover w-full h-full"
-                        />
-                      ) : (
-                        <i className="pi pi-user text-white text-xs" />
-                      )}
-                    </span>
-                    <span className="font-bold text-sm">{att.name}</span>
+                    <PersonChip
+                      name={att.name}
+                      avatarUrl={attendee?.avatarUrl || att.avatarUrl}
+                      color={color}
+                      size="sm"
+                    />
                   </div>
 
                   {isSelected && (

@@ -61,6 +61,7 @@ const READONLY_PLUGINS = [
 import { Checkbox } from 'primereact/checkbox';
 import { PollVoteModal, type IPoll } from './PollVoteModal';
 import { TransferItemModal } from './TransferItemModal';
+import { PersonChip, getAttendeeColor } from './PersonChip';
 
 export interface IAttachment {
   name: string;
@@ -254,45 +255,22 @@ const AgendaCard = memo(function AgendaCard({
   }, [item.createdBy, item.author, attendees]);
 
   const authorAttendeeData = useMemo(() => {
-    const personColors = ['#007ad9', '#ed5565', '#26a69a', '#ab47bc', '#d4e157', '#ff7043', '#ec407a', '#78909c'];
-    const personIndex = attendees.findIndex(
-      (a: any) =>
-        (a.id && a.id === item.createdBy) ||
-        (a._id && a._id === item.createdBy) ||
-        (a.name && a.name.trim().toLowerCase() === authorName.trim().toLowerCase())
-    );
-    const attendee = personIndex !== -1 ? attendees[personIndex] : null;
-    const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
-    return { attendee, chipColor };
+    const { attendee, color } = getAttendeeColor(attendees, item.createdBy || authorName);
+    return { attendee, chipColor: color };
   }, [item.createdBy, authorName, attendees]);
 
   const recipientAttendeeData = useMemo(() => {
     if (!item.transferredTo) return null;
     const recipientName = item.transferredTo.toUserName;
     const recipientId = item.transferredTo.toUserId;
-    const personColors = ['#0a4b7c', '#8b0000', '#006400', '#4b0082', '#b8860b', '#008b8b', '#8b008b', '#2f4f4f'];
-    const personIndex = attendees.findIndex(
-      (a: any) =>
-        (recipientId && (a.id === recipientId || a._id === recipientId)) ||
-        (a.name && a.name.trim().toLowerCase() === recipientName.trim().toLowerCase())
-    );
-    const attendee = personIndex !== -1 ? attendees[personIndex] : null;
-    const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#4b5563');
-    return { name: recipientName, attendee, chipColor, status: item.transferredTo.status };
+    const { attendee, color } = getAttendeeColor(attendees, recipientId || recipientName);
+    return { name: recipientName, attendee, chipColor: color, status: item.transferredTo.status };
   }, [item.transferredTo, attendees]);
 
   const getCommentAuthorData = useCallback(
     (comment: IComment) => {
-      const personColors = ['#007ad9', '#ed5565', '#26a69a', '#ab47bc', '#d4e157', '#ff7043', '#ec407a', '#78909c'];
-      const personIndex = attendees.findIndex(
-        (a: any) =>
-          (a.id && a.id === comment.createdBy) ||
-          (a._id && a._id === comment.createdBy) ||
-          (a.name && a.name.trim().toLowerCase() === comment.author.trim().toLowerCase())
-      );
-      const attendee = personIndex !== -1 ? attendees[personIndex] : null;
-      const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
-      return { attendee, chipColor };
+      const { attendee, color } = getAttendeeColor(attendees, comment.createdBy || comment.author);
+      return { attendee, chipColor: color };
     },
     [attendees]
   );
@@ -418,37 +396,22 @@ const AgendaCard = memo(function AgendaCard({
             )}
             {/* Author Chip & Optional Transferred Chip */}
             <div className="inline-flex align-items-center flex-wrap gap-1">
-              <span
-                className="inline-flex align-items-center font-bold text-white text-xs"
+              <PersonChip
+                name={authorName}
+                avatarUrl={authorAttendeeData.attendee?.avatarUrl}
+                color={authorAttendeeData.chipColor}
                 title={`Erstellt von ${authorName}`}
-                style={{
-                  background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${authorAttendeeData.chipColor}`,
-                  border: '2px solid #000000',
-                  boxShadow: '2px 2px 0px #000000',
-                  borderRadius: '8px',
-                  lineHeight: 1.2,
-                  gap: '0.5rem',
-                  padding: '0.35rem 0.85rem',
-                }}
-              >
-                {authorAttendeeData.attendee?.avatarUrl ? (
-                  <img
-                    src={authorAttendeeData.attendee.avatarUrl}
-                    alt={authorName}
-                    className="border-circle object-cover flex-shrink-0"
-                    style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
-                  />
-                ) : (
-                  <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
-                )}
-                <span>{authorName}</span>
-              </span>
+                size="sm"
+              />
 
               {recipientAttendeeData && (
                 <>
                   <i className="pi pi-arrow-right text-yellow-400 font-bold text-xs mx-1" title="Übertragen an" />
-                  <span
-                    className="inline-flex align-items-center font-bold text-white text-xs"
+                  <PersonChip
+                    name={recipientAttendeeData.name}
+                    avatarUrl={recipientAttendeeData.attendee?.avatarUrl}
+                    color={recipientAttendeeData.chipColor}
+                    status={recipientAttendeeData.status}
                     title={
                       recipientAttendeeData.status === 'pending'
                         ? `Übertragung an ${recipientAttendeeData.name} (ausstehend)`
@@ -456,33 +419,8 @@ const AgendaCard = memo(function AgendaCard({
                         ? `Übertragung an ${recipientAttendeeData.name} (abgelehnt)`
                         : `Übertragen an ${recipientAttendeeData.name}`
                     }
-                    style={{
-                      background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${recipientAttendeeData.chipColor}`,
-                      border: recipientAttendeeData.status === 'pending' ? '2px dashed #eab308' : '2px solid #000000',
-                      boxShadow: '2px 2px 0px #000000',
-                      borderRadius: '8px',
-                      lineHeight: 1.2,
-                      gap: '0.4rem',
-                      padding: '0.35rem 0.85rem',
-                    }}
-                  >
-                    {recipientAttendeeData.attendee?.avatarUrl ? (
-                      <img
-                        src={recipientAttendeeData.attendee.avatarUrl}
-                        alt={recipientAttendeeData.name}
-                        className="border-circle object-cover flex-shrink-0"
-                        style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
-                      />
-                    ) : (
-                      <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
-                    )}
-                    <span>{recipientAttendeeData.name}</span>
-                    {recipientAttendeeData.status === 'pending' && (
-                      <span className="text-yellow-300 text-2xs font-normal italic ml-1">
-                        (ausstehend)
-                      </span>
-                    )}
-                  </span>
+                    size="sm"
+                  />
                   {recipientAttendeeData.status === 'pending' && isItemCreator && onCancelTransfer && (
                     <Button
                       icon="pi pi-times"
@@ -638,41 +576,18 @@ const AgendaCard = memo(function AgendaCard({
                   {/* Voter Name Chips in Button Style with Person Card Color */}
                   {opt.votes && opt.votes.length > 0 && (
                     <div className="flex align-items-center gap-2 mt-1 flex-wrap">
-                      {opt.votes.map((voterId) => {
-                        const personColors = ['#007ad9', '#ed5565', '#26a69a', '#ab47bc', '#d4e157', '#ff7043', '#ec407a', '#78909c'];
-                        const personIndex = attendees.findIndex(
-                          (a: any) => a.id === voterId || a._id === voterId || a.name === voterId
-                        );
-                        const attendee = personIndex !== -1 ? attendees[personIndex] : null;
+                      {opt.votes.map((voterId, vIdx) => {
+                        const { attendee, color } = getAttendeeColor(attendees, voterId, vIdx);
                         const voterName = attendee ? attendee.name : voterId;
-                        const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
 
                         return (
-                          <span
+                          <PersonChip
                             key={voterId}
-                            className="inline-flex align-items-center font-bold text-white text-xs"
-                            style={{
-                              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${chipColor}`,
-                              border: '2px solid #000000',
-                              boxShadow: '2px 2px 0px #000000',
-                              borderRadius: '8px',
-                              lineHeight: 1.2,
-                              gap: '0.5rem',
-                              padding: '0.35rem 0.85rem',
-                            }}
-                          >
-                            {attendee?.avatarUrl ? (
-                              <img
-                                src={attendee.avatarUrl}
-                                alt={voterName}
-                                className="border-circle object-cover flex-shrink-0"
-                                style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
-                              />
-                            ) : (
-                              <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
-                            )}
-                            <span>{voterName}</span>
-                          </span>
+                            name={voterName}
+                            avatarUrl={attendee?.avatarUrl}
+                            color={color}
+                            size="sm"
+                          />
                         );
                       })}
                     </div>
@@ -716,41 +631,18 @@ const AgendaCard = memo(function AgendaCard({
                     <i className="pi pi-thumbs-up text-yellow-400 text-sm" />
                     <span>Daumen hoch von:</span>
                   </span>
-                  {item.upvotes.map((voterId) => {
-                    const personColors = ['#007ad9', '#ed5565', '#26a69a', '#ab47bc', '#d4e157', '#ff7043', '#ec407a', '#78909c'];
-                    const personIndex = attendees.findIndex(
-                      (a: any) => a.id === voterId || a._id === voterId || a.name === voterId
-                    );
-                    const attendee = personIndex !== -1 ? attendees[personIndex] : null;
+                  {item.upvotes.map((voterId, vIdx) => {
+                    const { attendee, color } = getAttendeeColor(attendees, voterId, vIdx);
                     const voterName = attendee ? attendee.name : voterId;
-                    const chipColor = attendee?.cardColor || (personIndex !== -1 ? personColors[personIndex % personColors.length] : '#374151');
 
                     return (
-                      <span
+                      <PersonChip
                         key={voterId}
-                        className="inline-flex align-items-center font-bold text-white text-xs"
-                        style={{
-                          background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${chipColor}`,
-                          border: '2px solid #000000',
-                          boxShadow: '2px 2px 0px #000000',
-                          borderRadius: '8px',
-                          lineHeight: 1.2,
-                          gap: '0.5rem',
-                          padding: '0.35rem 0.85rem',
-                        }}
-                      >
-                        {attendee?.avatarUrl ? (
-                          <img
-                            src={attendee.avatarUrl}
-                            alt={voterName}
-                            className="border-circle object-cover flex-shrink-0"
-                            style={{ width: '1.1rem', height: '1.1rem', border: '1px solid #000' }}
-                          />
-                        ) : (
-                          <i className="pi pi-user text-white flex-shrink-0" style={{ fontSize: '0.75rem' }} />
-                        )}
-                        <span>{voterName}</span>
-                      </span>
+                        name={voterName}
+                        avatarUrl={attendee?.avatarUrl}
+                        color={color}
+                        size="sm"
+                      />
                     );
                   })}
                 </div>
@@ -820,23 +712,12 @@ const AgendaCard = memo(function AgendaCard({
                     <div key={comment.id} className="pt-2 pb-3.5 border-bottom-1 border-gray-700 relative">
                       <div className="flex align-items-center justify-content-between mb-2">
                         <div className="flex align-items-center gap-2 flex-wrap">
-                          <span
-                            className="inline-flex align-items-center font-bold text-white text-xs"
-                            style={{
-                              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${commentAuthorData.chipColor}`,
-                              border: '1.5px solid #000',
-                              borderRadius: '6px',
-                              padding: '0.2rem 0.6rem',
-                              gap: '0.4rem',
-                            }}
-                          >
-                            {commentAuthorData.attendee?.avatarUrl ? (
-                              <img src={commentAuthorData.attendee.avatarUrl} alt={comment.author} className="border-circle" style={{ width: '1rem', height: '1rem' }} />
-                            ) : (
-                              <i className="pi pi-user text-white" style={{ fontSize: '0.65rem' }} />
-                            )}
-                            <span>{comment.author}</span>
-                          </span>
+                          <PersonChip
+                            name={comment.author}
+                            avatarUrl={commentAuthorData.attendee?.avatarUrl}
+                            color={commentAuthorData.chipColor}
+                            size="xs"
+                          />
                           <span className="text-xs text-gray-400">
                             {new Date(comment.createdAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                           </span>
