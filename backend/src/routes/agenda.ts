@@ -443,8 +443,8 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
           const isTransferredRecipient =
             isTransferredAccepted &&
-            ((requestingUserId && deletedItem.transferredTo.toUserId === requestingUserId) ||
-             (requestingUserName && deletedItem.transferredTo.toUserName && deletedItem.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
+            ((requestingUserId && deletedItem.transferredTo?.toUserId === requestingUserId) ||
+             (requestingUserName && deletedItem.transferredTo?.toUserName && deletedItem.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
 
           const isAuthorized = isTransferredAccepted
             ? isTransferredRecipient
@@ -814,8 +814,8 @@ router.delete('/:id/items/:itemId', async (req: Request, res: Response): Promise
 
       const isTransferredRecipient =
         isTransferredAccepted &&
-        ((requestingUserId && itemToDelete.transferredTo.toUserId === requestingUserId) ||
-         (requestingUserName && itemToDelete.transferredTo.toUserName && itemToDelete.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
+        ((requestingUserId && itemToDelete.transferredTo?.toUserId === requestingUserId) ||
+         (requestingUserName && itemToDelete.transferredTo?.toUserName && itemToDelete.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
 
       const isAuthorized =
         isAgendaCreator ||
