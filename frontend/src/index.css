@@ -214,6 +214,101 @@ body {
   pointer-events: none !important;
 }
 
+/* Comic Button Group */
+.comic-button-group {
+  display: inline-flex;
+  align-items: stretch;
+  flex-wrap: nowrap !important;
+  background-color: #1f2937;
+  border: 2px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.comic-group-btn {
+  background-color: #374151 !important;
+  color: #e5e7eb !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0.4rem 0.65rem !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: bold !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background-color 0.15s, color 0.15s, transform 0.08s !important;
+  cursor: pointer;
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+  .comic-button-group {
+    width: 100%;
+  }
+  
+  .comic-group-btn {
+    padding: 0.35rem 0.4rem !important;
+    flex: 1 1 0px !important;
+  }
+
+  .comic-group-btn i {
+    font-size: 0.95rem !important;
+  }
+}
+
+.comic-group-btn:not(:last-child) {
+  border-right: 2px solid #000000 !important;
+}
+
+.comic-group-btn:hover:not(:disabled):not(.p-disabled) {
+  background-color: #4b5563 !important;
+  color: #facc15 !important;
+}
+
+.comic-group-btn:active:not(:disabled):not(.p-disabled) {
+  background-color: #1f2937 !important;
+}
+
+.comic-group-btn-active-yellow {
+  background-color: #facc15 !important;
+  color: #000000 !important;
+}
+
+.comic-group-btn-active-yellow:hover:not(:disabled):not(.p-disabled) {
+  background-color: #fde047 !important;
+  color: #000000 !important;
+}
+
+.comic-group-btn-active-green {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+}
+
+.comic-group-btn-active-green:hover:not(:disabled):not(.p-disabled) {
+  background-color: #22c55e !important;
+  color: #ffffff !important;
+}
+
+.comic-group-btn-danger:hover:not(:disabled):not(.p-disabled) {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+.comic-group-btn:disabled,
+.comic-group-btn.p-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  background-color: #1f2937 !important;
+  color: #6b7280 !important;
+}
+
 .comic-panel-dark {
   background-color: #1f2937 !important; /* dark gray */
   border: 3px solid #000 !important;

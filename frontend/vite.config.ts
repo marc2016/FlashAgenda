@@ -112,11 +112,23 @@ export default defineConfig({
     port: 5188,
     proxy: {
       '/api': {
-        target: 'http://localhost:3188',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3188',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err: any, _req, res: any) => {
+            if (err.code === 'EPIPE' || err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED') {
+              if (res && !res.headersSent && typeof res.writeHead === 'function') {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Backend nicht erreichbar' }));
+              }
+              return;
+            }
+            console.error('API proxy error:', err);
+          });
+        }
       },
       '/socket.io': {
-        target: 'http://localhost:3188',
+        target: 'http://127.0.0.1:3188',
         changeOrigin: true,
         ws: true,
         configure: (proxy) => {

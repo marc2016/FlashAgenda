@@ -440,11 +440,10 @@ const AgendaCard = memo(function AgendaCard({
             {item.title}
           </div>
         </div>
-        <div className="flex gap-1 sm:gap-2 align-items-center flex-wrap self-end sm:self-center mt-2 sm:mt-0">
-          <Button
-            text
-            rounded
-            className="p-button-sm text-gray-400 hover:text-yellow-400"
+        <div className="comic-button-group w-full sm:w-auto self-stretch sm:self-center mt-2 sm:mt-0">
+          <button
+            type="button"
+            className="comic-group-btn"
             title="Kommentare"
             onClick={() => {
               setDetailsOpen(true);
@@ -454,75 +453,80 @@ const AgendaCard = memo(function AgendaCard({
               }, 100);
             }}
           >
-            <i className="pi pi-comment text-xl"></i>
+            <i className="pi pi-comment text-base"></i>
             {commentsCount > 0 && (
-              <Badge value={commentsCount} severity="info" className="ml-2" />
+              <Badge value={commentsCount} severity="info" className="ml-1" style={{ fontSize: '0.65rem' }} />
             )}
-          </Button>
+          </button>
 
-          <Button
-            icon={isPinned ? 'mdi mdi-pin text-xl text-yellow-400' : 'mdi mdi-pin-outline text-xl'}
-            rounded
-            text
-            style={isPinned ? { color: '#facc15' } : undefined}
-            className={isPinned ? 'text-yellow-400 font-bold' : 'text-gray-400 hover:text-yellow-400'}
+          <button
+            type="button"
+            className={`comic-group-btn ${isPinned ? 'comic-group-btn-active-yellow' : ''}`}
             title={isPinned ? 'Anpinnung aufheben' : 'Agendapunkt anpinnen'}
             onClick={() => onTogglePinned(index)}
-          />
-          <Button
-            text
-            rounded
-            className={`p-button-sm ${hasUpvoted ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}`}
-            title="Daumen hoch"
+          >
+            <i className={isPinned ? 'mdi mdi-pin text-lg' : 'mdi mdi-pin-outline text-lg'}></i>
+          </button>
+
+          <button
+            type="button"
+            className={`comic-group-btn ${hasUpvoted ? 'comic-group-btn-active-yellow' : ''}`}
+            title={hasUpvoted ? 'Daumen zurücknehmen' : 'Daumen hoch'}
             onClick={() => onToggleUpvote(index)}
           >
-            <i className={`pi ${hasUpvoted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'} text-xl`}></i>
+            <i className={`pi ${hasUpvoted ? 'pi-thumbs-up-fill' : 'pi-thumbs-up'} text-base`}></i>
             {upvoteCount > 0 && (
-              <Badge value={upvoteCount} severity="warning" className="ml-2"></Badge>
+              <span className={`ml-1 text-xs font-bold ${hasUpvoted ? 'text-black' : 'text-yellow-400'}`}>
+                {upvoteCount}
+              </span>
             )}
-          </Button>
-          <Button
-            icon={isCompleted ? 'pi pi-check-circle' : 'pi pi-circle'}
-            rounded
-            text
-            className={isCompleted ? 'text-yellow-400' : 'text-gray-400 hover:text-yellow-400'}
+          </button>
+
+          <button
+            type="button"
+            className={`comic-group-btn ${isCompleted ? 'comic-group-btn-active-green' : ''}`}
             title={isCompleted ? 'Als noch nicht besprochen markieren' : 'Als besprochen markieren'}
             onClick={() => onToggleCompleted(index)}
-          />
-          <Button
-            icon="pi pi-share-alt"
-            rounded
-            text
+          >
+            <i className={`pi ${isCompleted ? 'pi-check-circle' : 'pi-circle'} text-base`}></i>
+          </button>
+
+          <button
+            type="button"
             disabled={!isItemCreator}
-            className={isItemCreator ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-600 opacity-40 cursor-not-allowed'}
+            className="comic-group-btn"
             title={isItemCreator ? 'Agendapunkt an Teilnehmer übertragen' : 'Nur der Ersteller kann diesen Agendapunkt übertragen'}
             onClick={() => {
               if (isItemCreator && onOpenTransferModal) onOpenTransferModal(index);
             }}
             data-testid={`transfer-item-${index}`}
-          />
-          <Button
-            icon="pi pi-pencil"
-            rounded
-            text
+          >
+            <i className="pi pi-share-alt text-base"></i>
+          </button>
+
+          <button
+            type="button"
             disabled={!isItemCreator}
-            className={isItemCreator ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-600 opacity-40 cursor-not-allowed'}
+            className="comic-group-btn"
             title={isItemCreator ? 'Titel & Beschreibung bearbeiten' : 'Nur der Ersteller kann Titel & Beschreibung bearbeiten'}
             onClick={() => {
               if (isItemCreator) onEdit(index);
             }}
-          />
-          <Button
-            icon="pi pi-trash"
-            rounded
-            text
+          >
+            <i className="pi pi-pencil text-base"></i>
+          </button>
+
+          <button
+            type="button"
             disabled={!isItemCreator}
-            className={isItemCreator ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 opacity-40 cursor-not-allowed'}
+            className="comic-group-btn comic-group-btn-danger"
             title={isItemCreator ? 'Agendapunkt löschen' : 'Nur der Ersteller kann diesen Agendapunkt löschen'}
             onClick={() => {
               if (isItemCreator) onDelete(index);
             }}
-          />
+          >
+            <i className="pi pi-trash text-base"></i>
+          </button>
         </div>
       </div>
 
