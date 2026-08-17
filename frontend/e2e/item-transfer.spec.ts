@@ -32,13 +32,13 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
     await page.addInitScript((mockAgenda) => {
       const agendaId = 'mock-agenda-transfer';
       
-      let currentAgenda = mockAgenda;
+      let currentAgenda = JSON.parse(JSON.stringify(mockAgenda));
       try {
-        const saved = sessionStorage.getItem('__MOCK_AGENDA__');
+        const saved = sessionStorage.getItem('__MOCK_AGENDA_T1__');
         if (saved) {
           currentAgenda = JSON.parse(saved);
         } else {
-          sessionStorage.setItem('__MOCK_AGENDA__', JSON.stringify(mockAgenda));
+          sessionStorage.setItem('__MOCK_AGENDA_T1__', JSON.stringify(mockAgenda));
         }
       } catch {}
 
@@ -62,7 +62,7 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
             try {
               const body = JSON.parse(init.body as string);
               currentAgenda = { ...currentAgenda, ...body };
-              sessionStorage.setItem('__MOCK_AGENDA__', JSON.stringify(currentAgenda));
+              sessionStorage.setItem('__MOCK_AGENDA_T1__', JSON.stringify(currentAgenda));
             } catch {}
             return new Response(JSON.stringify(currentAgenda), {
               status: 200, headers: { 'Content-Type': 'application/json' }
@@ -138,6 +138,15 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
     // Item now shows Alice ➔ Bob chips
     await expect(page.locator('text=Alice').first()).toBeVisible();
     await expect(page.locator('text=Bob').first()).toBeVisible();
+
+    // Bob (as transferred recipient) can now delete the item
+    const deleteBtn = page.locator('button[title="Agendapunkt löschen"]').first();
+    await expect(deleteBtn).toBeVisible();
+    await expect(deleteBtn).toBeEnabled();
+
+    // Bob deletes the item
+    await deleteBtn.click();
+    await expect(page.locator('text=Strategie Präsentation 2026')).toBeHidden();
   });
 
   test('Bob rejects a transferred item and it remains with the original creator', async ({ page }) => {
@@ -202,5 +211,54 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
 
     // Item-1 is now strictly Alice's again without pending status
     await expect(page.locator('text=(ausstehend)')).toBeHidden();
+  });
+
+  test('Original creator loses edit and delete rights once recipient accepts the transfer', async ({ page }) => {
+    const agendaWithAccepted = JSON.parse(JSON.stringify(MOCK_TRANSFER_AGENDA));
+    agendaWithAccepted.items[0].transferredTo = {
+      toUserId: 'user-bob',
+      toUserName: 'Bob',
+      fromUserId: 'user-alice',
+      fromUserName: 'Alice',
+      status: 'accepted'
+    };
+
+    await page.addInitScript((mockAgenda) => {
+      const agendaId = 'mock-agenda-transfer';
+
+      // Logged in as Alice (original creator)
+      localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify({ id: 'user-alice', name: 'Alice' }));
+      localStorage.setItem('flashagenda_last_user', JSON.stringify({ id: 'user-alice', name: 'Alice' }));
+
+      window.fetch = async (input) => {
+        const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+        if (url.includes('/api/agendas')) {
+          if (url.includes('ping')) {
+            return new Response(JSON.stringify({ lastSeen: new Date().toISOString() }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          return new Response(JSON.stringify(mockAgenda), {
+            status: 200, headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({}), {
+          status: 200, headers: { 'Content-Type': 'application/json' }
+        });
+      };
+    }, agendaWithAccepted);
+
+    await page.goto('/agenda/mock-agenda-transfer');
+
+    // Verify item is visible with dual chips Alice ➔ Bob
+    await expect(page.locator('text=Strategie Präsentation 2026')).toBeVisible();
+
+    // Alice is original creator, but transfer was accepted by Bob:
+    // Action buttons (edit, delete, transfer) must be disabled for Alice!
+    const deleteBtn = page.locator('button[title="Nur der Ersteller kann diesen Agendapunkt löschen"], button[title="Nur der aktuelle Besitzer kann diesen Agendapunkt löschen"], button[title="Agendapunkt löschen"]').first();
+    await expect(deleteBtn).toBeDisabled();
+
+    const editBtn = page.locator('button[title="Nur der Ersteller kann Titel & Beschreibung bearbeiten"], button[title="Nur der aktuelle Besitzer kann Titel & Beschreibung bearbeiten"], button[title="Titel & Beschreibung bearbeiten"]').first();
+    await expect(editBtn).toBeDisabled();
   });
 });

@@ -196,7 +196,7 @@ describe('Agenda API Routes Unit Tests', () => {
       });
 
     expect(res.status).toBe(403);
-    expect(res.body.message).toContain('Nur der Ersteller kann diesen Agendapunkt löschen.');
+    expect(res.body.message).toContain('Nur der aktuelle Besitzer kann diesen Agendapunkt löschen.');
   });
 
   it('should allow item creator to delete their own agenda item on PUT /api/agendas/:id', async () => {

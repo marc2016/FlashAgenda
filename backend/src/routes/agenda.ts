@@ -437,13 +437,23 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
         for (const deletedItem of deletedItems) {
           if (!deletedItem.createdBy && !deletedItem.author) continue;
-          const isItemCreator =
-            (requestingUserId && deletedItem.createdBy === requestingUserId) ||
-            (requestingUserName && deletedItem.author && deletedItem.author.trim().toLowerCase() === requestingUserName) ||
-            (requestingUserName && deletedItem.createdBy && deletedItem.createdBy.trim().toLowerCase() === requestingUserName);
 
-          if (!isItemCreator) {
-            res.status(403).json({ message: 'Nur der Ersteller kann diesen Agendapunkt löschen.' });
+          const isTransferredAccepted =
+            deletedItem.transferredTo && deletedItem.transferredTo.status === 'accepted';
+
+          const isTransferredRecipient =
+            isTransferredAccepted &&
+            ((requestingUserId && deletedItem.transferredTo.toUserId === requestingUserId) ||
+             (requestingUserName && deletedItem.transferredTo.toUserName && deletedItem.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
+
+          const isAuthorized = isTransferredAccepted
+            ? isTransferredRecipient
+            : ((requestingUserId && deletedItem.createdBy === requestingUserId) ||
+               (requestingUserName && deletedItem.author && deletedItem.author.trim().toLowerCase() === requestingUserName) ||
+               (requestingUserName && deletedItem.createdBy && deletedItem.createdBy.trim().toLowerCase() === requestingUserName));
+
+          if (!isAuthorized) {
+            res.status(403).json({ message: 'Nur der aktuelle Besitzer kann diesen Agendapunkt löschen.' });
             return;
           }
         }
@@ -788,6 +798,38 @@ router.delete('/:id/items/:itemId', async (req: Request, res: Response): Promise
     const itemToDelete = agenda.items.find((i: any) => i._id.toString() === req.params.itemId);
     const itemTitle = itemToDelete ? itemToDelete.title : 'Unbekannter Punkt';
     const userName = (req.body && req.body.userName) || (req.query && req.query.userName as string) || 'Benutzer';
+
+    if (itemToDelete) {
+      const requestingUserId = (req.body && req.body.userId) || (req.query && req.query.userId as string);
+      const requestingUserName = ((req.body && req.body.userName) || (req.query && req.query.userName as string) || '').trim().toLowerCase();
+      const agendaCreator = agenda.createdBy;
+
+      const isAgendaCreator =
+        !agendaCreator ||
+        (requestingUserId && requestingUserId === agendaCreator) ||
+        (requestingUserName && requestingUserName === agendaCreator.trim().toLowerCase());
+
+      const isTransferredAccepted =
+        itemToDelete.transferredTo && itemToDelete.transferredTo.status === 'accepted';
+
+      const isTransferredRecipient =
+        isTransferredAccepted &&
+        ((requestingUserId && itemToDelete.transferredTo.toUserId === requestingUserId) ||
+         (requestingUserName && itemToDelete.transferredTo.toUserName && itemToDelete.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
+
+      const isAuthorized =
+        isAgendaCreator ||
+        (isTransferredAccepted
+          ? isTransferredRecipient
+          : ((requestingUserId && itemToDelete.createdBy === requestingUserId) ||
+             (requestingUserName && itemToDelete.author && itemToDelete.author.trim().toLowerCase() === requestingUserName) ||
+             (requestingUserName && itemToDelete.createdBy && itemToDelete.createdBy.trim().toLowerCase() === requestingUserName)));
+
+      if (!isAuthorized) {
+        res.status(403).json({ message: 'Nur der aktuelle Besitzer kann diesen Agendapunkt löschen.' });
+        return;
+      }
+    }
 
     agenda.items = agenda.items.filter((i: any) => i._id.toString() !== req.params.itemId);
     logAudit(agenda, 'Agendapunkt gelöscht', userName, `Agendapunkt "${itemTitle}" wurde gelöscht.`);

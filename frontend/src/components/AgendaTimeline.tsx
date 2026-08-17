@@ -220,21 +220,22 @@ const AgendaCard = memo(function AgendaCard({
   const upvoteCount = item.upvotes?.length || 0;
 
   const isItemCreator = useMemo(() => {
-    if (isCreator) return true;
     if (!currentUserId) return false;
-    // If transferred and accepted, recipient is the active owner
+    // If transferred and accepted: EXCLUSIVELY the recipient is the active owner
     if (item.transferredTo && item.transferredTo.status === 'accepted') {
       const recId = item.transferredTo.toUserId;
       const recName = item.transferredTo.toUserName?.trim().toLowerCase();
       if (recId && recId === currentUserId) return true;
       if (currentUser?.name && recName === currentUser.name.trim().toLowerCase()) return true;
-      return false;
+      return false; // The person who transferred it has given away the rights
     }
+    if (isCreator) return true;
     // Otherwise original creator
     if (!item.createdBy) return true;
     return (
       item.createdBy === currentUserId ||
-      (currentUser?.name && item.author?.trim().toLowerCase() === currentUser.name.trim().toLowerCase())
+      (currentUser?.name && item.author?.trim().toLowerCase() === currentUser.name.trim().toLowerCase()) ||
+      (currentUser?.name && item.createdBy?.trim().toLowerCase() === currentUser.name.trim().toLowerCase())
     );
   }, [currentUserId, currentUser, isCreator, item.createdBy, item.author, item.transferredTo]);
 
@@ -1367,15 +1368,25 @@ export default function AgendaTimeline({
         const itemCreatedBy = itemToDelete.createdBy;
         const itemAuthor = itemToDelete.author;
         const currentUserId = currentUser?.id || currentUser?._id;
-        const currentUserName = currentUser?.name;
+        const currentUserName = currentUser?.name?.trim().toLowerCase();
 
-        const isItemCreator =
-          isCreator ||
-          !itemCreatedBy ||
-          (currentUserId && itemCreatedBy === currentUserId) ||
-          (currentUserName && itemAuthor?.trim().toLowerCase() === currentUserName.trim().toLowerCase());
+        const isTransferredAccepted =
+          itemToDelete.transferredTo && itemToDelete.transferredTo.status === 'accepted';
 
-        if (!isItemCreator) {
+        const isTransferredRecipient =
+          isTransferredAccepted &&
+          ((currentUserId && itemToDelete.transferredTo?.toUserId === currentUserId) ||
+           (currentUserName && itemToDelete.transferredTo?.toUserName?.trim().toLowerCase() === currentUserName));
+
+        const canDelete = isTransferredAccepted
+          ? isTransferredRecipient
+          : (isCreator ||
+             !itemCreatedBy ||
+             (currentUserId && itemCreatedBy === currentUserId) ||
+             (currentUserName && itemAuthor?.trim().toLowerCase() === currentUserName) ||
+             (currentUserName && itemCreatedBy?.trim().toLowerCase() === currentUserName));
+
+        if (!canDelete) {
           return;
         }
       }

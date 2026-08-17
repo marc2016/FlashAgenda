@@ -7,7 +7,7 @@ import { initSocketService } from './services/socketService';
 
 dotenv.config();
 
-const PORT: number = parseInt(process.env.PORT || '3001', 10);
+const PORT: number = parseInt(process.env.PORT || '3188', 10);
 
 // Rate Limiting (Max 10000 requests per 15 minutes per IP, excluding GET and /ping)
 const limiter = rateLimit({

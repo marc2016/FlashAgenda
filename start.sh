@@ -28,8 +28,8 @@ cd ..
 trap "echo -e '\n🛑 Stopping services...'; kill $BACKEND_PID $FRONTEND_PID; echo '✅ Stopped.'; exit" INT
 
 echo "✅ All services started successfully!"
-echo "➡️ Frontend: http://localhost:5173"
-echo "➡️ Backend: http://localhost:3000"
+echo "➡️ Frontend: http://localhost:5188"
+echo "➡️ Backend: http://localhost:3188"
 echo "Press Ctrl+C to stop the servers."
 
 # Wait for background processes so the script doesn't exit immediately

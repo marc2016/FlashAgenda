@@ -23,7 +23,8 @@ const mockAgendaData: any = {
   ],
   save: vi.fn().mockImplementation(function (this: any) {
     return Promise.resolve(this);
-  })
+  }),
+  markModified: vi.fn()
 };
 
 vi.mock('../src/models/Agenda', () => {
@@ -124,5 +125,117 @@ describe('Item Transfer Backend Endpoints', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.items[0].transferredTo.status).toBe('rejected');
+  });
+
+  it('allows transferred recipient to delete accepted item via PUT /:id', async () => {
+    mockAgendaData.items = [
+      {
+        _id: 'item-101',
+        title: 'Strategie Präsentation',
+        createdBy: 'user-alice',
+        author: 'Alice',
+        transferredTo: {
+          toUserId: 'user-bob',
+          toUserName: 'Bob',
+          fromUserId: 'user-alice',
+          fromUserName: 'Alice',
+          status: 'accepted'
+        }
+      }
+    ];
+
+    // Bob deletes the item by submitting an empty items array
+    const res = await request(app)
+      .put('/api/agendas/507f1f77bcf86cd799439011')
+      .send({
+        userId: 'user-bob',
+        userName: 'Bob',
+        items: []
+      });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('allows transferred recipient to delete accepted item via DELETE /:id/items/:itemId', async () => {
+    mockAgendaData.items = [
+      {
+        _id: 'item-101',
+        title: 'Strategie Präsentation',
+        createdBy: 'user-alice',
+        author: 'Alice',
+        transferredTo: {
+          toUserId: 'user-bob',
+          toUserName: 'Bob',
+          fromUserId: 'user-alice',
+          fromUserName: 'Alice',
+          status: 'accepted'
+        }
+      }
+    ];
+
+    const res = await request(app)
+      .delete('/api/agendas/507f1f77bcf86cd799439011/items/item-101')
+      .send({
+        userId: 'user-bob',
+        userName: 'Bob'
+      });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('denies non-creator and non-recipient from deleting transferred item', async () => {
+    mockAgendaData.items = [
+      {
+        _id: 'item-101',
+        title: 'Strategie Präsentation',
+        createdBy: 'user-alice',
+        author: 'Alice',
+        transferredTo: {
+          toUserId: 'user-bob',
+          toUserName: 'Bob',
+          fromUserId: 'user-alice',
+          fromUserName: 'Alice',
+          status: 'accepted'
+        }
+      }
+    ];
+
+    const res = await request(app)
+      .delete('/api/agendas/507f1f77bcf86cd799439011/items/item-101')
+      .send({
+        userId: 'user-charlie',
+        userName: 'Charlie'
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('Nur der aktuelle Besitzer kann diesen Agendapunkt löschen.');
+  });
+
+  it('denies original creator from deleting transferred item once accepted by recipient', async () => {
+    mockAgendaData.items = [
+      {
+        _id: 'item-101',
+        title: 'Strategie Präsentation',
+        createdBy: 'user-alice',
+        author: 'Alice',
+        transferredTo: {
+          toUserId: 'user-bob',
+          toUserName: 'Bob',
+          fromUserId: 'user-alice',
+          fromUserName: 'Alice',
+          status: 'accepted'
+        }
+      }
+    ];
+
+    const res = await request(app)
+      .delete('/api/agendas/507f1f77bcf86cd799439011/items/item-101')
+      .send({
+        userId: 'user-alice',
+        userName: 'Alice'
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('Nur der aktuelle Besitzer kann diesen Agendapunkt löschen.');
   });
 });

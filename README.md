@@ -52,8 +52,8 @@ chmod +x start.sh
 ./start.sh
 ```
 
-- **Frontend**: [http://localhost:5173](http://localhost:5173)
-- **Backend API**: [http://localhost:3000](http://localhost:3000) (bzw. `http://localhost:3001` je nach Konfiguration)
+- **Frontend**: [http://localhost:5188](http://localhost:5188)
+- **Backend API**: [http://localhost:3188](http://localhost:3188)
 - **MongoDB**: Ports `27017:27017`
 
 *Beenden aller Dienste mit `Ctrl+C`.*
@@ -131,7 +131,7 @@ FlashAgenda/
 
 | Variable | Beschreibung | Standardwert |
 |---|---|---|
-| `PORT` | Port des Backend-Servers | `3001` (oder `3000`) |
+| `PORT` | Port des Backend-Servers | `3188` |
 | `MONGO_URI` | Verbindungs-URL zur MongoDB | `mongodb://localhost:27017/flashagenda` |
 
 ---
@@ -139,12 +139,12 @@ FlashAgenda/
 ## 📜 Skripte & Befehle
 
 ### Backend
-- `npm run dev`: Startet den Entwicklungsserver mit Hot-Reloading (`tsx watch`).
+- `npm run dev`: Startet den Entwicklungsserver mit Hot-Reloading (`tsx watch` auf Port `3188`).
 - `npm run build`: Kompiliert TypeScript nach JavaScript (`dist/`).
 - `npm run start`: Startet den gebauten Produktionsserver.
 
 ### Frontend
-- `npm run dev`: Startet den Vite Dev Server (`http://localhost:5173`).
+- `npm run dev`: Startet den Vite Dev Server (`http://localhost:5188`).
 - `npm run build`: Erstellt das Produktions-Bundle (`dist/`).
 - `npm run lint`: Führt Linter-Überprüfungen durch (`oxlint`).
 

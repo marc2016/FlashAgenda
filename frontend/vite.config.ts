@@ -109,13 +109,14 @@ export default defineConfig({
     })
   ],
   server: {
+    port: 5188,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3188',
         changeOrigin: true
       },
       '/socket.io': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3188',
         changeOrigin: true,
         ws: true,
         configure: (proxy) => {
