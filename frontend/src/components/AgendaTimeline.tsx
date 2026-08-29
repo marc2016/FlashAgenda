@@ -4,7 +4,6 @@ import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { Badge } from 'primereact/badge';
 import {
   MDXEditor,
   type MDXEditorMethods,
@@ -456,7 +455,9 @@ const AgendaCard = memo(function AgendaCard({
           >
             <i className="pi pi-comment text-base"></i>
             {commentsCount > 0 && (
-              <Badge value={commentsCount} severity="info" className="ml-1" style={{ fontSize: '0.65rem' }} />
+              <span className="ml-1 text-xs font-bold text-blue-400">
+                {commentsCount}
+              </span>
             )}
           </button>
 
