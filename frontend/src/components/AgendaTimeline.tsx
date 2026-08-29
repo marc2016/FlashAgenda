@@ -121,6 +121,7 @@ interface Props {
   isCreator?: boolean;
   onUpdate: (items: AgendaItem[]) => void | Promise<void>;
   onUpdateAgenda?: (updates: any) => void | Promise<void>;
+  onStartLiveMeeting?: () => void;
 }
 
 // ─── Helper for sorting while retaining pinned items' positions ───────────
@@ -906,6 +907,7 @@ export default function AgendaTimeline({
   isCreator = true,
   onUpdate,
   onUpdateAgenda,
+  onStartLiveMeeting,
 }: Props) {
   const [visible, setVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -1609,19 +1611,40 @@ export default function AgendaTimeline({
           <h3 className="text-2xl m-0 text-yellow-500 font-bold" style={{ textShadow: '2px 2px 0px #000' }}>Agendapunkte</h3>
           
           <span
-            className="inline-flex align-items-center gap-2 text-xs sm:text-sm font-bold text-yellow-400"
+            className="inline-flex align-items-center justify-content-center gap-2 text-xs sm:text-sm font-bold text-yellow-400 px-3"
             style={{
+              height: '38px',
               backgroundColor: '#1f2937',
               border: '2px solid #000',
-              boxShadow: '2px 2px 0px #000',
-              borderRadius: '10px',
-              padding: '6px 14px'
+              boxShadow: '3px 3px 0px #000',
+              borderRadius: '8px',
+              boxSizing: 'border-box',
+              lineHeight: 1
             }}
             title={`${completedCount} von ${totalCount} Agendampunkten besprochen`}
           >
             <i className="pi pi-check-circle text-yellow-400 text-sm"></i>
             <span>{completedCount}/{totalCount} besprochen</span>
           </span>
+
+          {onStartLiveMeeting && (
+            <Button
+              label="Sitzung starten"
+              icon="pi pi-play"
+              className="comic-button-success flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm"
+              style={{
+                height: '38px',
+                border: '2px solid #000',
+                boxShadow: '3px 3px 0px #000',
+                borderRadius: '8px',
+                boxSizing: 'border-box',
+                lineHeight: 1
+              }}
+              onClick={onStartLiveMeeting}
+              title="Interaktiven Sitzungsmodus mit Anwesenheitsabfrage & Timern starten"
+              data-testid="start-live-meeting-btn"
+            />
+          )}
         </div>
 
         <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">

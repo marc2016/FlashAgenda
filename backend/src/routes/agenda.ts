@@ -534,6 +534,17 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    if (req.body.attendees && Array.isArray(req.body.attendees)) {
+      const oldAttendees = existingAgenda.attendees || [];
+      for (const na of req.body.attendees) {
+        const oa = oldAttendees.find((a: any) => (a.id && a.id === na.id) || (a._id && a._id.toString() === (na._id || na.id)));
+        if (oa && na.attendanceStatus && na.attendanceStatus !== oa.attendanceStatus) {
+          const statusText = na.attendanceStatus === 'present' ? 'anwesend' : na.attendanceStatus === 'absent' ? 'abwesend' : 'unbestätigt';
+          logAudit(existingAgenda, 'Anwesenheit geändert', userName, `Teilnehmer "${na.name}" als ${statusText} markiert.`);
+        }
+      }
+    }
+
     const allowedFields = ['title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed', 'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder', 'auditLogs'];
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {

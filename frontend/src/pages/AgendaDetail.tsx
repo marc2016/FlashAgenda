@@ -7,6 +7,7 @@ import AgendaTimeline from '../components/AgendaTimeline';
 import UserIdentificationModal from '../components/UserIdentificationModal';
 import AuditLogModal from '../components/AuditLogModal';
 import { PendingTransfersModal } from '../components/PendingTransfersModal';
+import LiveMeetingModal from '../components/LiveMeetingModal';
 import { notifyNewItem } from '../services/notificationService';
 import {
   getCachedAgenda,
@@ -32,6 +33,7 @@ export default function AgendaDetail() {
   const [showUserModal, setShowUserModal] = useState<boolean | undefined>(undefined);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showTransfersModal, setShowTransfersModal] = useState(false);
+  const [isLiveMeetingOpen, setIsLiveMeetingOpen] = useState(false);
   const prevPendingCountRef = useRef<number>(0);
   
   // Offline state tracking
@@ -821,6 +823,7 @@ export default function AgendaDetail() {
           isCreator={isCreator}
           onUpdate={handleUpdateItems}
           onUpdateAgenda={handleUpdateAgenda}
+          onStartLiveMeeting={() => setIsLiveMeetingOpen(true)}
         />
 
         {/* Bottom Footer & Buttons */}
@@ -873,6 +876,17 @@ export default function AgendaDetail() {
         onReject={handleRejectTransfer}
         onBatchAccept={handleBatchAcceptTransfers}
         onBatchReject={handleBatchRejectTransfers}
+      />
+
+      <LiveMeetingModal
+        visible={isLiveMeetingOpen}
+        onHide={() => setIsLiveMeetingOpen(false)}
+        agenda={agenda}
+        items={agenda.items || []}
+        attendees={agenda.attendees || []}
+        currentUser={currentUser}
+        onUpdateAgenda={handleUpdateAgenda}
+        onUpdateItems={handleUpdateItems}
       />
     </div>
   );

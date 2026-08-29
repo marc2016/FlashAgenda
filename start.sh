@@ -3,6 +3,14 @@
 echo "⚡️ FlashAgenda Local Environment ⚡️"
 echo "======================================"
 
+# Check if Colima is installed and running
+if command -v colima >/dev/null 2>&1; then
+  if ! colima status >/dev/null 2>&1; then
+    echo "🐳 Starting Colima runtime..."
+    colima start
+  fi
+fi
+
 # Start MongoDB in Docker
 echo "📦 Starting MongoDB via Docker..."
 # Try to run a new container; if it already exists, start the existing one

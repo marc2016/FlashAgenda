@@ -10,6 +10,7 @@ export interface IAttendee {
   secretGuid?: string;
   cardColor?: string;
   isRegistered?: boolean;
+  attendanceStatus?: 'present' | 'absent' | 'unconfirmed';
   joinedAt?: Date;
   lastSeen?: Date;
 }
@@ -123,6 +124,7 @@ const AttendeeSchema = new Schema<IAttendee>({
   secretGuid: { type: String },
   cardColor: { type: String },
   isRegistered: { type: Boolean, default: false },
+  attendanceStatus: { type: String, enum: ['present', 'absent', 'unconfirmed'], default: 'unconfirmed' },
   joinedAt: { type: Date, default: Date.now },
   lastSeen: { type: Date, default: Date.now }
 });

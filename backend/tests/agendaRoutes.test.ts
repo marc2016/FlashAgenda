@@ -210,4 +210,23 @@ describe('Agenda API Routes Unit Tests', () => {
 
     expect(res.status).toBe(200);
   });
+
+  it('should accept updating attendees with attendanceStatus on PUT /api/agendas/:id', async () => {
+    const res = await request(app)
+      .put('/api/agendas/507f1f77bcf86cd799439011')
+      .send({
+        attendees: [
+          {
+            id: 'test-user-123',
+            name: 'Max Mustermann',
+            email: 'max@beispiel.de',
+            cardColor: '#0a4b7c',
+            securityCode: '1234',
+            attendanceStatus: 'present'
+          }
+        ]
+      });
+
+    expect(res.status).toBe(200);
+  });
 });
