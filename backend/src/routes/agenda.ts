@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Agenda from '../models/Agenda';
 import { broadcastAgendaEvent } from '../services/socketService';
 import { verifyTotpCode } from '../services/totpService';
+import { evaluateGlobalAchievements, evaluateAgendaAchievements } from '../services/achievementService';
 
 const router: Router = express.Router();
 
@@ -237,10 +238,68 @@ router.get('/user-stats', async (req: Request, res: Response): Promise<void> => 
   }
 });
 
-// Bulk update user profile (name, email, avatarUrl, cardColor) across all agendas
+// Get global achievements for a user across all agendas
+router.get('/user-achievements', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req.query.user as string || '').trim();
+    const name = (req.query.name as string || '').trim();
+
+    if (!user && !name) {
+      res.json(evaluateGlobalAchievements([], '', ''));
+      return;
+    }
+
+    const orConditions: any[] = [];
+    if (user) {
+      orConditions.push({ createdBy: user });
+      orConditions.push({ 'attendees.id': user });
+      if (mongoose.Types.ObjectId.isValid(user)) {
+        orConditions.push({ 'attendees._id': new mongoose.Types.ObjectId(user) });
+      }
+    }
+    if (name) {
+      const safeName = escapeRegExp(name);
+      orConditions.push({ createdBy: { $regex: new RegExp(`^${safeName}$`, 'i') } });
+      orConditions.push({ 'attendees.name': { $regex: new RegExp(`^${safeName}$`, 'i') } });
+    }
+
+    const userAgendas = await Agenda.find({ $or: orConditions });
+
+    // Try to find attendee record to read profile preferences (cardColor, avatarUrl, pinnedAchievements)
+    let foundAttendee: any = null;
+    for (const ag of userAgendas) {
+      for (const att of (ag.attendees || [])) {
+        if (
+          (user && (att.id === user || (att as any)._id?.toString() === user)) ||
+          (name && att.name && att.name.toLowerCase() === name.toLowerCase())
+        ) {
+          foundAttendee = att;
+          break;
+        }
+      }
+      if (foundAttendee) break;
+    }
+
+    const userProfile = {
+      cardColor: (req.query.cardColor as string) || foundAttendee?.cardColor,
+      avatarUrl: (req.query.avatarUrl as string) || foundAttendee?.avatarUrl,
+      securityCode: (req.query.securityCode as string) || foundAttendee?.securityCode,
+      secretGuid: (req.query.secretGuid as string) || foundAttendee?.secretGuid,
+      pinnedAchievements: foundAttendee?.pinnedAchievements || []
+    };
+
+    const result = evaluateGlobalAchievements(userAgendas, user, name, userProfile);
+    res.json(result);
+  } catch (error) {
+    console.error('Error GET /user-achievements:', error);
+    res.status(500).json({ message: 'Failed to evaluate user achievements' });
+  }
+});
+
+// Bulk update user profile (name, email, avatarUrl, cardColor, pinnedAchievements) across all agendas
 router.put('/user-profile', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, oldName, name, email, avatarUrl, cardColor } = req.body;
+    const { userId, oldName, name, email, avatarUrl, cardColor, pinnedAchievements } = req.body;
     if (!userId && !oldName) {
       res.status(400).json({ message: 'User ID or oldName is required' });
       return;
@@ -273,6 +332,7 @@ router.put('/user-profile', async (req: Request, res: Response): Promise<void> =
           if (email !== undefined) att.email = email;
           if (avatarUrl !== undefined) att.avatarUrl = avatarUrl;
           if (cardColor !== undefined) att.cardColor = cardColor;
+          if (pinnedAchievements !== undefined) att.pinnedAchievements = pinnedAchievements;
           modified = true;
         }
       }
@@ -338,6 +398,32 @@ router.get('/:id/audits', async (req: Request, res: Response): Promise<void> => 
   } catch (error) {
     console.error('Error GET /:id/audits:', error);
     res.status(500).json({ message: 'Failed to fetch audit logs' });
+  }
+});
+
+// Get agenda-specific milestones, personal session achievements & dynamic leader trophies
+router.get('/:id/achievements', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid agenda ID format' });
+      return;
+    }
+
+    const agenda = await Agenda.findById(id);
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+
+    const user = (req.query.user as string || '').trim();
+    const name = (req.query.name as string || '').trim();
+
+    const result = evaluateAgendaAchievements(agenda, user, name);
+    res.json(result);
+  } catch (error) {
+    console.error('Error GET /:id/achievements:', error);
+    res.status(500).json({ message: 'Failed to evaluate agenda achievements' });
   }
 });
 

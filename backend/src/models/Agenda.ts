@@ -13,6 +13,7 @@ export interface IAttendee {
   attendanceStatus?: 'present' | 'absent' | 'unconfirmed';
   joinedAt?: Date;
   lastSeen?: Date;
+  pinnedAchievements?: string[];
 }
 
 export interface ILocation {
@@ -126,7 +127,8 @@ const AttendeeSchema = new Schema<IAttendee>({
   isRegistered: { type: Boolean, default: false },
   attendanceStatus: { type: String, enum: ['present', 'absent', 'unconfirmed'], default: 'unconfirmed' },
   joinedAt: { type: Date, default: Date.now },
-  lastSeen: { type: Date, default: Date.now }
+  lastSeen: { type: Date, default: Date.now },
+  pinnedAchievements: { type: [String], default: [] }
 });
 
 const LocationSchema = new Schema<ILocation>({

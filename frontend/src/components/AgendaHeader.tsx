@@ -63,6 +63,7 @@ interface Props {
   isConnected?: boolean;
   activeCount?: number;
   activeUsers?: { user: string; name: string }[];
+  onOpenAchievements?: (tab?: 'agenda' | 'global') => void;
 }
 
 interface NominatimResult {
@@ -169,7 +170,7 @@ function MapControls({
   );
 }
 
-export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator, isConnected = false, activeCount = 0, activeUsers = [] }: Props) {
+export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator, isConnected = false, activeCount = 0, activeUsers = [], onOpenAchievements }: Props) {
   const navigate = useNavigate();
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
@@ -614,6 +615,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
             {activeCount > 0 && <span className="text-white text-xs">({activeCount})</span>}
           </div>
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2.2rem', height: '2.2rem' }} />
+          <Button icon="mdi mdi-trophy" rounded text size="small" onClick={() => onOpenAchievements?.('agenda')} className="text-yellow-400 hover:text-yellow-300 font-bold" title="Agenda-Erfolge & Trophäen" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda (Titel & Personen übernehmen)" style={{ width: '2.2rem', height: '2.2rem' }} />
           <Button
             icon={notifPermission === 'granted' ? 'pi pi-bell' : notifPermission === 'denied' ? 'pi pi-bell-slash' : 'pi pi-bell'}
@@ -650,6 +652,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
             {activeCount > 0 && <span className="text-white text-xs">({activeCount})</span>}
           </div>
           <Button icon="pi pi-home" rounded text size="small" onClick={() => navigate('/')} className="text-gray-300 hover:text-yellow-400" title="Zur Startseite" style={{ width: '2rem', height: '2rem' }} />
+          <Button icon="mdi mdi-trophy" rounded text size="small" onClick={() => onOpenAchievements?.('agenda')} className="text-yellow-400 hover:text-yellow-300 font-bold" title="Agenda-Erfolge & Trophäen" style={{ width: '2rem', height: '2rem' }} />
           <Button icon="pi pi-plus" rounded text size="small" onClick={openCreateModal} className="text-gray-300 hover:text-yellow-400" title="Neue Agenda" style={{ width: '2rem', height: '2rem' }} />
           <Button
             icon={notifPermission === 'granted' ? 'pi pi-bell' : notifPermission === 'denied' ? 'pi pi-bell-slash' : 'pi pi-bell'}

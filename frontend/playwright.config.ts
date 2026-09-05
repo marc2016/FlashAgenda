@@ -11,6 +11,7 @@ export default defineConfig({
     baseURL: 'http://localhost:5188',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    serviceWorkers: 'block',
   },
   projects: [
     {

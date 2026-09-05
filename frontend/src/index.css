@@ -597,3 +597,91 @@ body.p-overflow-hidden {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* Green Corner Banderole / Ribbon for unlocked trophies */
+.corner-banderole-unlocked {
+  position: absolute;
+  top: 14px;
+  left: -40px;
+  width: 145px;
+  transform: rotate(-45deg);
+  background-color: #22c55e;
+  color: #000000;
+  font-weight: 900;
+  font-size: 0.58rem;
+  padding: 2.5px 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 10;
+  border: 2px solid #000000;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+/* Comic Achievement Toast Animation */
+@keyframes achievementPopIn {
+  0% {
+    transform: translateY(100px) scale(0.85);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-8px) scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.achievement-toast-enter {
+  animation: achievementPopIn 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.comic-badge {
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px #000;
+  font-weight: 800;
+}
+
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+/* Comic Achievement Tooltip Overlay */
+.comic-achievement-tooltip.p-overlaypanel {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border: 2px solid #000000 !important;
+  box-shadow: 4px 4px 0px #000000 !important;
+  border-radius: 10px !important;
+}
+
+.comic-achievement-tooltip .p-overlaypanel-content {
+  padding: 0.6rem 0.75rem !important;
+}
+
+.comic-achievement-tooltip.p-overlaypanel:before,
+.comic-achievement-tooltip.p-overlaypanel:after {
+  display: none !important;
+}
+
+/* Extra small font utilities */
+.text-2xs {
+  font-size: 0.72rem !important;
+}
+
+.text-3xs {
+  font-size: 0.65rem !important;
+}
+
+/* Image utility */
+.object-cover {
+  object-fit: cover !important;
+}

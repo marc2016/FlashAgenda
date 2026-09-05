@@ -5,6 +5,7 @@ import { PrimeReactProvider, addLocale, locale } from 'primereact/api';
 import 'primereact/resources/themes/lara-dark-amber/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
+import '@mdi/font/css/materialdesignicons.min.css';
 import 'primeflex/primeflex.css';
 import App from './App';
 import './index.css';

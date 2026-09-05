@@ -5,15 +5,19 @@ import { InputText } from 'primereact/inputtext';
 import { getTotpCode } from '../services/totpService';
 import { CARD_COLOR_PALETTE } from './AgendaAttendees';
 import SafeQRCode from './SafeQRCode';
+import { fetchGlobalAchievements, ACHIEVEMENT_CATEGORY_COLORS, type IGlobalAchievementsResult } from '../services/achievementService';
+import AchievementIcon from './AchievementIcon';
+import { PinnedAchievementBadge } from './PinnedAchievementBadge';
 
 interface Props {
   visible: boolean;
   onHide: () => void;
   currentUser: any;
   onUpdateUser?: (updatedUser: any) => void;
+  onTogglePin?: (achId: string) => void;
 }
 
-export default function UserProfileModal({ visible, onHide, currentUser, onUpdateUser }: Props) {
+export default function UserProfileModal({ visible, onHide, currentUser, onUpdateUser, onTogglePin }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -31,6 +35,9 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
   const [statsLoading, setStatsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const [globalAchievements, setGlobalAchievements] = useState<IGlobalAchievementsResult | null>(null);
+  const [achievementsLoading, setAchievementsLoading] = useState(false);
+
   // TOTP state
   const [totp, setTotp] = useState(() => {
     if (currentUser?.secretGuid) {
@@ -38,6 +45,69 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
     }
     return { code: currentUser?.securityCode || '----', remainingSeconds: 300 };
   });
+
+  useEffect(() => {
+    if (!currentUser || !visible) return;
+    const loadAchievements = async () => {
+      setAchievementsLoading(true);
+      try {
+        const userId = currentUser.id || currentUser._id || '';
+        const userName = currentUser.name || '';
+        const res = await fetchGlobalAchievements(userId, userName, {
+          cardColor: currentUser.cardColor,
+          avatarUrl: currentUser.avatarUrl,
+          securityCode: currentUser.securityCode,
+          secretGuid: currentUser.secretGuid
+        });
+        if (res) {
+          setGlobalAchievements(res);
+        }
+      } catch (err) {
+        console.error('Failed to load achievements in profile:', err);
+      } finally {
+        setAchievementsLoading(false);
+      }
+    };
+    loadAchievements();
+  }, [currentUser, visible]);
+
+  const handleTogglePin = async (achId: string) => {
+    if (!currentUser) return;
+    const currentPins: string[] = currentUser.pinnedAchievements || [];
+    let updatedPins: string[];
+    if (currentPins.includes(achId)) {
+      updatedPins = currentPins.filter(id => id !== achId);
+    } else {
+      if (currentPins.length >= 3) {
+        updatedPins = [...currentPins.slice(1), achId];
+      } else {
+        updatedPins = [...currentPins, achId];
+      }
+    }
+
+    const updatedUser = { ...currentUser, pinnedAchievements: updatedPins };
+    if (onUpdateUser) {
+      onUpdateUser(updatedUser);
+    }
+    if (onTogglePin) {
+      onTogglePin(achId);
+    }
+
+    try {
+      await fetch('/api/agendas/user-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id || currentUser._id,
+          oldName: currentUser.name,
+          name: currentUser.name,
+          pinnedAchievements: updatedPins
+        })
+      });
+    } catch (err) {
+      console.error('Failed to sync pinned achievements:', err);
+    }
+  };
 
   useEffect(() => {
     if (!currentUser?.secretGuid || !visible) return;
@@ -156,8 +226,8 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
         visible={visible}
         onHide={onHide}
         showHeader={false}
-        style={{ width: '95vw', maxWidth: '480px', border: 'none', background: 'transparent', boxShadow: 'none' }}
-        contentStyle={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none', overflow: 'visible' }}
+        style={{ width: '95vw', maxWidth: '1150px', border: 'none', background: 'transparent', boxShadow: 'none' }}
+        contentStyle={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none', overflowY: 'auto', maxHeight: '90vh' }}
         maskStyle={{ backgroundColor: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(6px)' }}
         modal
         dismissableMask
@@ -297,6 +367,18 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                         </span>
                       </div>
                     </div>
+
+                    {/* Pinned Badges on large card */}
+                    {((currentUser?.pinnedAchievements || []).length > 0) && (
+                      <div 
+                        className="flex align-items-center mt-2 pt-1 border-top-1 border-white-alpha-20"
+                        style={{ gap: '0.75rem' }}
+                      >
+                        {(currentUser.pinnedAchievements || []).slice(0, 3).map((achId: string) => (
+                          <PinnedAchievementBadge key={achId} achId={achId} size="normal" />
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* TOTP Code Badge at Bottom Left */}
@@ -319,6 +401,134 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Global Achievements Section (Gamification Showcase) */}
+          <div 
+            className="w-full mt-3 p-2 sm:p-3 text-white relative select-none"
+            style={{ maxWidth: '1150px' }}
+          >
+            <div className="flex align-items-center justify-content-between pb-2 mb-2 border-bottom-1 border-white-alpha-20">
+              <div className="flex align-items-center gap-2">
+                <i className="mdi mdi-trophy text-xl text-yellow-400"></i>
+                <div>
+                  <h3
+                    className="text-lg sm:text-xl font-bold text-yellow-500 m-0 uppercase tracking-wide"
+                    style={{ textShadow: '2px 2px 0px #000' }}
+                  >
+                    GLOBALE TROPHÄEN
+                  </h3>
+                </div>
+              </div>
+
+              {globalAchievements && (
+                <div className="text-right">
+                  <span className="bg-yellow-400 text-black text-2xs font-bold px-2 py-1 border-round uppercase flex align-items-center gap-1">
+                    <i className="mdi mdi-pin"></i> {(currentUser?.pinnedAchievements || []).length} / 3 Angepinnt
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {achievementsLoading ? (
+              <div className="text-center p-3 text-xs text-yellow-400 font-bold">
+                <i className="pi pi-spin pi-spinner mr-2" />
+                Lade Erfolge...
+              </div>
+            ) : globalAchievements ? (
+              <div className="pt-2">
+                <div 
+                  className="w-full max-h-24rem overflow-y-auto pr-1"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
+                    gap: '0.75rem'
+                  }}
+                >
+                  {globalAchievements.achievements.map(ach => {
+                    const isPinned = (currentUser?.pinnedAchievements || []).includes(ach.id);
+                    const catColor = ACHIEVEMENT_CATEGORY_COLORS[ach.category] || '#374151';
+
+                    return (
+                      <div
+                        key={ach.id}
+                        className={`p-3 sm:p-4 flex align-items-center gap-3 transition-transform hover:scale-101 select-none relative overflow-hidden ${
+                          !ach.unlocked ? 'opacity-70' : ''
+                        }`}
+                        style={{
+                          background: ach.unlocked
+                            ? isPinned
+                              ? `linear-gradient(135deg, rgba(250, 204, 21, 0.35) 0%, rgba(0, 0, 0, 0.45) 100%), ${catColor}`
+                              : `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.4) 100%), ${catColor}`
+                            : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                          border: isPinned 
+                            ? '3px solid #facc15' 
+                            : (ach.unlocked ? '3px solid #000' : '2px solid #374151'),
+                          boxShadow: isPinned 
+                            ? '4px 4px 0px #000, 0 0 14px rgba(250, 204, 21, 0.45)' 
+                            : '4px 4px 0px #000',
+                          borderRadius: '12px',
+                          minHeight: '105px'
+                        }}
+                      >
+                        {ach.unlocked && (
+                          <div className="corner-banderole-unlocked">
+                            <i className="pi pi-check text-xs font-bold" /> CHECK
+                          </div>
+                        )}
+
+                        <div 
+                          className={`border-circle border-2 border-black flex align-items-center justify-content-center text-xl flex-shrink-0 shadow-2 ${
+                            ach.unlocked ? 'bg-yellow-400 text-black' : 'bg-gray-800 text-gray-400'
+                          }`}
+                          style={{ width: '2.8rem', height: '2.8rem' }}
+                        >
+                          <AchievementIcon icon={ach.icon} isLocked={!ach.unlocked} className="text-xl" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex align-items-center justify-content-between gap-1">
+                            <span 
+                              className="font-bold text-sm sm:text-base text-white overflow-hidden text-overflow-ellipsis white-space-nowrap"
+                              style={{ textShadow: '1px 1px 0px #000' }}
+                            >
+                              {ach.title}
+                            </span>
+                            {ach.unlocked && (
+                              <button
+                                onClick={() => handleTogglePin(ach.id)}
+                                className={`border-none border-circle p-1 cursor-pointer flex align-items-center justify-content-center transition-colors shadow-2 ${
+                                  isPinned 
+                                    ? 'bg-yellow-400 text-black' 
+                                    : 'bg-black-alpha-40 text-gray-200 hover:bg-yellow-500 hover:text-black'
+                                }`}
+                                style={{ width: '1.8rem', height: '1.8rem' }}
+                                title={isPinned ? 'Von Personenkarte entfernen' : 'An Personenkarte anpinnen (max. 3)'}
+                              >
+                                <i className={isPinned ? "mdi mdi-pin text-xs font-bold" : "mdi mdi-pin-outline text-xs font-bold"} />
+                              </button>
+                            )}
+                          </div>
+                          <div 
+                            className="text-2xs text-white-alpha-90 line-height-2 mt-1 overflow-hidden text-overflow-ellipsis"
+                            style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.5)' }}
+                          >
+                            {ach.description}
+                          </div>
+                          {!ach.unlocked && (
+                            <div className="flex align-items-center justify-content-end mt-2 text-2xs font-bold text-gray-400">
+                              <span>
+                                {ach.current} / {ach.target}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Bottom Dialog Close Button */}

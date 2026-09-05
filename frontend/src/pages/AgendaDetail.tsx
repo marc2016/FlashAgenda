@@ -9,6 +9,17 @@ import AuditLogModal from '../components/AuditLogModal';
 import { PendingTransfersModal } from '../components/PendingTransfersModal';
 import LiveMeetingModal from '../components/LiveMeetingModal';
 import { notifyNewItem } from '../services/notificationService';
+import AgendaAchievementBanner from '../components/AgendaAchievementBanner';
+import AchievementModal from '../components/AchievementModal';
+import AchievementToast from '../components/AchievementToast';
+import UserProfileModal from '../components/UserProfileModal';
+import type { IEvaluatedAchievement } from '../services/achievementService';
+import {
+  detectNewlyUnlocked,
+  markAchievementsAsSeen,
+  fetchAgendaAchievements,
+  fetchGlobalAchievements
+} from '../services/achievementService';
 import {
   getCachedAgenda,
   setCachedAgenda,
@@ -35,6 +46,63 @@ export default function AgendaDetail() {
   const [showTransfersModal, setShowTransfersModal] = useState(false);
   const [isLiveMeetingOpen, setIsLiveMeetingOpen] = useState(false);
   const prevPendingCountRef = useRef<number>(0);
+
+  // Achievement state
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
+  const [achievementModalTab, setAchievementModalTab] = useState<'agenda' | 'global'>('agenda');
+  const [unlockedToasts, setUnlockedToasts] = useState<IEvaluatedAchievement[]>([]);
+  const [refreshAchievements, setRefreshAchievements] = useState(0);
+
+  const handleOpenAchievements = (tab?: 'agenda' | 'global') => {
+    setAchievementModalTab(tab || 'agenda');
+    setShowAchievementModal(true);
+  };
+
+  const handleTogglePin = async (achievementId: string) => {
+    if (!currentUser) return;
+    const currentPins: string[] = currentUser.pinnedAchievements || [];
+    let updatedPins: string[];
+    if (currentPins.includes(achievementId)) {
+      updatedPins = currentPins.filter(pId => pId !== achievementId);
+    } else {
+      if (currentPins.length >= 3) {
+        updatedPins = [...currentPins.slice(1), achievementId];
+      } else {
+        updatedPins = [...currentPins, achievementId];
+      }
+    }
+
+    const updatedUser = { ...currentUser, pinnedAchievements: updatedPins };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('flashagenda_last_user', JSON.stringify(updatedUser));
+    if (id) {
+      localStorage.setItem(`flashagenda_${id}_user`, JSON.stringify(updatedUser));
+    }
+
+    try {
+      await fetch('/api/agendas/user-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.id || currentUser._id,
+          oldName: currentUser.name,
+          name: currentUser.name,
+          pinnedAchievements: updatedPins
+        })
+      });
+    } catch (err) {
+      console.error('Failed to update pinned achievements server-side:', err);
+    }
+
+    if (agenda && agenda.attendees) {
+      const updatedAttendees = agenda.attendees.map((a: any) => {
+        const match = (currentUser.id && a.id === currentUser.id) || a.name === currentUser.name;
+        return match ? { ...a, pinnedAchievements: updatedPins } : a;
+      });
+      handleUpdateAgenda({ attendees: updatedAttendees });
+    }
+  };
   
   // Offline state tracking
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -143,6 +211,56 @@ export default function AgendaDetail() {
     fetchAgenda();
   }, [fetchAgenda]);
 
+  useEffect(() => {
+    if (!id || !currentUser) return;
+    const userIdentifier = currentUser.id || currentUser._id || currentUser.name;
+
+    fetchAgendaAchievements(id, userIdentifier, currentUser.name).then(res => {
+      if (res) {
+        const newlyUnlocked = detectNewlyUnlocked(
+          [
+            ...res.personalAchievements,
+            ...res.dynamicLeaders,
+            ...res.teamMilestones
+          ],
+          userIdentifier,
+          id
+        );
+        if (newlyUnlocked.length > 0) {
+          setUnlockedToasts(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const toAdd = newlyUnlocked.filter(a => !existingIds.has(a.id));
+            return [...prev, ...toAdd];
+          });
+          markAchievementsAsSeen(newlyUnlocked.map(a => a.id), userIdentifier, id);
+        }
+      }
+    });
+
+    // Also check global achievements
+    fetchGlobalAchievements(userIdentifier, currentUser.name, {
+      cardColor: currentUser.cardColor,
+      avatarUrl: currentUser.avatarUrl,
+      securityCode: currentUser.securityCode,
+      secretGuid: currentUser.secretGuid
+    }).then(gRes => {
+      if (gRes) {
+        const newlyUnlockedGlobal = detectNewlyUnlocked(
+          gRes.achievements,
+          userIdentifier
+        );
+        if (newlyUnlockedGlobal.length > 0) {
+          setUnlockedToasts(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const toAdd = newlyUnlockedGlobal.filter(a => !existingIds.has(a.id));
+            return [...prev, ...toAdd];
+          });
+          markAchievementsAsSeen(newlyUnlockedGlobal.map(a => a.id), userIdentifier);
+        }
+      }
+    });
+  }, [id, currentUser, refreshAchievements]);
+
   const handleLiveAgendaUpdate = useCallback((updatedData: any) => {
     if (!updatedData) return;
     if (updatedData.items && prevItemsRef.current !== null) {
@@ -191,6 +309,7 @@ export default function AgendaDetail() {
     });
 
     if (id) setCachedAgenda(id, updatedData);
+    setRefreshAchievements(prev => prev + 1);
   }, [id]);
 
   const { isConnected, activeCount, activeUsers } = useAgendaSocket({
@@ -352,10 +471,11 @@ export default function AgendaDetail() {
 
     // Optimistic UI update — apply immediately so dialogs can close without waiting
     setAgenda((prev: any) => {
-      const updated = { ...(prev || {}), ...payload };
-      setCachedAgenda(id, updated);
-      return updated;
-    });
+       const updated = { ...(prev || {}), ...payload };
+       setCachedAgenda(id, updated);
+       return updated;
+     });
+    setRefreshAchievements(prev => prev + 1);
 
     if (!navigator.onLine) {
       const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
@@ -377,6 +497,7 @@ export default function AgendaDetail() {
             setCachedAgenda(id, merged);
             return merged;
           });
+          setRefreshAchievements(prev => prev + 1);
         } else {
           console.warn(`[AgendaDetail] PUT /api/agendas/${id} failed: HTTP ${response.status}`, await response.text().catch(() => ''));
           const queueType = updates.items !== undefined ? 'UPDATE_ITEMS' : 'UPDATE_AGENDA';
@@ -435,6 +556,7 @@ export default function AgendaDetail() {
 
   const handleUpdateItems = (newItems: any[]) => {
     handleUpdateAgenda({ items: newItems });
+    setRefreshAchievements(prev => prev + 1);
   };
 
   // Pending transfers for the currently active user
@@ -799,6 +921,7 @@ export default function AgendaDetail() {
           isConnected={isConnected}
           activeCount={activeCount}
           activeUsers={activeUsers}
+          onOpenAchievements={handleOpenAchievements}
         />
 
         <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
@@ -811,6 +934,18 @@ export default function AgendaDetail() {
           onAdd={handleAddAttendee} 
           onUpdateAgenda={handleUpdateAgenda}
           onSwitchUser={() => setShowUserModal(true)}
+          onOpenProfile={() => setShowProfileModal(true)}
+        />
+
+        <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
+
+        {/* Agenda & Personal Achievements Showcase */}
+        <AgendaAchievementBanner
+          agendaId={agenda._id}
+          currentUser={currentUser}
+          attendees={agenda.attendees || []}
+          onOpenAchievementsModal={handleOpenAchievements}
+          refreshTrigger={refreshAchievements}
         />
 
         <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
@@ -888,6 +1023,35 @@ export default function AgendaDetail() {
         onUpdateAgenda={handleUpdateAgenda}
         onUpdateItems={handleUpdateItems}
       />
+
+      <AchievementModal
+        visible={showAchievementModal}
+        onHide={() => setShowAchievementModal(false)}
+        agendaId={agenda._id}
+        currentUser={currentUser}
+        attendees={agenda.attendees || []}
+        onTogglePin={handleTogglePin}
+        pinnedAchievements={currentUser?.pinnedAchievements || []}
+        initialTab={achievementModalTab}
+      />
+
+      <AchievementToast
+        achievements={unlockedToasts}
+        onDismiss={() => setUnlockedToasts([])}
+      />
+
+      {currentUser && (
+        <UserProfileModal
+          visible={showProfileModal}
+          onHide={() => setShowProfileModal(false)}
+          currentUser={currentUser}
+          onUpdateUser={(updated) => {
+            setCurrentUser(updated);
+            setRefreshAchievements(prev => prev + 1);
+          }}
+          onTogglePin={handleTogglePin}
+        />
+      )}
     </div>
   );
 }

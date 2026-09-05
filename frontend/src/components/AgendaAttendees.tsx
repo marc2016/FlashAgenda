@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import SafeQRCode from './SafeQRCode';
 import { getTotpCode } from '../services/totpService';
+import { PinnedAchievementBadge } from './PinnedAchievementBadge';
 
 interface Attendee {
   _id?: string;
@@ -19,6 +20,7 @@ interface Attendee {
   isRegistered?: boolean;
   joinedAt?: string;
   lastSeen?: string;
+  pinnedAchievements?: string[];
 }
 
 interface Props {
@@ -29,6 +31,7 @@ interface Props {
   onAdd: (attendee: Attendee) => Promise<void>;
   onUpdateAgenda?: (updates: any) => Promise<void>;
   onSwitchUser?: () => void;
+  onOpenProfile?: () => void;
 }
 
 export const CARD_COLOR_PALETTE = [
@@ -129,7 +132,7 @@ function RotatingTotpBadge({ secretGuid, fallbackCode }: { secretGuid?: string; 
   );
 }
 
-export default function AgendaAttendees({ agendaId, attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser }: Props) {
+export default function AgendaAttendees({ agendaId, attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser, onOpenProfile }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -499,6 +502,18 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (onOpenProfile) onOpenProfile();
+                            else handleOpenEditAttendee(att);
+                          }}
+                          className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-yellow-400 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
+                          style={{ width: '1.75rem', height: '1.75rem' }}
+                          title="Große Personenkarte & Erfolge ansehen"
+                        >
+                          <i className="mdi mdi-trophy text-xs font-bold" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             handleOpenEditAttendee(att);
                           }}
                           className="bg-black-alpha-40 hover:bg-yellow-500 hover:text-black text-white-alpha-80 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
@@ -552,6 +567,24 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
                         {count} Punkte
                       </span>
                     </div>
+
+                    {/* Pinned Badges on small card */}
+                    {(() => {
+                      const pins = att.pinnedAchievements && att.pinnedAchievements.length > 0
+                        ? att.pinnedAchievements
+                        : (isSelf && currentUser?.pinnedAchievements ? currentUser.pinnedAchievements : []);
+                      if (!pins || pins.length === 0) return null;
+                      return (
+                        <div 
+                          className="flex align-items-center mt-1.5 pt-1 border-top-1 border-white-alpha-20"
+                          style={{ gap: '0.75rem' }}
+                        >
+                          {pins.slice(0, 3).map((achId: string) => (
+                            <PinnedAchievementBadge key={achId} achId={achId} size="small" />
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 {isSelf && (
                   <RotatingTotpBadge secretGuid={att.secretGuid} fallbackCode={att.securityCode} />

@@ -5,6 +5,7 @@ import { classNames } from 'primereact/utils';
 import AdminLoginModal from '../components/AdminLoginModal';
 import UserProfileModal from '../components/UserProfileModal';
 import UserCodeLoginModal from '../components/UserCodeLoginModal';
+import AchievementModal from '../components/AchievementModal';
 import PwaInstallBanner from '../components/PwaInstallBanner';
 
 export default function Home() {
@@ -12,8 +13,43 @@ export default function Home() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [myAgendas, setMyAgendas] = useState<any[]>([]);
   const [agendasLoading, setAgendasLoading] = useState(false);
+
+  const handleTogglePin = async (achId: string) => {
+    if (!userState) return;
+    const currentPins: string[] = userState.pinnedAchievements || [];
+    let updatedPins: string[];
+    if (currentPins.includes(achId)) {
+      updatedPins = currentPins.filter(id => id !== achId);
+    } else {
+      if (currentPins.length >= 3) {
+        updatedPins = [...currentPins.slice(1), achId];
+      } else {
+        updatedPins = [...currentPins, achId];
+      }
+    }
+
+    const updatedUser = { ...userState, pinnedAchievements: updatedPins };
+    setUserState(updatedUser);
+    localStorage.setItem('flashagenda_last_user', JSON.stringify(updatedUser));
+
+    try {
+      await fetch('/api/agendas/user-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userState.id || userState._id,
+          oldName: userState.name,
+          name: userState.name,
+          pinnedAchievements: updatedPins
+        })
+      });
+    } catch (err) {
+      console.error('Failed to sync pinned achievements from home:', err);
+    }
+  };
   const [userState, setUserState] = useState<any>(() => {
     try {
       const str = localStorage.getItem('flashagenda_last_user');
@@ -119,12 +155,21 @@ export default function Home() {
       {/* Top right admin entry & profile buttons */}
       <div className="absolute top-0 right-0 m-3 z-3 flex align-items-center gap-2">
         {currentUser && (
-          <Button
-            icon="pi pi-id-card text-xl"
-            onClick={() => setShowProfileModal(true)}
-            className="p-button-rounded p-button-warning p-button-text p-button-sm opacity-80 hover:opacity-100 transition-opacity"
-            title="Mein Benutzerprofil & Pass"
-          />
+          <>
+            <Button
+              id="trophy-header-btn"
+              icon="mdi mdi-trophy text-xl text-yellow-400"
+              onClick={() => setShowAchievementModal(true)}
+              className="p-button-rounded p-button-warning p-button-text p-button-sm opacity-90 hover:opacity-100 transition-opacity"
+              title="Meine Trophäen & Erfolge"
+            />
+            <Button
+              icon="pi pi-id-card text-xl"
+              onClick={() => setShowProfileModal(true)}
+              className="p-button-rounded p-button-warning p-button-text p-button-sm opacity-80 hover:opacity-100 transition-opacity"
+              title="Mein Benutzerprofil & Pass"
+            />
+          </>
         )}
         <Button
           id="code-login-header-btn"
@@ -237,6 +282,7 @@ export default function Home() {
         onHide={() => setShowProfileModal(false)}
         currentUser={currentUser}
         onUpdateUser={(updated) => setUserState(updated)}
+        onTogglePin={handleTogglePin}
       />
 
       <UserCodeLoginModal
@@ -245,6 +291,15 @@ export default function Home() {
         onLoginSuccess={(user) => {
           setUserState(user);
         }}
+      />
+
+      <AchievementModal
+        visible={showAchievementModal}
+        onHide={() => setShowAchievementModal(false)}
+        currentUser={currentUser}
+        onTogglePin={handleTogglePin}
+        pinnedAchievements={currentUser?.pinnedAchievements || []}
+        initialTab="global"
       />
 
       <PwaInstallBanner />
