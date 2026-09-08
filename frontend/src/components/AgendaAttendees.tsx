@@ -132,7 +132,7 @@ function RotatingTotpBadge({ secretGuid, fallbackCode }: { secretGuid?: string; 
   );
 }
 
-export default function AgendaAttendees({ agendaId, attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser, onOpenProfile }: Props) {
+export default function AgendaAttendees({ agendaId, attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser: _onSwitchUser, onOpenProfile }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -397,16 +397,6 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
     <div className="mb-4 sm:mb-6">
       <div className="flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <h3 className="text-xl sm:text-2xl text-yellow-500 font-bold m-0" style={{ textShadow: '2px 2px 0px #000' }}>Personen</h3>
-        {onSwitchUser && (
-          <Button
-            icon="pi pi-user-edit"
-            rounded
-            text
-            className="p-button-warning"
-            onClick={onSwitchUser}
-            title="Person wechseln"
-          />
-        )}
       </div>
       
       <div className="flex flex-wrap gap-3 sm:gap-4 justify-content-center md:justify-content-start">
@@ -597,8 +587,12 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
         
         {/* Person hinzufügen Card */}
         <div 
+          role="button"
+          tabIndex={0}
           onClick={() => setVisible(true)}
-          className="flex flex-column align-items-center justify-content-center cursor-pointer transition-transform hover:scale-102 w-full md:w-auto"
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setVisible(true)}
+          className="flex flex-column align-items-center justify-content-center cursor-pointer transition-transform hover:scale-102 w-full md:w-auto select-none"
+          title="Person hinzufügen"
           style={{ 
             maxWidth: '340px',
             minWidth: '240px',
@@ -621,7 +615,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
         header={
           <div className="flex align-items-center gap-2">
             <i className="pi pi-user-plus text-yellow-400 text-xl" />
-            <span>Person hinzufügen</span>
+            <span>Neue Person hinzufügen</span>
           </div>
         } 
         visible={visible} 
@@ -635,7 +629,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
           <div className="p-inputgroup">
             <span className="p-inputgroup-addon bg-gray-700 border-gray-600"><i className="pi pi-user"></i></span>
             <InputText 
-              placeholder="Name der Person" 
+              placeholder="Name der Person..." 
               value={newName} 
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}

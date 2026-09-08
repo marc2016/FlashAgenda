@@ -369,7 +369,8 @@ body {
 }
 
 .p-dialog .p-dialog-header-close,
-.p-dialog .p-dialog-header-icon {
+.p-dialog .p-dialog-header-icon,
+.dialog-header-close-btn {
   background-color: #374151 !important;
   color: #ffffff !important;
   border: 2px solid #000000 !important;
@@ -382,10 +383,12 @@ body {
   justify-content: center !important;
   transition: transform 0.1s, box-shadow 0.1s, background-color 0.1s !important;
   margin: 0 !important;
+  cursor: pointer !important;
 }
 
 .p-dialog .p-dialog-header-close:hover,
-.p-dialog .p-dialog-header-icon:hover {
+.p-dialog .p-dialog-header-icon:hover,
+.dialog-header-close-btn:hover {
   background-color: #4b5563 !important;
   transform: translate(-1px, -1px) !important;
   box-shadow: 4px 4px 0px #000000 !important;
@@ -393,13 +396,16 @@ body {
 }
 
 .p-dialog .p-dialog-header-close:active,
-.p-dialog .p-dialog-header-icon:active {
+.p-dialog .p-dialog-header-icon:active,
+.dialog-header-close-btn:active {
   transform: translate(1px, 1px) !important;
   box-shadow: 1px 1px 0px #000000 !important;
 }
 
 .p-dialog .p-dialog-header-close .p-dialog-header-close-icon,
-.p-dialog .p-dialog-header-close i {
+.p-dialog .p-dialog-header-close i,
+.dialog-header-close-btn i,
+.dialog-header-close-btn span {
   color: #ffffff !important;
   font-weight: bold !important;
   font-size: 0.9rem !important;

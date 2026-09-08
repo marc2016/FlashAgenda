@@ -581,16 +581,18 @@ export function evaluateAgendaAchievements(
   const attendeeInfoMap = new Map<string, { id: string; name: string; avatarUrl?: string }>();
 
   for (const att of attendees) {
-    const canonicalKey = (att.id || (att._id ? String(att._id) : att.name) || '').toLowerCase();
+    const cleanName = (att.name || '').trim().toLowerCase();
+    const canonicalKey = cleanName || (att.id || (att._id ? String(att._id) : '') || '').toLowerCase();
+    const existingInfo = attendeeInfoMap.get(canonicalKey);
     const info = {
-      id: att.id || (att._id ? String(att._id) : att.name) || '',
-      name: att.name || 'Unbekannt',
-      avatarUrl: att.avatarUrl
+      id: att.id || (att._id ? String(att._id) : att.name) || existingInfo?.id || '',
+      name: att.name || existingInfo?.name || 'Unbekannt',
+      avatarUrl: att.avatarUrl || existingInfo?.avatarUrl
     };
     attendeeInfoMap.set(canonicalKey, info);
     if (att.id) aliasMap.set(String(att.id).toLowerCase(), canonicalKey);
     if (att._id) aliasMap.set(String(att._id).toLowerCase(), canonicalKey);
-    if (att.name) aliasMap.set(att.name.toLowerCase(), canonicalKey);
+    if (cleanName) aliasMap.set(cleanName, canonicalKey);
   }
 
   const pointsMap = new Map<string, { name: string; count: number; id: string; avatarUrl?: string }>();
@@ -695,7 +697,20 @@ export function evaluateAgendaAchievements(
     map: Map<string, { name: string; count: number; id: string; avatarUrl?: string }>,
     target: number = 1
   ): ILeaderboardEntry[] => {
-    const entries = Array.from(map.values());
+    // Deduplicate and merge any duplicate entries with same normalized userName
+    const mergedMap = new Map<string, { name: string; count: number; id: string; avatarUrl?: string }>();
+    for (const entry of map.values()) {
+      const normKey = (entry.name || '').trim().toLowerCase() || (entry.id || '').toLowerCase();
+      const existing = mergedMap.get(normKey);
+      if (existing) {
+        existing.count += entry.count;
+        if (!existing.avatarUrl && entry.avatarUrl) existing.avatarUrl = entry.avatarUrl;
+      } else {
+        mergedMap.set(normKey, { ...entry });
+      }
+    }
+
+    const entries = Array.from(mergedMap.values());
     entries.sort((a, b) => {
       if (b.count !== a.count) return b.count - a.count;
       return a.name.localeCompare(b.name);
@@ -707,10 +722,11 @@ export function evaluateAgendaAchievements(
         currentRank = idx + 1;
       }
       const entryKey = aliasMap.get((entry.id || '').toLowerCase()) || aliasMap.get((entry.name || '').toLowerCase()) || (entry.id || '').toLowerCase();
+      const normEntryName = (entry.name || '').trim().toLowerCase();
       const isCurrentUser = !!(
-        (userKey && entryKey === userKey) ||
+        (userKey && (entryKey === userKey || normEntryName === userKey)) ||
         (cleanId && (entry.id?.toLowerCase() === cleanId || entryKey === aliasMap.get(cleanId))) ||
-        (cleanName && (entry.name?.toLowerCase() === cleanName || entryKey === aliasMap.get(cleanName)))
+        (cleanName && (normEntryName === cleanName || entry.name?.toLowerCase() === cleanName || entryKey === aliasMap.get(cleanName)))
       );
 
       return {
@@ -760,8 +776,20 @@ export function evaluateAgendaAchievements(
 
   // Find leader for a map
   const findLeader = (map: Map<string, { name: string; count: number; id: string; avatarUrl?: string }>) => {
-    let topLeader: { name: string; count: number; id: string; avatarUrl?: string } | null = null;
+    const mergedMap = new Map<string, { name: string; count: number; id: string; avatarUrl?: string }>();
     for (const record of map.values()) {
+      const normKey = (record.name || '').trim().toLowerCase() || (record.id || '').toLowerCase();
+      const existing = mergedMap.get(normKey);
+      if (existing) {
+        existing.count += record.count;
+        if (!existing.avatarUrl && record.avatarUrl) existing.avatarUrl = record.avatarUrl;
+      } else {
+        mergedMap.set(normKey, { ...record });
+      }
+    }
+
+    let topLeader: { name: string; count: number; id: string; avatarUrl?: string } | null = null;
+    for (const record of mergedMap.values()) {
       if (record.count > 0) {
         if (!topLeader || record.count > topLeader.count) {
           topLeader = record;

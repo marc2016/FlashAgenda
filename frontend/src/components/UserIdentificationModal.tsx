@@ -38,6 +38,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
   const [verifyingAttendee, setVerifyingAttendee] = useState<Attendee | null>(null);
   const [enteredCode, setEnteredCode] = useState('');
   const [codeError, setCodeError] = useState(false);
+  const [showCode, setShowCode] = useState(false);
 
   const rememberedUser = useMemo(() => {
     const lastUserStr = localStorage.getItem('flashagenda_last_user');
@@ -77,14 +78,15 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
       }
     }
 
+    // Priority 1.5: If isOpen is explicitly controlled from outside, honor it
+    if (isOpen !== undefined) {
+      setVisible(isOpen);
+      if (isOpen) return;
+    }
+
     // Priority 2: If currentUser is already identified, skip re-evaluating
     if (currentUser) {
       setVisible(false);
-      return;
-    }
-
-    if (isOpen !== undefined) {
-      setVisible(isOpen);
       return;
     }
     const storedUser = localStorage.getItem(`flashagenda_${agendaId}_user`);
@@ -116,7 +118,9 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
   const handleClose = () => {
     setVisible(false);
     if (onClose) onClose();
-    window.location.href = '/';
+    if (!currentUser) {
+      window.location.href = '/';
+    }
   };
 
   const handleUseRememberedUser = async (user: Attendee) => {
@@ -147,10 +151,11 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
 
   const handleSelectExisting = (user: Attendee) => {
     // Require security code ONLY IF attendee has ALREADY registered/claimed on a device
-    if (user.isRegistered && user.securityCode) {
+    if (user.isRegistered && (user.securityCode || user.secretGuid)) {
       setVerifyingAttendee(user);
       setEnteredCode('');
       setCodeError(false);
+      setShowCode(false);
       return;
     }
 
@@ -169,19 +174,58 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
     onIdentified(updatedUser);
   };
 
-  const handleVerifyCode = () => {
+  const handleVerifyCode = async () => {
     if (!verifyingAttendee) return;
+    const clean = enteredCode.trim();
+    if (!clean) return;
 
-    const isTotpValid = verifyingAttendee.secretGuid && verifyTotpCode(enteredCode, verifyingAttendee.secretGuid, 60);
-    const isStaticValid = verifyingAttendee.securityCode && enteredCode.trim() === verifyingAttendee.securityCode.trim();
+    // 1. Local TOTP check (supporting both 300s standard and 60s fallback)
+    const isTotpValid = !!(
+      verifyingAttendee.secretGuid &&
+      (verifyTotpCode(clean, verifyingAttendee.secretGuid, 300) ||
+       verifyTotpCode(clean, verifyingAttendee.secretGuid, 60))
+    );
 
-    if (isTotpValid || isStaticValid) {
+    // 2. Local static securityCode check
+    const isStaticValid = !!(
+      verifyingAttendee.securityCode &&
+      clean === String(verifyingAttendee.securityCode).trim()
+    );
+
+    let isValid = isTotpValid || isStaticValid;
+
+    // 3. Backend fallback: verify against /api/agendas/login-by-code
+    if (!isValid) {
+      try {
+        const res = await fetch('/api/agendas/login-by-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: clean })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            const matchName = data.user.name?.trim().toLowerCase() === verifyingAttendee.name?.trim().toLowerCase();
+            const matchId = data.user.id === verifyingAttendee.id || data.user._id === verifyingAttendee._id;
+            if (matchName || matchId) {
+              isValid = true;
+              Object.assign(verifyingAttendee, data.user);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed backend login-by-code fallback in verification modal:', err);
+      }
+    }
+
+    if (isValid) {
       const confirmedUser = { ...verifyingAttendee, isRegistered: true };
       localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(confirmedUser));
       localStorage.setItem('flashagenda_last_user', JSON.stringify(confirmedUser));
       setVerifyingAttendee(null);
       setEnteredCode('');
       setCodeError(false);
+      setShowCode(false);
       setVisible(false);
       if (onClose) onClose();
       onIdentified(confirmedUser);
@@ -193,9 +237,21 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
   const handleCreateNew = async () => {
     if (!newName.trim()) return;
     setLoading(true);
+
+    const trimmed = newName.trim();
+    const existing = attendees.find(
+      a => a.name && a.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (existing) {
+      handleSelectExisting(existing);
+      setLoading(false);
+      return;
+    }
+
     const code = generateSecurityCode();
     const guid = uuidv4();
-    const newUser = { id: uuidv4(), name: newName.trim(), securityCode: code, secretGuid: guid, isRegistered: true };
+    const newUser = { id: uuidv4(), name: trimmed, securityCode: code, secretGuid: guid, isRegistered: true };
     await onAddAttendee(newUser);
     localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(newUser));
     localStorage.setItem('flashagenda_last_user', JSON.stringify(newUser));
@@ -354,7 +410,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
               <i className="pi pi-lock text-yellow-400" />
             </span>
             <InputText
-              type="password"
+              type={showCode ? 'text' : 'password'}
               placeholder="4-stelliger Code"
               value={enteredCode}
               onChange={(e) => {
@@ -366,6 +422,14 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
               autoFocus
               className="bg-gray-800 text-white border-gray-600 text-center font-mono text-xl"
             />
+            <button
+              type="button"
+              className="p-inputgroup-addon bg-gray-700 border-gray-600 text-gray-300 hover:text-white cursor-pointer"
+              onClick={() => setShowCode(!showCode)}
+              title={showCode ? 'Code verbergen' : 'Code anzeigen'}
+            >
+              <i className={`pi ${showCode ? 'pi-eye-slash' : 'pi-eye'}`} />
+            </button>
           </div>
           {codeError && (
             <p className="m-0 text-xs text-red-400 font-bold flex align-items-center justify-content-center gap-1">

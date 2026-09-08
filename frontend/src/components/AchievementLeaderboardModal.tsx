@@ -47,38 +47,67 @@ export default function AchievementLeaderboardModal({
 
   // Resolve leaderboard entries or compute fallback from attendees and leader
   const entries: ILeaderboardEntry[] = React.useMemo(() => {
+    let rawList: ILeaderboardEntry[] = [];
     if (achievement.leaderboard && achievement.leaderboard.length > 0) {
-      return achievement.leaderboard;
+      rawList = achievement.leaderboard;
+    } else {
+      // Fallback if leaderboard was not precomputed
+      const cleanId = (currentUser?.id || currentUser?._id || '').toLowerCase();
+      const cleanName = (currentUser?.name || '').trim().toLowerCase();
+
+      rawList = (attendees || []).map((att, idx) => {
+        const isLeader = achievement.leader && (
+          (att.id && att.id === achievement.leader.userId) ||
+          (att.name && att.name.trim().toLowerCase() === achievement.leader.userName.trim().toLowerCase())
+        );
+        const isCurrent = !!(
+          (cleanId && (att.id?.toLowerCase() === cleanId || att._id?.toLowerCase() === cleanId)) ||
+          (cleanName && att.name?.trim().toLowerCase() === cleanName)
+        );
+        const count = isLeader ? achievement.leader!.count : (isCurrent ? achievement.current : 0);
+
+        return {
+          userId: att.id || att._id,
+          userName: att.name,
+          avatarUrl: att.avatarUrl,
+          count,
+          rank: idx + 1,
+          isCurrentUser: isCurrent,
+          unlocked: count >= achievement.target
+        };
+      });
     }
 
-    // Fallback if leaderboard was not precomputed
-    const cleanId = (currentUser?.id || currentUser?._id || '').toLowerCase();
-    const cleanName = (currentUser?.name || '').toLowerCase();
+    // Safeguard: Deduplicate entries by normalized userName to ensure each person appears only once
+    const deduplicatedMap = new Map<string, ILeaderboardEntry>();
+    for (const item of rawList) {
+      const normKey = (item.userName || '').trim().toLowerCase() || (item.userId || '').toLowerCase();
+      const existing = deduplicatedMap.get(normKey);
+      if (existing) {
+        existing.count = Math.max(existing.count, item.count);
+        existing.isCurrentUser = existing.isCurrentUser || item.isCurrentUser;
+        existing.unlocked = existing.unlocked || item.unlocked;
+        if (!existing.avatarUrl && item.avatarUrl) {
+          existing.avatarUrl = item.avatarUrl;
+        }
+      } else {
+        deduplicatedMap.set(normKey, { ...item });
+      }
+    }
 
-    const fallbackList: ILeaderboardEntry[] = (attendees || []).map((att, idx) => {
-      const isLeader = achievement.leader && (
-        (att.id && att.id === achievement.leader.userId) ||
-        (att.name && att.name.toLowerCase() === achievement.leader.userName.toLowerCase())
-      );
-      const isCurrent = !!(
-        (cleanId && (att.id?.toLowerCase() === cleanId || att._id?.toLowerCase() === cleanId)) ||
-        (cleanName && att.name?.toLowerCase() === cleanName)
-      );
-      const count = isLeader ? achievement.leader!.count : (isCurrent ? achievement.current : 0);
-
-      return {
-        userId: att.id || att._id,
-        userName: att.name,
-        avatarUrl: att.avatarUrl,
-        count,
-        rank: idx + 1,
-        isCurrentUser: isCurrent,
-        unlocked: count >= achievement.target
-      };
+    const sorted = Array.from(deduplicatedMap.values());
+    sorted.sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.userName.localeCompare(b.userName);
     });
 
-    fallbackList.sort((a, b) => b.count - a.count);
-    return fallbackList.map((item, idx) => ({ ...item, rank: idx + 1 }));
+    let currentRank = 1;
+    return sorted.map((item, idx) => {
+      if (idx > 0 && item.count < sorted[idx - 1].count) {
+        currentRank = idx + 1;
+      }
+      return { ...item, rank: currentRank };
+    });
   }, [achievement, attendees, currentUser]);
 
   const isDynamic = !!achievement.isDynamic;

@@ -139,27 +139,57 @@ router.post('/login-by-code', async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const query: any = { attendees: { $exists: true } };
-
-    const agendas = await Agenda.find(query).sort({ updatedAt: -1 }).limit(50);
-
     let matchedUser: any = null;
 
-    for (const agenda of agendas) {
-      for (const att of (agenda.attendees || [])) {
-        // 1. Verify static securityCode
-        if (att.securityCode && att.securityCode.toString().trim() === cleanCode) {
-          matchedUser = att;
-          break;
-        }
-
-        // 2. Verify live TOTP secretGuid
-        if (att.secretGuid && verifyTotpCode(cleanCode, att.secretGuid)) {
-          matchedUser = att;
-          break;
-        }
+    // 1. Direct query by static securityCode across all agendas
+    const staticAgenda = typeof (Agenda as any).findOne === 'function'
+      ? await Agenda.findOne({ 'attendees.securityCode': cleanCode })
+      : null;
+    if (staticAgenda) {
+      const match = (staticAgenda.attendees || []).find((a: any) => 
+        a.securityCode && String(a.securityCode).trim() === cleanCode
+      );
+      if (match) {
+        matchedUser = match;
       }
-      if (matchedUser) break;
+    }
+
+    // 2. If not found by static code, verify live TOTP across agendas with secretGuid
+    if (!matchedUser) {
+      const totpAgendas = await Agenda.find({ 'attendees.secretGuid': { $exists: true, $ne: '' } })
+        .sort({ updatedAt: -1 })
+        .limit(100);
+
+      for (const agenda of totpAgendas) {
+        for (const att of (agenda.attendees || [])) {
+          if (att.secretGuid && (verifyTotpCode(cleanCode, att.secretGuid, 300) || verifyTotpCode(cleanCode, att.secretGuid, 60))) {
+            matchedUser = att;
+            break;
+          }
+        }
+        if (matchedUser) break;
+      }
+    }
+
+    // 3. Fallback check across recent agendas
+    if (!matchedUser) {
+      const recentAgendas = await Agenda.find({ attendees: { $exists: true } })
+        .sort({ updatedAt: -1 })
+        .limit(100);
+
+      for (const agenda of recentAgendas) {
+        for (const att of (agenda.attendees || [])) {
+          if (att.securityCode && String(att.securityCode).trim() === cleanCode) {
+            matchedUser = att;
+            break;
+          }
+          if (att.secretGuid && (verifyTotpCode(cleanCode, att.secretGuid, 300) || verifyTotpCode(cleanCode, att.secretGuid, 60))) {
+            matchedUser = att;
+            break;
+          }
+        }
+        if (matchedUser) break;
+      }
     }
 
     if (!matchedUser) {
@@ -687,9 +717,40 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
       res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
       return;
     }
-    const name = req.body?.name || 'Unbekannt';
+    const name = (req.body?.name || 'Unbekannt').trim();
     const customId = req.body?.id;
     const now = new Date();
+
+    // Check if attendee with same name or id already exists
+    const existingAttendee = (agenda.attendees || []).find((a: any) => {
+      const aName = (a.name || '').trim().toLowerCase();
+      const targetName = name.toLowerCase();
+      const idMatch = customId && ((a.id && a.id === customId) || (a._id && a._id.toString() === customId));
+      return (aName && aName === targetName) || idMatch;
+    });
+
+    if (existingAttendee) {
+      existingAttendee.lastSeen = now;
+      if (req.body?.avatarUrl) {
+        existingAttendee.avatarUrl = req.body.avatarUrl;
+      }
+      if (req.body?.securityCode && !existingAttendee.securityCode) {
+        existingAttendee.securityCode = req.body.securityCode;
+      }
+      if (req.body?.secretGuid && !existingAttendee.secretGuid) {
+        existingAttendee.secretGuid = req.body.secretGuid;
+      }
+      if (req.body?.isRegistered !== undefined) {
+        existingAttendee.isRegistered = req.body.isRegistered;
+      }
+      agenda.markModified('attendees');
+      logAudit(agenda, 'Person wieder beigetreten', name, `Teilnehmer "${name}" ist der Agenda erneut beigetreten.`);
+      const savedAgenda = await agenda.save();
+      broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });
+      res.status(200).json(savedAgenda);
+      return;
+    }
+
     const newAttendee: any = {
       name,
       joinedAt: now,
@@ -701,7 +762,23 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
     if (req.body?.avatarUrl) {
       newAttendee.avatarUrl = req.body.avatarUrl;
     }
+    if (req.body?.securityCode) {
+      newAttendee.securityCode = req.body.securityCode;
+    }
+    if (req.body?.secretGuid) {
+      newAttendee.secretGuid = req.body.secretGuid;
+    }
+    if (req.body?.isRegistered !== undefined) {
+      newAttendee.isRegistered = req.body.isRegistered;
+    }
+    if (req.body?.email) {
+      newAttendee.email = req.body.email;
+    }
+    if (req.body?.cardColor) {
+      newAttendee.cardColor = req.body.cardColor;
+    }
     agenda.attendees.push(newAttendee);
+    agenda.markModified('attendees');
     logAudit(agenda, 'Person beigetreten', name, `Teilnehmer "${name}" ist der Agenda beigetreten.`);
     const savedAgenda = await agenda.save();
     broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });

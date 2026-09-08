@@ -33,18 +33,25 @@ export function verifyTotpCode(enteredCode: string, secretGuid: string, timeWind
   if (!enteredCode || !secretGuid) return false;
   const cleanEntered = enteredCode.trim();
   const now = Date.now();
-  const currentWindow = Math.floor(now / (timeWindowSeconds * 1000));
 
-  for (let windowOffset = -1; windowOffset <= 1; windowOffset++) {
-    const windowToTest = currentWindow + windowOffset;
-    const hashInput = `${secretGuid}_${windowToTest}`;
-    const numericHash = simpleHash(hashInput);
-    const validCode = (numericHash % 9000 + 1000).toString();
+  const checkWindow = (sec: number) => {
+    const currentWindow = Math.floor(now / (sec * 1000));
+    for (let windowOffset = -1; windowOffset <= 1; windowOffset++) {
+      const windowToTest = currentWindow + windowOffset;
+      const hashInput = `${secretGuid}_${windowToTest}`;
+      const numericHash = simpleHash(hashInput);
+      const validCode = (numericHash % 9000 + 1000).toString();
 
-    if (cleanEntered === validCode) {
-      return true;
+      if (cleanEntered === validCode) {
+        return true;
+      }
     }
-  }
+    return false;
+  };
+
+  if (checkWindow(timeWindowSeconds)) return true;
+  if (timeWindowSeconds !== 300 && checkWindow(300)) return true;
+  if (timeWindowSeconds !== 60 && checkWindow(60)) return true;
 
   return false;
 }

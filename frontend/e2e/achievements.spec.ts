@@ -336,10 +336,22 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
     await expect(page.getByText('Ideenfeuerwerk').first()).toBeVisible();
     await expect(page.getByText('Task-Titan').first()).toBeVisible();
 
-    // Verify filter works
+    // Verify filter tabs work
+    const allFilter = page.locator('button:has-text("Alle")');
+    await allFilter.click();
+    await expect(page.getByText('Pionier').first()).toBeVisible();
+
+    const creationFilter = page.locator('button:has-text("Erstellung")');
+    await creationFilter.click();
+    await expect(page.getByText('Pionier').first()).toBeVisible();
+
     const contributionsFilter = page.locator('button:has-text("Beiträge")');
     await contributionsFilter.click();
     await expect(page.getByText('Ideenfeuerwerk').first()).toBeVisible();
+
+    const identityFilter = page.locator('button:has-text("Identität")');
+    await identityFilter.click();
+    await expect(page.getByText('Fort Knox').first()).toBeVisible();
   });
 
   test('Agenda Detail page should render AgendaAchievementBanner between attendees and timeline', async ({ page }) => {
@@ -350,7 +362,10 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
     await expect(bannerTitle).toBeVisible();
 
     // Verify dynamic shifting leader trophies are rendered
-    await expect(page.getByText('Punkte-König').first()).toBeVisible();
+    const punkteKoenigCard = page.locator('.border-round-xl:has-text("Punkte-König")').first();
+    await expect(punkteKoenigCard).toBeVisible();
+    // Dynamic leader cards must not display static "Erreicht" label
+    await expect(punkteKoenigCard).not.toContainText('Erreicht');
     await expect(page.locator('text=/Hält aktuell die meisten eingereichten Agendapunkte/i').first()).toBeVisible();
     await expect(page.getByText('Debatten-Champion').first()).toBeVisible();
     await expect(page.getByText('Wort-Meister').first()).toBeVisible();
@@ -358,6 +373,10 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
 
     // Verify Teamerfolge (team milestones) are hidden from UI
     await expect(page.locator('text=/Gemeinsame Teamerfolge dieser Agenda/i')).toHaveCount(0);
+
+    // Verify yellow buttons next to Personen heading are removed
+    const personenHeading = page.locator('h3:has-text("Personen")').locator('..');
+    await expect(personenHeading.locator('.p-button-warning')).toHaveCount(0);
 
     // Verify personal session achievements in banner
     await expect(page.getByText('Agenda-Impulsgeber').first()).toBeVisible();
@@ -385,16 +404,8 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
     await personalModal.locator('.p-dialog-header-close').click();
     await expect(personalModal).toHaveCount(0);
 
-    // Verify full achievement modal can still be opened via header trophy button
-    const headerTrophyBtn = page.locator('button[title="Agenda-Erfolge & Trophäen"]:visible');
-    await headerTrophyBtn.click();
-    await expect(page.getByText('WANDERPOKALE DIESER SESSION', { exact: true })).toBeVisible();
-    await expect(page.getByText('DEINE ERFOLGE IN DIESEM MEETING', { exact: true })).toBeVisible();
-
-    // Switch to "Globales Profil" tab inside agenda
-    const globalTab = page.locator('button:has-text("Globales Profil")');
-    await globalTab.click();
-    await expect(page.getByText('Level 2 • Planer')).toBeVisible();
+    // Verify trophy button was removed from header menu
+    await expect(page.locator('button[title="Agenda-Erfolge & Trophäen"]')).toHaveCount(0);
   });
 
   test('Person Card should render pinned achievements and allow pinning up to 3 badges', async ({ page }) => {
@@ -420,8 +431,16 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
     await expect(page.locator('text=/\\d \\/ 3 Angepinnt/')).toBeVisible();
 
     // Pin another achievement (Ideenfeuerwerk)
-    const pinButtons = page.locator('button[title*="anpinnen"], button[title*="entfernen"]');
-    await expect(pinButtons.first()).toBeVisible();
+    const pinBtn = page.locator('button[title="An Personenkarte anpinnen (max. 3)"]').first();
+    await expect(pinBtn).toBeVisible();
+    await pinBtn.click();
+
+    // Verify button toggles to unpin title (creator_first + items_10 now pinned)
+    await expect(page.locator('button[title="Von Personenkarte entfernen"]')).toHaveCount(2);
+
+    // Close user profile modal via bottom close button
+    const closeBtn = page.locator('button:has-text("Schließen")').last();
+    await closeBtn.click();
   });
 
   test('Responsive check on mobile viewport', async ({ page }) => {
@@ -441,7 +460,7 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
     await expect(mobileLeaderboard.getByText('Rangliste')).toBeVisible();
   });
 
-  test('should display retrospective toast notifications when reloading page with newly unlocked achievements', async ({ page }) => {
+  test('should display retrospective toast notifications when reloading page with newly unlocked achievements with solid dialog style and pagination', async ({ page }) => {
     // Clear seen achievements storage
     await page.goto('/agenda/mock-agenda-ach-99');
     await page.evaluate(() => {
@@ -460,12 +479,77 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
     await expect(toast).toBeVisible();
     await expect(toast.locator('text=/ERFOLG FREIGESCHALTET|WANDERPOKAL ERHALTEN/i')).toBeVisible();
 
+    // Verify toast styling: solid dialog look, no transparency
+    const toastBg = await toast.evaluate(el => window.getComputedStyle(el).backgroundColor);
+    expect(toastBg).toBe('rgb(31, 41, 55)'); // #1f2937 solid dark background
+
+    const toastBorderWidth = await toast.evaluate(el => window.getComputedStyle(el).borderTopWidth);
+    expect(toastBorderWidth).toBe('3px');
+
+    // Verify close button has dialog styling and pi-times icon
+    const closeBtn = toast.locator('button.dialog-header-close-btn');
+    await expect(closeBtn).toBeVisible();
+    await expect(closeBtn.locator('.pi.pi-times')).toBeVisible();
+
+    // Verify close button has dialog comic styling (2px border, shadow)
+    const closeBorderWidth = await closeBtn.evaluate(el => window.getComputedStyle(el).borderTopWidth);
+    expect(closeBorderWidth).toBe('2px');
+
+    // Verify pagination counter is displayed (e.g. 1/5)
+    const counter = toast.locator('text=/1\\/\\d+/');
+    await expect(counter).toBeVisible();
+
+    // Click "Nächste" arrow button to advance to next achievement
+    const nextBtn = toast.locator('button[title="Nächste"]');
+    await expect(nextBtn).toBeVisible();
+    await nextBtn.click();
+
+    // Verify counter updated to 2/N
+    await expect(toast.locator('text=/2\\/\\d+/')).toBeVisible();
+
+    // Click "Vorherige" arrow button to return to previous achievement
+    const prevBtn = toast.locator('button[title="Vorherige"]');
+    await expect(prevBtn).toBeVisible();
+    await prevBtn.click();
+    await expect(toast.locator('text=/1\\/\\d+/')).toBeVisible();
+
     // Dismiss toast via close button
-    await toast.locator('button[title="Schließen"]').click();
+    await closeBtn.click();
     await expect(toast).toHaveCount(0);
 
     // Subsequent reload should not display toast for already seen achievements
     await page.reload();
     await expect(page.locator('.achievement-toast-enter')).toHaveCount(0);
+  });
+
+  test('Leaderboard modal should deduplicate person when attendee joined from multiple devices', async ({ page }) => {
+    // Intercept agenda achievements to return duplicated entries (simulating multi-device join)
+    await page.route('**/api/agendas/mock-agenda-ach-99/achievements*', async route => {
+      const cloned = JSON.parse(JSON.stringify(mockAgendaAchievements));
+      // Inject duplicate entries with same person name but different IDs
+      cloned.dynamicLeaders[0].leaderboard = [
+        { userId: 'dev-1', userName: 'Luigi', count: 3, rank: 1, isCurrentUser: false, unlocked: true },
+        { userId: 'dev-2', userName: 'Luigi', count: 2, rank: 2, isCurrentUser: false, unlocked: true },
+        { userId: mockUserId, userName: mockUserName, count: 1, rank: 3, isCurrentUser: true, unlocked: true }
+      ];
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(cloned)
+      });
+    });
+
+    await page.goto('/agenda/mock-agenda-ach-99');
+
+    // Click on Punkte-König to open leaderboard modal
+    await page.getByText('Punkte-König').first().click();
+
+    const dialog = page.locator('.p-dialog:has-text("Punkte-König")');
+    await expect(dialog).toBeVisible();
+
+    // Luigi must appear EXACTLY ONCE in the dialog despite having 2 entries in raw data!
+    await expect(dialog.getByText('Luigi', { exact: true })).toHaveCount(1);
+    // Super Mario must appear EXACTLY ONCE in the list
+    await expect(dialog.getByText('Super Mario', { exact: true })).toHaveCount(1);
   });
 });

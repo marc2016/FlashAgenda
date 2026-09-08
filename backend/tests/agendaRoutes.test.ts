@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import app from '../src/app';
 import { isSafeImageUrl } from '../src/routes/agenda';
+import { getTotpCode } from '../src/services/totpService';
 
 vi.mock('../src/models/Agenda', () => {
   const mockAgendaData = {
@@ -45,6 +46,16 @@ vi.mock('../src/models/Agenda', () => {
       });
     }
     return Promise.resolve({ ...mockAgendaData });
+  });
+
+  MockAgendaClass.findOne = vi.fn((query: any) => {
+    if (query?.['attendees.securityCode']) {
+      const code = query['attendees.securityCode'];
+      const match = mockAgendaData.attendees.find((a: any) => a.securityCode === code);
+      if (match) return Promise.resolve(mockAgendaData);
+      return Promise.resolve(null);
+    }
+    return Promise.resolve(mockAgendaData);
   });
 
   MockAgendaClass.find = vi.fn().mockImplementation(() => {
@@ -144,6 +155,18 @@ describe('Agenda API Routes Unit Tests', () => {
     expect(res.body.user.name).toContain('Max Mustermann');
   });
 
+  it('should login user by dynamic TOTP code successfully', async () => {
+    const totp = getTotpCode('550e8400-e29b-41d4-a716-446655440000', 300);
+    const res = await request(app)
+      .post('/api/agendas/login-by-code')
+      .send({ code: totp.code });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.user).toBeDefined();
+    expect(res.body.user.name).toContain('Max Mustermann');
+  });
+
   it('should reject login with invalid security code', async () => {
     const res = await request(app)
       .post('/api/agendas/login-by-code')
@@ -225,6 +248,17 @@ describe('Agenda API Routes Unit Tests', () => {
             attendanceStatus: 'present'
           }
         ]
+      });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('should reuse existing attendee without duplicate on POST /api/agendas/:id/attendees', async () => {
+    const res = await request(app)
+      .post('/api/agendas/507f1f77bcf86cd799439011/attendees')
+      .send({
+        name: 'Max Mustermann (Updated)',
+        id: 'new-device-id'
       });
 
     expect(res.status).toBe(200);

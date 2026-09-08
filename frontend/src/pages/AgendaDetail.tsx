@@ -219,9 +219,9 @@ export default function AgendaDetail() {
       if (res) {
         const newlyUnlocked = detectNewlyUnlocked(
           [
-            ...res.personalAchievements,
-            ...res.dynamicLeaders,
-            ...res.teamMilestones
+            ...(res.personalAchievements || []),
+            ...(res.dynamicLeaders || []),
+            ...(res.teamMilestones || [])
           ],
           userIdentifier,
           id
@@ -921,7 +921,6 @@ export default function AgendaDetail() {
           isConnected={isConnected}
           activeCount={activeCount}
           activeUsers={activeUsers}
-          onOpenAchievements={handleOpenAchievements}
         />
 
         <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>

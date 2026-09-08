@@ -406,6 +406,63 @@ describe('Achievement Service - Unit Tests', () => {
     expect(wordsBob?.current).toBe(19);
     expect(wordsBob?.gapToLeader).toBe(0);
   });
+
+  it('should deduplicate attendees with identical names across multiple devices in leaderboards', () => {
+    const mockAgenda: any = {
+      _id: 'ag-multi-device',
+      attendees: [
+        { id: 'device-1', name: 'Marc', avatarUrl: 'https://img.png' },
+        { id: 'device-2', name: 'Marc' },
+        { id: 'u-other', name: 'Julia' }
+      ],
+      items: [
+        {
+          _id: 'i1',
+          createdBy: 'device-1',
+          author: 'Marc',
+          completed: true
+        },
+        {
+          _id: 'i2',
+          createdBy: 'device-2',
+          author: 'Marc',
+          completed: true
+        },
+        {
+          _id: 'i3',
+          createdBy: 'u-other',
+          author: 'Julia',
+          completed: false
+        }
+      ]
+    };
+
+    const resDevice1 = evaluateAgendaAchievements(mockAgenda, 'device-1', 'Marc');
+    const pointsLeader = resDevice1.dynamicLeaders.find(d => d.id === 'leader_points');
+
+    expect(pointsLeader?.leaderboard).toBeDefined();
+    // In leaderboard, Marc must appear EXACTLY ONCE!
+    const marcEntries = pointsLeader!.leaderboard!.filter(e => e.userName.toLowerCase() === 'marc');
+    expect(marcEntries.length).toBe(1);
+    expect(marcEntries[0].count).toBe(2);
+    expect(marcEntries[0].isCurrentUser).toBe(true);
+    expect(marcEntries[0].avatarUrl).toBe('https://img.png');
+    expect(marcEntries[0].rank).toBe(1);
+
+    // Also check when accessed from device-2
+    const resDevice2 = evaluateAgendaAchievements(mockAgenda, 'device-2', 'Marc');
+    const pointsLeader2 = resDevice2.dynamicLeaders.find(d => d.id === 'leader_points');
+    const marcEntries2 = pointsLeader2!.leaderboard!.filter(e => e.userName.toLowerCase() === 'marc');
+    expect(marcEntries2.length).toBe(1);
+    expect(marcEntries2[0].count).toBe(2);
+    expect(marcEntries2[0].isCurrentUser).toBe(true);
+
+    // Check personal achievements leaderboard
+    const personalItemCreator = resDevice1.personalAchievements.find(p => p.id === 'session_item_creator');
+    const personalMarcEntries = personalItemCreator!.leaderboard!.filter(e => e.userName.toLowerCase() === 'marc');
+    expect(personalMarcEntries.length).toBe(1);
+    expect(personalMarcEntries[0].count).toBe(2);
+  });
 });
 
 describe('Achievement Routes - Integration Tests', () => {

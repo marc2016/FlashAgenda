@@ -57,7 +57,30 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([mockAgenda]) });
       } else if (url.includes('/user-profile')) {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
+      } else if (url.includes('/achievements')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            teamMilestones: [],
+            personalAchievements: [],
+            dynamicLeaders: [],
+            milestonesUnlocked: 0,
+            totalMilestones: 0
+          })
+        });
       } else if (method === 'POST' || method === 'PUT' || method === 'GET') {
+        if (url.includes('/attendees') && method === 'POST') {
+          const body = route.request().postDataJSON();
+          mockAgenda.attendees.push({
+            id: 'att-' + Date.now(),
+            name: body.name,
+            email: body.email,
+            cardColor: body.cardColor || '#10b981'
+          });
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockAgenda) });
+          return;
+        }
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockAgenda) });
       } else {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
@@ -131,19 +154,34 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
   test('should allow adding new attendees to the agenda', async ({ page }) => {
     await page.goto('/agenda/mock-agenda-123');
 
-    const addPersonButton = page.locator('button[title="Person zur Agenda hinzufügen"]');
-    if (await addPersonButton.isVisible().catch(() => false)) {
-      await addPersonButton.click();
+    // Verify yellow buttons next to Personen heading are removed
+    const personenHeading = page.locator('h3:has-text("Personen")').locator('..');
+    await expect(personenHeading.locator('.p-button-warning')).toHaveCount(0);
 
-      // Verify Add Attendee Modal
-      await expect(page.locator('text=Neue Person hinzufügen')).toBeVisible();
+    // Verify trophy button in header capsule is removed
+    await expect(page.locator('button[title="Agenda-Erfolge & Trophäen"]')).toHaveCount(0);
 
-      const nameInput = page.locator('input[placeholder="Name der Person..."]');
-      await nameInput.fill('Erika Musterfrau');
+    // Verify Person hinzufügen red card is visible and clickable
+    const addPersonCard = page.locator('[title="Person hinzufügen"]').first();
+    await expect(addPersonCard).toBeVisible();
+    await addPersonCard.click();
 
-      const submitButton = page.locator('button:has-text("Hinzufügen")');
-      await submitButton.click();
-    }
+    // Verify Add Attendee Modal
+    const modal = page.locator('.p-dialog:has-text("Neue Person hinzufügen")');
+    await expect(modal).toBeVisible();
+
+    const nameInput = modal.locator('input[placeholder="Name der Person..."]');
+    await nameInput.fill('Erika Musterfrau');
+
+    const emailInput = modal.locator('input[placeholder="E-Mail-Adresse (optional)"]');
+    await emailInput.fill('erika@example.com');
+
+    const submitButton = modal.locator('button:has-text("Hinzufügen")');
+    await submitButton.click();
+
+    // Verify modal closes and new attendee card appears in attendees list
+    await expect(modal).toBeHidden();
+    await expect(page.locator('text=Erika Musterfrau')).toBeVisible();
   });
 
   test('should support adding an agenda item with multi-image URLs', async ({ page }) => {
@@ -191,5 +229,34 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
       await expect(page.locator('text=Strategy Meeting 2026').first()).toBeVisible();
       await expect(page.locator('text=Alice').first()).toBeVisible();
     }
+  });
+
+  test('should verify security code when claiming registered user on a new device', async ({ page }) => {
+    // Clear localStorage to simulate a brand new device
+    await page.addInitScript(() => {
+      localStorage.clear();
+    });
+    await page.goto('/agenda/mock-agenda-123');
+
+    // "Wer bist du?" modal should be visible
+    await expect(page.locator('text=Wer bist du?')).toBeVisible();
+
+    // Select existing registered attendee "Max Mustermann"
+    const maxBtn = page.locator('button:has-text("Max Mustermann")');
+    await expect(maxBtn).toBeVisible();
+    await maxBtn.click();
+
+    // Security code verification dialog must appear
+    const verifyDialog = page.locator('.p-dialog:has-text("Sicherheitscode bestätigen")');
+    await expect(verifyDialog).toBeVisible();
+
+    // Enter correct 4-digit code
+    const codeInput = verifyDialog.locator('input');
+    await codeInput.fill('1234');
+    await verifyDialog.locator('button:has-text("Bestätigen")').click();
+
+    // Both dialogs should close and user is identified
+    await expect(verifyDialog).toBeHidden();
+    await expect(page.locator('text=Wer bist du?')).toBeHidden();
   });
 });

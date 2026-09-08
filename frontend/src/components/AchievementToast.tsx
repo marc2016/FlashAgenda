@@ -60,36 +60,31 @@ export default function AchievementToast({ achievements, onDismiss }: Props) {
     >
       <div 
         key={currentAch.id || visibleIndex}
-        className="glass-panel p-3 border-round-xl flex align-items-start gap-3 relative overflow-hidden achievement-toast-enter"
+        className="flex flex-column border-round-2xl overflow-hidden achievement-toast-enter"
         style={{
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
+          background: '#1f2937',
+          border: '3px solid #000000',
+          borderRadius: '16px',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), 6px 6px 0px #000000'
         }}
       >
-        {/* Clean Icon */}
-        <div 
-          className="flex align-items-center justify-content-center flex-shrink-0 border-round bg-yellow-500-alpha-20 text-yellow-400"
-          style={{ width: '2.5rem', height: '2.5rem' }}
-        >
-          <AchievementIcon icon={currentAch.icon} className="text-2xl text-yellow-400" />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex align-items-center justify-content-between mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-yellow-500 flex align-items-center">
-              <i className={`${currentAch.isDynamic ? 'mdi mdi-crown' : 'mdi mdi-trophy'} text-sm mr-1.5`} />
-              <span>{currentAch.isDynamic ? 'Wanderpokal erhalten!' : 'Erfolg freigeschaltet!'}</span>
+        {/* Dialog Header Bar */}
+        <div className="flex align-items-center justify-content-between px-3 py-2 border-bottom-1 border-white-alpha-10">
+          <div className="flex align-items-center gap-2">
+            <i className={`${currentAch.isDynamic ? 'mdi mdi-crown' : 'mdi mdi-trophy'} text-sm text-yellow-400`} />
+            <span className="text-xs font-bold uppercase tracking-wider text-yellow-400">
+              {currentAch.isDynamic ? 'Wanderpokal erhalten!' : 'Erfolg freigeschaltet!'}
             </span>
+          </div>
+
+          <div className="flex align-items-center gap-2">
             {achievements.length > 1 && (
-              <div className="flex align-items-center gap-1">
-                <span className="text-2xs text-gray-400 font-semibold mr-1">
-                  {visibleIndex + 1}/{achievements.length}
-                </span>
+              <div className="flex align-items-center gap-1 bg-gray-800 border-1 border-gray-700 px-2 py-0.5 border-round text-2xs font-semibold text-gray-300">
+                <span>{visibleIndex + 1}/{achievements.length}</span>
                 {visibleIndex > 0 && (
                   <button
                     onClick={handlePrev}
-                    className="p-0 border-none bg-transparent text-gray-400 hover:text-white cursor-pointer"
+                    className="p-0 border-none bg-transparent text-gray-400 hover:text-white cursor-pointer ml-1"
                     title="Vorherige"
                   >
                     <i className="mdi mdi-chevron-left text-xs" />
@@ -97,51 +92,67 @@ export default function AchievementToast({ achievements, onDismiss }: Props) {
                 )}
                 <button
                   onClick={handleNext}
-                  className="p-0 border-none bg-transparent text-gray-400 hover:text-white cursor-pointer"
+                  className="p-0 border-none bg-transparent text-gray-400 hover:text-white cursor-pointer ml-0.5"
                   title="Nächste"
                 >
                   <i className="mdi mdi-chevron-right text-xs" />
                 </button>
               </div>
             )}
-          </div>
-          <div className="font-bold text-white text-base overflow-hidden text-overflow-ellipsis white-space-nowrap">
-            {currentAch.title}
-          </div>
-          <div className="text-xs text-gray-300 line-height-3 mt-1">
-            {currentAch.description}
-          </div>
 
-          {/* Dots Indicator for multiple notifications */}
-          {achievements.length > 1 && (
-            <div className="flex align-items-center gap-1 mt-2">
-              {achievements.map((ach, idx) => (
-                <div
-                  key={ach.id || idx}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setVisibleIndex(idx);
-                  }}
-                  className="cursor-pointer border-round transition-all"
-                  style={{
-                    width: idx === visibleIndex ? '14px' : '6px',
-                    height: '4px',
-                    backgroundColor: idx === visibleIndex ? '#facc15' : 'rgba(255, 255, 255, 0.2)'
-                  }}
-                />
-              ))}
-            </div>
-          )}
+            {/* Dialog-styled Close Button */}
+            <button
+              onClick={onDismiss}
+              className="dialog-header-close-btn flex-shrink-0"
+              title="Schließen"
+              aria-label="Schließen"
+            >
+              <span className="p-dialog-header-close-icon pi pi-times" />
+            </button>
+          </div>
         </div>
 
-        {/* Close Button */}
-        <button
-          onClick={onDismiss}
-          className="bg-transparent border-none text-gray-400 hover:text-white cursor-pointer p-1 self-start flex-shrink-0"
-          title="Schließen"
-        >
-          <i className="mdi mdi-close text-base" />
-        </button>
+        {/* Dialog Content */}
+        <div className="p-3 flex align-items-center gap-3">
+          {/* Badge Icon */}
+          <div 
+            className="border-circle border-2 border-black flex align-items-center justify-content-center text-xl flex-shrink-0 bg-yellow-400 text-black shadow-2"
+            style={{ width: '2.8rem', height: '2.8rem' }}
+          >
+            <AchievementIcon icon={currentAch.icon} className="text-xl" />
+          </div>
+
+          {/* Texts */}
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-white text-base overflow-hidden text-overflow-ellipsis white-space-nowrap">
+              {currentAch.title}
+            </div>
+            <div className="text-xs text-gray-300 line-height-3 mt-1">
+              {currentAch.description}
+            </div>
+          </div>
+        </div>
+
+        {/* Dots Indicator for multiple notifications */}
+        {achievements.length > 1 && (
+          <div className="px-3 pb-2 flex align-items-center gap-1">
+            {achievements.map((ach, idx) => (
+              <div
+                key={ach.id || idx}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setVisibleIndex(idx);
+                }}
+                className="cursor-pointer border-round transition-all"
+                style={{
+                  width: idx === visibleIndex ? '16px' : '6px',
+                  height: '4px',
+                  backgroundColor: idx === visibleIndex ? '#facc15' : '#4b5563'
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
