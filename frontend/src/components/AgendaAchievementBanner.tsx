@@ -76,7 +76,7 @@ export default function AgendaAchievementBanner({
         </div>
 
         <div className="grid">
-          {data.dynamicLeaders.map(dl => {
+          {(data.dynamicLeaders || []).map(dl => {
             const cardColor = dl.isCurrentUserLeader ? '#1e293b' : '#111827';
 
             return (
@@ -148,7 +148,7 @@ export default function AgendaAchievementBanner({
           </div>
 
           <div className="grid">
-            {data.teamMilestones.map(m => (
+            {(data.teamMilestones || []).map(m => (
               <div key={m.id} className="col-12 sm:col-6 lg:col-4">
                 <div
                   className="p-3 border-round-xl flex align-items-center gap-3 h-full select-none"

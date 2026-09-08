@@ -244,6 +244,23 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
       await route.abort();
     });
 
+    // Intercept heartbeat pings & audits to prevent ECONNREFUSED terminal warnings
+    await context.route(/\/api\/agendas\/.*\/ping/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true })
+      });
+    });
+
+    await context.route(/\/api\/agendas\/.*\/audits/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([])
+      });
+    });
+
     // Mock user profile & agendas APIs
     await context.route(/\/api\/agendas\/user-stats/, async (route) => {
       await route.fulfill({

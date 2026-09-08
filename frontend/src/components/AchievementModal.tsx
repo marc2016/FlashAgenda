@@ -226,7 +226,7 @@ export default function AchievementModal({
                     gap: '0.75rem'
                   }}
                 >
-                  {agendaData.dynamicLeaders.map(dl => (
+                  {(agendaData.dynamicLeaders || []).map(dl => (
                     <div 
                       key={dl.id}
                       className={`p-3 border-round-xl border-2 transition-all flex align-items-center justify-content-between gap-2.5 relative overflow-hidden ${
@@ -302,7 +302,7 @@ export default function AchievementModal({
                         gap: '0.75rem'
                       }}
                     >
-                      {agendaData.teamMilestones.map(m => (
+                      {(agendaData.teamMilestones || []).map(m => (
                         <div
                           key={m.id}
                           className={`p-3 border-round-xl border-2 flex align-items-center gap-3 ${
@@ -358,7 +358,7 @@ export default function AchievementModal({
                     gap: '0.75rem'
                   }}
                 >
-                  {agendaData.personalAchievements.map(pa => (
+                  {(agendaData.personalAchievements || []).map(pa => (
                     <div
                       key={pa.id}
                       className={`p-3 border-round-xl border-2 flex align-items-center gap-3 ${

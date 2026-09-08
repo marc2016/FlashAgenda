@@ -176,6 +176,9 @@ export function detectNewlyUnlocked(
   userId?: string,
   agendaId?: string
 ): IEvaluatedAchievement[] {
+  if (!Array.isArray(achievements)) {
+    return [];
+  }
   const seen = getSeenAchievementIds(userId, agendaId);
   const newUnlocks: IEvaluatedAchievement[] = [];
 
