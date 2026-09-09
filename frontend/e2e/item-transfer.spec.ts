@@ -48,6 +48,7 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
         localStorage.setItem('flashagenda_last_user', JSON.stringify({ id: 'user-alice', name: 'Alice' }));
       }
 
+      const origFetch = window.fetch;
       window.fetch = async (input, init) => {
         const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
         const method = (init?.method || 'GET').toUpperCase();
@@ -55,6 +56,23 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
         if (url.includes('/api/agendas')) {
           if (url.includes('ping')) {
             return new Response(JSON.stringify({ lastSeen: new Date().toISOString() }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url.includes('audits')) {
+            return new Response(JSON.stringify([]), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url.includes('achievements')) {
+            return new Response(JSON.stringify({
+              agendaId: 'mock-agenda-transfer',
+              milestonesUnlocked: 0,
+              totalMilestones: 0,
+              dynamicLeaders: [],
+              teamMilestones: [],
+              personalAchievements: []
+            }), {
               status: 200, headers: { 'Content-Type': 'application/json' }
             });
           }
@@ -72,9 +90,7 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
             status: 200, headers: { 'Content-Type': 'application/json' }
           });
         }
-        return new Response(JSON.stringify({}), {
-          status: 200, headers: { 'Content-Type': 'application/json' }
-        });
+        return origFetch(input, init);
       };
     }, MOCK_TRANSFER_AGENDA);
 
@@ -167,6 +183,7 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
       localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify({ id: 'user-bob', name: 'Bob' }));
       localStorage.setItem('flashagenda_last_user', JSON.stringify({ id: 'user-bob', name: 'Bob' }));
 
+      const origFetch = window.fetch;
       window.fetch = async (input, init) => {
         const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
         const method = (init?.method || 'GET').toUpperCase();
@@ -174,6 +191,23 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
         if (url.includes('/api/agendas')) {
           if (url.includes('ping')) {
             return new Response(JSON.stringify({ lastSeen: new Date().toISOString() }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url.includes('audits')) {
+            return new Response(JSON.stringify([]), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url.includes('achievements')) {
+            return new Response(JSON.stringify({
+              agendaId: 'mock-agenda-transfer',
+              milestonesUnlocked: 0,
+              totalMilestones: 0,
+              dynamicLeaders: [],
+              teamMilestones: [],
+              personalAchievements: []
+            }), {
               status: 200, headers: { 'Content-Type': 'application/json' }
             });
           }
@@ -190,9 +224,7 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
             status: 200, headers: { 'Content-Type': 'application/json' }
           });
         }
-        return new Response(JSON.stringify({}), {
-          status: 200, headers: { 'Content-Type': 'application/json' }
-        });
+        return origFetch(input, init);
       };
     }, agendaWithPending);
 
@@ -230,7 +262,8 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
       localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify({ id: 'user-alice', name: 'Alice' }));
       localStorage.setItem('flashagenda_last_user', JSON.stringify({ id: 'user-alice', name: 'Alice' }));
 
-      window.fetch = async (input) => {
+      const origFetch = window.fetch;
+      window.fetch = async (input, init) => {
         const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
         if (url.includes('/api/agendas')) {
           if (url.includes('ping')) {
@@ -238,13 +271,28 @@ test.describe('FlashAgenda - Item Transfer Workflow', () => {
               status: 200, headers: { 'Content-Type': 'application/json' }
             });
           }
+          if (url.includes('audits')) {
+            return new Response(JSON.stringify([]), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url.includes('achievements')) {
+            return new Response(JSON.stringify({
+              agendaId: 'mock-agenda-transfer',
+              milestonesUnlocked: 0,
+              totalMilestones: 0,
+              dynamicLeaders: [],
+              teamMilestones: [],
+              personalAchievements: []
+            }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
           return new Response(JSON.stringify(mockAgenda), {
             status: 200, headers: { 'Content-Type': 'application/json' }
           });
         }
-        return new Response(JSON.stringify({}), {
-          status: 200, headers: { 'Content-Type': 'application/json' }
-        });
+        return origFetch(input, init);
       };
     }, agendaWithAccepted);
 

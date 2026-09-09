@@ -478,18 +478,19 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
   });
 
   test('should display retrospective toast notifications when reloading page with newly unlocked achievements with solid dialog style and pagination', async ({ page }) => {
-    // Clear seen achievements storage
-    await page.goto('/agenda/mock-agenda-ach-99');
-    await page.evaluate(() => {
-      for (const key of Object.keys(localStorage)) {
-        if (key.startsWith('flashagenda_seen_')) {
-          localStorage.removeItem(key);
+    // Clear seen achievements storage before initial page load (guarded by sessionStorage so subsequent reloads don't re-clear)
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem('__SEEN_CLEARED__')) {
+        sessionStorage.setItem('__SEEN_CLEARED__', '1');
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith('flashagenda_seen_')) {
+            localStorage.removeItem(key);
+          }
         }
       }
     });
 
-    // Reload page as if user returned from absence with unlocked achievements
-    await page.reload();
+    await page.goto('/agenda/mock-agenda-ach-99');
 
     // Verify achievement toast notification pops up retrospectively
     const toast = page.locator('.achievement-toast-enter');
