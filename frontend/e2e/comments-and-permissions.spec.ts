@@ -62,6 +62,23 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
               status: 200, headers: { 'Content-Type': 'application/json' }
             });
           }
+          if (url.includes('audits')) {
+            return new Response(JSON.stringify([]), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
+          if (url.includes('achievements')) {
+            return new Response(JSON.stringify({
+              agendaId: 'mock-agenda-comments',
+              milestonesUnlocked: 0,
+              totalMilestones: 0,
+              dynamicLeaders: [],
+              teamMilestones: [],
+              personalAchievements: []
+            }), {
+              status: 200, headers: { 'Content-Type': 'application/json' }
+            });
+          }
           if (url.includes('mock-agenda-comments')) {
             if (method === 'PUT') {
               try {
@@ -90,12 +107,13 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
     await expect(page.locator('text=Ersteller Punkt')).toBeVisible({ timeout: 10000 });
 
     const commentButton = page.locator('button[title="Kommentare"]').first();
+    await commentButton.scrollIntoViewIfNeeded();
     await expect(commentButton).toBeVisible({ timeout: 5000 });
-    await commentButton.click({ force: true });
+    await commentButton.click();
 
-    await expect(page.locator('text=Erster Kommentar von Bob')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=Erster Kommentar von Bob')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=dokument.pdf (PDF öffnen)')).toBeVisible();
-    await expect(page.locator('button').filter({ hasText: '\uD83D\uDC4D' }).first()).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: '👍' }).first()).toBeVisible();
   });
 
   test('should allow posting a new comment', async ({ page }) => {
@@ -103,8 +121,12 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
     await expect(page.locator('text=Ersteller Punkt')).toBeVisible({ timeout: 10000 });
 
     // Comment button opens details AND sets showCommentForm=true → textarea is directly visible
-    await page.locator('button[title="Kommentare"]').first().click({ force: true });
-    await expect(page.locator('text=Erster Kommentar von Bob')).toBeVisible({ timeout: 5000 });
+    const commentButton = page.locator('button[title="Kommentare"]').first();
+    await commentButton.scrollIntoViewIfNeeded();
+    await expect(commentButton).toBeVisible({ timeout: 5000 });
+    await commentButton.click();
+
+    await expect(page.locator('text=Erster Kommentar von Bob')).toBeVisible({ timeout: 10000 });
 
     // Textarea is directly open (no need to click 'Kommentar hinzufügen')
     const textarea = page.locator('textarea[placeholder="Schreibe einen Kommentar..."]');
@@ -112,8 +134,9 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
     await textarea.fill('Neuer Kommentar im E2E-Test');
 
     const submitBtn = page.locator('button').filter({ hasText: 'Kommentieren' }).first();
+    await submitBtn.scrollIntoViewIfNeeded();
     await expect(submitBtn).toBeEnabled({ timeout: 3000 });
-    await submitBtn.click({ force: true });
+    await submitBtn.click();
 
     await expect(page.locator('text=Neuer Kommentar im E2E-Test')).toBeVisible({ timeout: 5000 });
   });
@@ -122,14 +145,19 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
     await page.goto('/agenda/mock-agenda-comments');
     await expect(page.locator('text=Ersteller Punkt')).toBeVisible({ timeout: 10000 });
 
-    await page.locator('button[title="Kommentare"]').first().click({ force: true });
-    await expect(page.locator('text=Erster Kommentar von Bob')).toBeVisible({ timeout: 5000 });
+    const commentButton = page.locator('button[title="Kommentare"]').first();
+    await commentButton.scrollIntoViewIfNeeded();
+    await expect(commentButton).toBeVisible({ timeout: 5000 });
+    await commentButton.click();
 
-    const emojiBtn = page.locator('button').filter({ hasText: '\uD83C\uDF89' }).first();
+    await expect(page.locator('text=Erster Kommentar von Bob')).toBeVisible({ timeout: 10000 });
+
+    const emojiBtn = page.locator('button').filter({ hasText: '🎉' }).first();
+    await emojiBtn.scrollIntoViewIfNeeded();
     await expect(emojiBtn).toBeVisible({ timeout: 3000 });
     await expect(emojiBtn).toHaveClass(/bg-transparent/);
 
-    await emojiBtn.click({ force: true });
+    await emojiBtn.click();
 
     await expect(emojiBtn).toHaveClass(/text-yellow-400/, { timeout: 5000 });
   });
@@ -149,6 +177,7 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
     }
 
     const deleteBtn = page.locator('button[title="Nur der Ersteller kann diesen Agendapunkt löschen"]').first();
+    await deleteBtn.scrollIntoViewIfNeeded();
     await expect(deleteBtn).toBeVisible({ timeout: 5000 });
     await expect(deleteBtn).toBeDisabled();
   });
@@ -159,10 +188,11 @@ test.describe('FlashAgenda - Comments & Creator Editing Permissions', () => {
     await expect(page.locator('text=Ersteller Punkt')).toBeVisible({ timeout: 10000 });
 
     const deleteBtn = page.locator('button[title="Agendapunkt löschen"]').first();
+    await deleteBtn.scrollIntoViewIfNeeded();
     await expect(deleteBtn).toBeVisible({ timeout: 5000 });
     await expect(deleteBtn).toBeEnabled();
 
-    await deleteBtn.click({ force: true });
+    await deleteBtn.click();
     await expect(page.locator('text=Ersteller Punkt')).not.toBeVisible({ timeout: 5000 });
   });
 });
