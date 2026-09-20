@@ -91,7 +91,13 @@ export async function fetchGlobalAchievements(
     if (userId) params.set('user', userId);
     if (userName) params.set('name', userName);
     if (profile?.cardColor) params.set('cardColor', profile.cardColor);
-    if (profile?.avatarUrl) params.set('avatarUrl', profile.avatarUrl);
+    if (profile?.avatarUrl) {
+      if (profile.avatarUrl.startsWith('data:') || profile.avatarUrl.length > 500) {
+        params.set('hasAvatar', 'true');
+      } else {
+        params.set('avatarUrl', profile.avatarUrl);
+      }
+    }
     if (profile?.securityCode) params.set('securityCode', profile.securityCode);
     if (profile?.secretGuid) params.set('secretGuid', profile.secretGuid);
 
@@ -152,7 +158,7 @@ export function getSeenAchievementIds(userId?: string, agendaId?: string): Set<s
         if (Array.isArray(legacyParsed)) {
           legacyParsed.forEach(id => set.add(id));
         }
-      } catch {}
+      } catch { }
     }
     return set;
   } catch {

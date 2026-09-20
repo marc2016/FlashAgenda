@@ -153,13 +153,7 @@ test.describe('FlashAgenda - Live Meeting Mode (Sitzungsmodus mit Roll-Call & Ti
     await expect(page.locator('.live-meeting-dialog h2:has-text("Begrüßung & Rückblick")')).toBeVisible();
     await expect(page.locator('text=Kurzer Rückblick auf die Meilensteine')).toBeVisible();
 
-    // Mark TOP 1 as completed
-    const toggleCompleteBtn = page.getByTestId('toggle-item-complete-btn');
-    await expect(toggleCompleteBtn).toBeVisible();
-    await toggleCompleteBtn.click();
-    await expect(toggleCompleteBtn).toContainText('Besprochen');
-
-    // Go to next TOP
+    // Go to next TOP (automatically marks TOP 1 as completed)
     const nextTopBtn = page.getByTestId('next-top-btn');
     await nextTopBtn.click();
 

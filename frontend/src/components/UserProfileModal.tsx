@@ -22,7 +22,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [cardColor, setCardColor] = useState('#0a4b7c');
-  
+
   // Modals / Toggles
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [showQr, setShowQr] = useState(false);
@@ -233,15 +233,15 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
         dismissableMask
       >
         <div className="relative flex flex-column align-items-center">
-          
+
           {/* Exact Agenda Person Card - Credit Card Aspect Ratio (1.586:1) */}
-          <div 
+          <div
             className="relative overflow-hidden w-full select-none flex flex-column justify-content-between transition-all"
-            style={{ 
-              maxWidth: '480px', 
+            style={{
+              maxWidth: '480px',
               aspectRatio: '85.6 / 54',
               height: 'auto',
-              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${cardColor || '#0a4b7c'}`, 
+              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.25) 100%), ${cardColor || '#0a4b7c'}`,
               fontFamily: 'system-ui, -apple-system, sans-serif',
               border: '4px solid #000',
               boxShadow: '8px 8px 0px #000',
@@ -272,16 +272,16 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
             ) : (
               /* Card Standard Mode */
               <div className="flex h-full text-white p-4 sm:p-5 align-items-center">
-                
+
                 {/* Left: Profile Avatar */}
                 <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-3 sm:pr-4 mr-3 sm:mr-4 flex-shrink-0">
                   <div className="relative flex align-items-center justify-content-center">
                     {avatarUrl ? (
-                      <img 
-                        src={avatarUrl} 
-                        alt={name} 
-                        style={{ width: '5.2rem', height: '5.2rem', objectFit: 'cover' }} 
-                        className="border-circle border-2 border-white-alpha-40 shadow-3" 
+                      <img
+                        src={avatarUrl}
+                        alt={name}
+                        style={{ width: '5.2rem', height: '5.2rem', objectFit: 'cover' }}
+                        className="border-circle border-2 border-white-alpha-40 shadow-3"
                       />
                     ) : (
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style={{ width: '5.2rem', height: '5.2rem' }} className="text-white-alpha-90">
@@ -307,7 +307,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                     <div className="font-bold text-xl sm:text-2xl overflow-hidden text-overflow-ellipsis white-space-nowrap text-white flex-1 min-w-0">
                       {name || 'Unbekannt'}
                     </div>
-                    
+
                     {/* Action Buttons: QR Code & Pencil */}
                     <div className="flex align-items-center gap-2 flex-shrink-0 mr-4">
                       <button
@@ -370,7 +370,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
 
                     {/* Pinned Badges on large card */}
                     {((currentUser?.pinnedAchievements || []).length > 0) && (
-                      <div 
+                      <div
                         className="flex align-items-center mt-2 pt-1 border-top-1 border-white-alpha-20"
                         style={{ gap: '0.75rem' }}
                       >
@@ -382,7 +382,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                   </div>
 
                   {/* TOTP Code Badge at Bottom Left */}
-                  <div 
+                  <div
                     className="absolute bottom-0 left-0 m-1 px-2 py-1 text-xs font-mono opacity-90 hover:opacity-100 text-white flex align-items-center gap-2 cursor-text select-text z-2"
                     style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
                     onClick={(e) => e.stopPropagation()}
@@ -404,7 +404,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
           </div>
 
           {/* Global Achievements Section (Gamification Showcase) */}
-          <div 
+          <div
             className="w-full mt-3 p-2 sm:p-3 text-white relative select-none"
             style={{ maxWidth: '1150px' }}
           >
@@ -437,7 +437,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
               </div>
             ) : globalAchievements ? (
               <div className="pt-2">
-                <div 
+                <div
                   className="w-full max-h-24rem overflow-y-auto pr-1"
                   style={{
                     display: 'grid',
@@ -452,20 +452,19 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                     return (
                       <div
                         key={ach.id}
-                        className={`p-3 sm:p-4 flex align-items-center gap-3 transition-transform hover:scale-101 select-none relative overflow-hidden ${
-                          !ach.unlocked ? 'opacity-70' : ''
-                        }`}
+                        className={`p-3 sm:p-4 flex align-items-center gap-3 transition-transform hover:scale-101 select-none relative overflow-hidden ${!ach.unlocked ? 'opacity-70' : ''
+                          }`}
                         style={{
                           background: ach.unlocked
                             ? isPinned
                               ? `linear-gradient(135deg, rgba(250, 204, 21, 0.35) 0%, rgba(0, 0, 0, 0.45) 100%), ${catColor}`
                               : `linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.4) 100%), ${catColor}`
                             : 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                          border: isPinned 
-                            ? '3px solid #facc15' 
+                          border: isPinned
+                            ? '3px solid #facc15'
                             : (ach.unlocked ? '3px solid #000' : '2px solid #374151'),
-                          boxShadow: isPinned 
-                            ? '4px 4px 0px #000, 0 0 14px rgba(250, 204, 21, 0.45)' 
+                          boxShadow: isPinned
+                            ? '4px 4px 0px #000, 0 0 14px rgba(250, 204, 21, 0.45)'
                             : '4px 4px 0px #000',
                           borderRadius: '12px',
                           minHeight: '105px'
@@ -477,10 +476,9 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                           </div>
                         )}
 
-                        <div 
-                          className={`border-circle border-2 border-black flex align-items-center justify-content-center text-xl flex-shrink-0 shadow-2 ${
-                            ach.unlocked ? 'bg-yellow-400 text-black' : 'bg-gray-800 text-gray-400'
-                          }`}
+                        <div
+                          className={`border-circle border-2 border-black flex align-items-center justify-content-center text-xl flex-shrink-0 shadow-2 ${ach.unlocked ? 'bg-yellow-400 text-black' : 'bg-gray-800 text-gray-400'
+                            }`}
                           style={{ width: '2.8rem', height: '2.8rem' }}
                         >
                           <AchievementIcon icon={ach.icon} isLocked={!ach.unlocked} className="text-xl" />
@@ -488,7 +486,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
 
                         <div className="flex-1 min-w-0">
                           <div className="flex align-items-center justify-content-between gap-1">
-                            <span 
+                            <span
                               className="font-bold text-sm sm:text-base text-white overflow-hidden text-overflow-ellipsis white-space-nowrap"
                               style={{ textShadow: '1px 1px 0px #000' }}
                             >
@@ -497,11 +495,10 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                             {ach.unlocked && (
                               <button
                                 onClick={() => handleTogglePin(ach.id)}
-                                className={`border-none border-circle p-1 cursor-pointer flex align-items-center justify-content-center transition-colors shadow-2 ${
-                                  isPinned 
-                                    ? 'bg-yellow-400 text-black' 
+                                className={`border-none border-circle p-1 cursor-pointer flex align-items-center justify-content-center transition-colors shadow-2 ${isPinned
+                                    ? 'bg-yellow-400 text-black'
                                     : 'bg-black-alpha-40 text-gray-200 hover:bg-yellow-500 hover:text-black'
-                                }`}
+                                  }`}
                                 style={{ width: '1.8rem', height: '1.8rem' }}
                                 title={isPinned ? 'Von Personenkarte entfernen' : 'An Personenkarte anpinnen (max. 3)'}
                               >
@@ -509,7 +506,7 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                               </button>
                             )}
                           </div>
-                          <div 
+                          <div
                             className="text-2xs text-white-alpha-90 line-height-2 mt-1 overflow-hidden text-overflow-ellipsis"
                             style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.5)' }}
                           >
@@ -528,7 +525,11 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
                   })}
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="text-center p-3 text-xs text-gray-400">
+                Keine Trophäen-Daten verfügbar
+              </div>
+            )}
           </div>
 
           {/* Bottom Dialog Close Button */}

@@ -930,6 +930,7 @@ export default function AgendaDetail() {
           attendees={agenda.attendees || []} 
           items={agenda.items || []}
           currentUser={currentUser}
+          isCreator={isCreator}
           onAdd={handleAddAttendee} 
           onUpdateAgenda={handleUpdateAgenda}
           onSwitchUser={() => setShowUserModal(true)}
@@ -957,7 +958,21 @@ export default function AgendaDetail() {
           isCreator={isCreator}
           onUpdate={handleUpdateItems}
           onUpdateAgenda={handleUpdateAgenda}
-          onStartLiveMeeting={() => setIsLiveMeetingOpen(true)}
+          onStartLiveMeeting={async () => {
+            setIsLiveMeetingOpen(true);
+            const isFreshStart = !agenda.liveMeetingStatus || agenda.liveMeetingStatus === 'not_started';
+            await handleUpdateAgenda({
+              liveMeetingActive: true,
+              liveMeetingStatus: 'in_progress',
+              ...(isFreshStart
+                ? {
+                    liveMeetingPhase: 'intro',
+                    liveMeetingCurrentItemIndex: 0,
+                    liveMeetingCurrentAttendeeIndex: 0,
+                  }
+                : {}),
+            });
+          }}
         />
 
         {/* Bottom Footer & Buttons */}

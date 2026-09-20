@@ -80,6 +80,7 @@ export interface IAgendaItem {
   location?: ILocation;
   poll?: IPoll;
   comments?: IComment[];
+  durationSeconds?: number;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -104,6 +105,12 @@ export interface IAgenda extends Document {
   createdBy?: string;
   sortMode?: 'date' | 'rating' | 'random';
   sortOrder?: 'asc' | 'desc';
+  liveMeetingActive?: boolean;
+  liveMeetingStatus?: 'not_started' | 'in_progress' | 'completed';
+  liveMeetingElapsedSeconds?: number;
+  liveMeetingPhase?: string;
+  liveMeetingCurrentItemIndex?: number;
+  liveMeetingCurrentAttendeeIndex?: number;
   attendees: IAttendee[];
   items: IAgendaItem[];
   auditLogs: IAuditLog[];
@@ -141,13 +148,13 @@ const PollOptionSchema = new Schema<IPollOption>({
   id: { type: String, required: true },
   text: { type: String, required: true },
   votes: { type: [String], default: [] }
-});
+}, { _id: false });
 
 const PollSchema = new Schema<IPoll>({
   question: { type: String },
   options: [PollOptionSchema],
   allowMultiple: { type: Boolean, default: false }
-});
+}, { _id: false });
 
 const AttachmentSchema = new Schema<IAttachment>({
   name: { type: String, required: true },
@@ -194,6 +201,7 @@ const AgendaItemSchema = new Schema<IAgendaItem>({
   location: { type: LocationSchema },
   poll: { type: PollSchema },
   comments: [CommentSchema],
+  durationSeconds: { type: Number, default: 0 },
   createdAt: { type: Date },
   updatedAt: { type: Date }
 });
@@ -210,6 +218,12 @@ const AgendaSchema = new Schema<IAgenda>({
   createdBy: { type: String },
   sortMode: { type: String, enum: ['date', 'rating', 'random'], default: 'date' },
   sortOrder: { type: String, enum: ['asc', 'desc'], default: 'asc' },
+  liveMeetingActive: { type: Boolean, default: false },
+  liveMeetingStatus: { type: String, enum: ['not_started', 'in_progress', 'completed'], default: 'not_started' },
+  liveMeetingElapsedSeconds: { type: Number, default: 0 },
+  liveMeetingPhase: { type: String, default: 'intro' },
+  liveMeetingCurrentItemIndex: { type: Number, default: 0 },
+  liveMeetingCurrentAttendeeIndex: { type: Number, default: 0 },
   attendees: [AttendeeSchema],
   items: [AgendaItemSchema],
   auditLogs: [AuditLogSchema]

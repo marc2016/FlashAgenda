@@ -85,6 +85,7 @@ export const PersonChip: React.FC<PersonChipProps> = ({
   showAvatar = true,
 }) => {
   const isPending = status === 'pending';
+  const isSystem = name?.trim().toLowerCase() === 'system';
 
   const sizeStyles = {
     xs: {
@@ -113,13 +114,16 @@ export const PersonChip: React.FC<PersonChipProps> = ({
     },
   }[size];
 
+  const chipColor = isSystem ? '#334155' : color;
+  const chipTitle = title || (isSystem ? 'Automatisch übernommener Punkt (System)' : name);
+
   return (
     <span
       className={`inline-flex align-items-center font-bold text-white select-none ${className}`}
-      title={title || name}
+      title={chipTitle}
       onClick={onClick}
       style={{
-        background: getPersonGradient(color),
+        background: getPersonGradient(chipColor),
         border: isPending ? '2px dashed #eab308' : '2px solid #000000',
         boxShadow: '2px 2px 0px #000000',
         borderRadius: sizeStyles.borderRadius,
@@ -132,7 +136,12 @@ export const PersonChip: React.FC<PersonChipProps> = ({
       }}
     >
       {showAvatar && (
-        avatarUrl ? (
+        isSystem ? (
+          <i
+            className="pi pi-cog text-yellow-400 flex-shrink-0"
+            style={{ fontSize: sizeStyles.iconSize }}
+          />
+        ) : avatarUrl ? (
           <img
             src={avatarUrl}
             alt={name}

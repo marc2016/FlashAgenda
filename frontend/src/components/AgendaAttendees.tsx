@@ -8,6 +8,8 @@ import SafeQRCode from './SafeQRCode';
 import { getTotpCode } from '../services/totpService';
 import { PinnedAchievementBadge } from './PinnedAchievementBadge';
 
+import { calculateAttendeeItemCounts } from '../utils/attendeeUtils';
+
 interface Attendee {
   _id?: string;
   id?: string;
@@ -28,6 +30,7 @@ interface Props {
   attendees: Attendee[];
   items?: any[];
   currentUser?: any;
+  isCreator?: boolean;
   onAdd: (attendee: Attendee) => Promise<void>;
   onUpdateAgenda?: (updates: any) => Promise<void>;
   onSwitchUser?: () => void;
@@ -132,7 +135,7 @@ function RotatingTotpBadge({ secretGuid, fallbackCode }: { secretGuid?: string; 
   );
 }
 
-export default function AgendaAttendees({ agendaId, attendees, items = [], currentUser, onAdd, onUpdateAgenda, onSwitchUser: _onSwitchUser, onOpenProfile }: Props) {
+export default function AgendaAttendees({ agendaId, attendees, items = [], currentUser, isCreator, onAdd, onUpdateAgenda, onSwitchUser: _onSwitchUser, onOpenProfile }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -149,54 +152,17 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
   const [editCardColor, setEditCardColor] = useState('#0a4b7c');
   const [editModalVisible, setEditModalVisible] = useState(false);
 
+  // Confirmation state for attendee removal
+  const [attendeeToDelete, setAttendeeToDelete] = useState<Attendee | null>(null);
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+
   // Person Transfer QR Code Modal State
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [qrUser, setQrUser] = useState<Attendee | null>(null);
 
-  // Precompute item counts per attendee O(N + M)
+  // Precompute item counts per attendee using unified helper
   const itemCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const item of items) {
-      if (!item) continue;
-
-      // If transferred and accepted, attribute count exclusively to recipient
-      if (item.transferredTo && item.transferredTo.status === 'accepted') {
-        const toUserId = item.transferredTo.toUserId?.toLowerCase();
-        const toUserName = item.transferredTo.toUserName?.trim().toLowerCase();
-
-        for (const att of attendees) {
-          const attKey = att._id || att.id || att.name;
-          const attId = (att._id || att.id)?.toLowerCase();
-          const attName = att.name?.trim().toLowerCase();
-
-          if (
-            (attId && toUserId && attId === toUserId) ||
-            (attName && toUserName && attName === toUserName)
-          ) {
-            counts.set(attKey, (counts.get(attKey) || 0) + 1);
-          }
-        }
-        continue;
-      }
-
-      // Otherwise attribute to original creator
-      const createdBy = item.createdBy?.trim().toLowerCase();
-      const author = item.author?.trim().toLowerCase();
-      
-      for (const att of attendees) {
-        const attKey = att._id || att.id || att.name;
-        const attId = (att._id || att.id)?.toLowerCase();
-        const attName = att.name?.trim().toLowerCase();
-
-        if (
-          (attId && createdBy === attId) ||
-          (attName && (createdBy === attName || author === attName))
-        ) {
-          counts.set(attKey, (counts.get(attKey) || 0) + 1);
-        }
-      }
-    }
-    return counts;
+    return calculateAttendeeItemCounts(items, attendees);
   }, [items, attendees]);
 
   const generateSecurityCode = () => Math.floor(1000 + Math.random() * 9000).toString();
@@ -376,19 +342,40 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
     setEditingAttendee(null);
   };
 
-  const handleDeleteAttendee = async () => {
-    if (!editingAttendee) return;
+  const handleRequestDeleteAttendee = (att: Attendee) => {
+    setAttendeeToDelete(att);
+    setConfirmDeleteVisible(true);
+  };
+
+  const handleExecuteDeleteAttendee = async () => {
+    const target = attendeeToDelete || editingAttendee;
+    if (!target) return;
+    const targetId = target._id || target.id || target.name;
     const updated = attendees.filter(a => {
       const isTarget =
-        (editingAttendee.id && a.id === editingAttendee.id) ||
-        (editingAttendee._id && a._id === editingAttendee._id) ||
-        a.name === editingAttendee.name;
+        (target.id && a.id === target.id) ||
+        (target._id && a._id === target._id) ||
+        a.name === target.name;
       return !isTarget;
     });
+
+    if (agendaId && targetId) {
+      try {
+        await fetch(`/api/agendas/${agendaId}/attendees/${encodeURIComponent(targetId)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user: currentUser?.name || 'Benutzer' })
+        });
+      } catch (err) {
+        console.warn('DELETE attendee endpoint failed, falling back to onUpdateAgenda:', err);
+      }
+    }
 
     if (onUpdateAgenda) {
       await onUpdateAgenda({ attendees: updated });
     }
+    setConfirmDeleteVisible(false);
+    setAttendeeToDelete(null);
     setEditModalVisible(false);
     setEditingAttendee(null);
   };
@@ -511,6 +498,22 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
                           title="Eigene Daten bearbeiten"
                         >
                           <i className="pi pi-pencil text-xs font-bold" />
+                        </button>
+                      </div>
+                    )}
+                    {!isSelf && isCreator && (
+                      <div className="flex align-items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRequestDeleteAttendee(att);
+                          }}
+                          className="bg-black-alpha-40 hover:bg-red-600 hover:text-white text-red-400 border-circle border-1 border-white-alpha-30 p-1 flex align-items-center justify-content-center cursor-pointer transition-colors"
+                          style={{ width: '1.75rem', height: '1.75rem' }}
+                          title="Teilnehmer aus Agenda entfernen"
+                          data-testid={`delete-attendee-btn-${att.name}`}
+                        >
+                          <i className="pi pi-trash text-xs font-bold" />
                         </button>
                       </div>
                     )}
@@ -711,7 +714,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
               label="Löschen"
               icon="pi pi-trash"
               className="p-button-danger p-button-outlined flex-1 text-sm"
-              onClick={handleDeleteAttendee}
+              onClick={() => editingAttendee && handleRequestDeleteAttendee(editingAttendee)}
             />
             <Button
               label="Speichern"
@@ -842,6 +845,48 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
           </div>
         </Dialog>
       )}
+
+      {/* Delete Attendee Confirmation Modal */}
+      <Dialog
+        header={
+          <div className="flex align-items-center gap-2 text-red-400">
+            <i className="pi pi-exclamation-triangle text-xl" />
+            <span className="font-bold">Teilnehmer entfernen</span>
+          </div>
+        }
+        visible={confirmDeleteVisible}
+        style={{ width: '92vw', maxWidth: '420px' }}
+        onHide={() => {
+          setConfirmDeleteVisible(false);
+          setAttendeeToDelete(null);
+        }}
+        className="glass-panel"
+        modal
+        blockScroll
+      >
+        <div className="flex flex-column gap-3 pt-2">
+          <p className="text-white text-sm m-0 line-height-3">
+            Möchtest du <strong className="text-yellow-400">„{attendeeToDelete?.name || editingAttendee?.name}“</strong> wirklich aus der Agenda entfernen?
+          </p>
+          <div className="flex gap-2 justify-content-end mt-2">
+            <Button
+              label="Abbrechen"
+              className="comic-button-secondary p-button-sm text-xs"
+              onClick={() => {
+                setConfirmDeleteVisible(false);
+                setAttendeeToDelete(null);
+              }}
+            />
+            <Button
+              label="Entfernen"
+              icon="pi pi-trash"
+              className="comic-button-danger p-button-sm text-xs font-bold"
+              onClick={handleExecuteDeleteAttendee}
+              data-testid="confirm-delete-attendee-btn"
+            />
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

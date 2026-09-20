@@ -61,6 +61,7 @@ import { Checkbox } from 'primereact/checkbox';
 import { PollVoteModal, type IPoll } from './PollVoteModal';
 import { TransferItemModal } from './TransferItemModal';
 import { PersonChip, getAttendeeColor } from './PersonChip';
+import { formatTimer } from '../utils/attendeeUtils';
 
 export interface IAttachment {
   name: string;
@@ -108,6 +109,8 @@ export interface AgendaItem {
   pinned?: boolean;
   poll?: IPoll;
   comments?: IComment[];
+  notes?: string;
+  durationSeconds?: number;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -286,54 +289,23 @@ const AgendaCard = memo(function AgendaCard({
         return;
       }
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (!isPdf) {
+        setCommentError('Nur PDF-Dateien sind als Anhang in Kommentaren erlaubt.');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (evt) => {
         const rawData = evt.target?.result as string;
         if (!rawData) return;
-
-        if (isPdf) {
-          setCommentAttachments((prev) => [
-            ...prev,
-            {
-              name: file.name,
-              url: rawData,
-              type: 'pdf',
-              size: file.size,
-            },
-          ]);
-        } else {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-            const maxDim = 800;
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-            setCommentAttachments((prev) => [
-              ...prev,
-              {
-                name: file.name,
-                url: compressedDataUrl,
-                type: 'image',
-                size: Math.round(compressedDataUrl.length * 0.75),
-              },
-            ]);
-          };
-          img.src = rawData;
-        }
+        setCommentAttachments((prev) => [
+          ...prev,
+          {
+            name: file.name,
+            url: rawData,
+            type: 'pdf',
+            size: file.size,
+          },
+        ]);
       };
       reader.readAsDataURL(file);
     });
@@ -378,7 +350,10 @@ const AgendaCard = memo(function AgendaCard({
   );
 
   return (
-    <div className={`mb-4 comic-panel-dark p-3 sm:p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''} ${isPinned ? 'border-left-3 border-yellow-400' : ''}`}>
+    <div
+      data-testid={`agenda-item-${index}`}
+      className={`mb-4 comic-panel-dark p-3 sm:p-4 transition-opacity ${isCompleted ? 'opacity-80' : ''} ${isPinned ? 'border-left-3 border-yellow-400' : ''}`}
+    >
       <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-center mb-2 gap-2">
         <div className="flex-1 min-w-0 w-full sm:w-auto">
           <div className="flex flex-wrap gap-2 text-xs text-gray-500 mb-2 align-items-center">
@@ -394,6 +369,16 @@ const AgendaCard = memo(function AgendaCard({
                 {updatedAtLabel}
               </span>
             )}
+            {item.durationSeconds && item.durationSeconds > 0 ? (
+              <span
+                data-testid={`item-duration-badge-${index}`}
+                className="flex align-items-center gap-1 text-yellow-400 font-semibold"
+                title="Dauer in der Sitzung"
+              >
+                <i className="pi pi-clock" style={{ fontSize: '0.7rem' }} />
+                <span>{formatTimer(item.durationSeconds)}</span>
+              </span>
+            ) : null}
             {/* Author Chip & Optional Transferred Chip */}
             <div className="inline-flex align-items-center flex-wrap gap-1">
               <PersonChip
@@ -437,7 +422,7 @@ const AgendaCard = memo(function AgendaCard({
             </div>
           </div>
           <div className={`text-xl font-bold mb-1 word-break-break-word ${isCompleted ? 'line-through text-gray-400' : ''}`}>
-            {item.title}
+            <span>{item.title}</span>
           </div>
         </div>
         <div className="comic-button-group w-full sm:w-auto self-stretch sm:self-center mt-2 sm:mt-0">
@@ -854,7 +839,7 @@ const AgendaCard = memo(function AgendaCard({
                     <div>
                       <input
                         type="file"
-                        accept="image/*,application/pdf"
+                        accept="application/pdf"
                         id={`comment-file-upload-${index}`}
                         className="hidden"
                         multiple
@@ -865,7 +850,7 @@ const AgendaCard = memo(function AgendaCard({
                         className="p-button comic-button-secondary p-button-sm cursor-pointer flex align-items-center gap-1 text-xs font-bold py-2 px-3"
                       >
                         <i className="pi pi-paperclip" />
-                        <span>Bild / PDF anhängen (max. 10 MB)</span>
+                        <span>PDF anhängen (max. 10 MB)</span>
                       </label>
                     </div>
 
@@ -1070,6 +1055,23 @@ export default function AgendaTimeline({
     if (agenda?.isManuallyClosed === false) return false;
     return false;
   }, [agenda]);
+
+  const isMeetingTimeReached = useMemo(() => {
+    if (!agenda?.date) return true;
+    try {
+      const meetingDate = new Date(agenda.date);
+      if (isNaN(meetingDate.getTime())) return true;
+      if (agenda.time && typeof agenda.time === 'string' && agenda.time.includes(':')) {
+        const [hours, minutes] = agenda.time.split(':').map(Number);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          meetingDate.setHours(hours, minutes, 0, 0);
+        }
+      }
+      return Date.now() >= meetingDate.getTime();
+    } catch {
+      return true;
+    }
+  }, [agenda?.date, agenda?.time]);
 
   const toggleManualClose = useCallback(async () => {
     if (!isCreator) return;
@@ -1285,6 +1287,7 @@ export default function AgendaTimeline({
   );
 
   const sortByDate = useCallback(async () => {
+    if (agenda?.liveMeetingActive) return;
     const newOrder = sortMode === 'date' ? (sortOrder === 'asc' ? 'desc' : 'asc') : 'asc';
     setSortMode('date');
     setSortOrder(newOrder);
@@ -1298,9 +1301,10 @@ export default function AgendaTimeline({
     if (onUpdateAgenda) {
       await onUpdateAgenda({ sortMode: 'date', sortOrder: newOrder });
     }
-  }, [items, onUpdate, onUpdateAgenda, sortMode, sortOrder]);
+  }, [agenda?.liveMeetingActive, items, onUpdate, onUpdateAgenda, sortMode, sortOrder]);
 
   const sortByRating = useCallback(async () => {
+    if (agenda?.liveMeetingActive) return;
     const newOrder = sortMode === 'rating' ? (sortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
     setSortMode('rating');
     setSortOrder(newOrder);
@@ -1314,16 +1318,17 @@ export default function AgendaTimeline({
     if (onUpdateAgenda) {
       await onUpdateAgenda({ sortMode: 'rating', sortOrder: newOrder });
     }
-  }, [items, onUpdate, onUpdateAgenda, sortMode, sortOrder]);
+  }, [agenda?.liveMeetingActive, items, onUpdate, onUpdateAgenda, sortMode, sortOrder]);
 
   const sortRandomly = useCallback(async () => {
+    if (agenda?.liveMeetingActive) return;
     setSortMode('random');
     const sorted = sortWithPinned(items, () => Math.random() - 0.5);
     await onUpdate(sorted);
     if (onUpdateAgenda) {
       await onUpdateAgenda({ sortMode: 'random', sortOrder });
     }
-  }, [items, onUpdate, onUpdateAgenda, sortOrder]);
+  }, [agenda?.liveMeetingActive, items, onUpdate, onUpdateAgenda, sortOrder]);
 
   const saveItem = useCallback(async () => {
     if (!title.trim() || isSaving) return;
@@ -1628,24 +1633,93 @@ export default function AgendaTimeline({
             <span>{completedCount}/{totalCount} besprochen</span>
           </span>
 
-          {onStartLiveMeeting && (
-            <Button
-              label="Sitzung starten"
-              icon="pi pi-play"
-              className="comic-button-success flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm"
-              style={{
-                height: '38px',
-                border: '2px solid #000',
-                boxShadow: '3px 3px 0px #000',
-                borderRadius: '8px',
-                boxSizing: 'border-box',
-                lineHeight: 1
-              }}
-              onClick={onStartLiveMeeting}
-              title="Interaktiven Sitzungsmodus mit Anwesenheitsabfrage & Timern starten"
-              data-testid="start-live-meeting-btn"
-            />
-          )}
+          {onStartLiveMeeting && (() => {
+            const isCompleted = agenda?.liveMeetingStatus === 'completed';
+            const isResumable = !isCompleted && (agenda?.liveMeetingStatus === 'in_progress' || (agenda?.liveMeetingElapsedSeconds || 0) > 0 || agenda?.liveMeetingActive);
+
+            if (isCompleted) {
+              return (
+                <Button
+                  label="Sitzung abgeschlossen"
+                  icon="pi pi-check"
+                  disabled
+                  className="comic-button-secondary flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm opacity-60 cursor-not-allowed"
+                  style={{
+                    height: '38px',
+                    border: '2px solid #000',
+                    boxShadow: '3px 3px 0px #000',
+                    borderRadius: '8px',
+                    boxSizing: 'border-box',
+                    lineHeight: 1
+                  }}
+                  title="Die Sitzung wurde bereits abgeschlossen und kann nicht erneut gestartet werden."
+                  data-testid="live-meeting-completed-btn"
+                />
+              );
+            }
+
+            if (isResumable) {
+              return (
+                <Button
+                  label="Sitzung fortsetzen"
+                  icon="pi pi-play"
+                  className="comic-button-warning flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm"
+                  style={{
+                    height: '38px',
+                    border: '2px solid #000',
+                    boxShadow: '3px 3px 0px #000',
+                    borderRadius: '8px',
+                    boxSizing: 'border-box',
+                    lineHeight: 1
+                  }}
+                  onClick={onStartLiveMeeting}
+                  title="Bereits gestartete Sitzung fortsetzen"
+                  data-testid="resume-live-meeting-btn"
+                />
+              );
+            }
+
+            if (!isMeetingTimeReached) {
+              const scheduledDateStr = agenda?.date ? new Date(agenda.date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '';
+              return (
+                <Button
+                  label="Sitzung starten"
+                  icon="pi pi-clock"
+                  disabled
+                  className="comic-button-secondary flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm opacity-60 cursor-not-allowed"
+                  style={{
+                    height: '38px',
+                    border: '2px solid #000',
+                    boxShadow: '3px 3px 0px #000',
+                    borderRadius: '8px',
+                    boxSizing: 'border-box',
+                    lineHeight: 1
+                  }}
+                  title={scheduledDateStr ? `Sitzung kann erst zum geplanten Zeitpunkt gestartet werden (${scheduledDateStr})` : 'Sitzung kann erst zum geplanten Zeitpunkt gestartet werden'}
+                  data-testid="start-live-meeting-disabled-btn"
+                />
+              );
+            }
+
+            return (
+              <Button
+                label="Sitzung starten"
+                icon="pi pi-play"
+                className="comic-button-success flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm"
+                style={{
+                  height: '38px',
+                  border: '2px solid #000',
+                  boxShadow: '3px 3px 0px #000',
+                  borderRadius: '8px',
+                  boxSizing: 'border-box',
+                  lineHeight: 1
+                }}
+                onClick={onStartLiveMeeting}
+                title="Interaktiven Sitzungsmodus mit Anwesenheitsabfrage & Timern starten"
+                data-testid="start-live-meeting-btn"
+              />
+            );
+          })()}
         </div>
 
         <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">
@@ -1653,9 +1727,12 @@ export default function AgendaTimeline({
             <div className="flex gap-2 align-items-center">
               <Button
                 onClick={sortByDate}
+                disabled={agenda?.liveMeetingActive}
                 className={sortMode === 'date' ? 'comic-button flex-shrink-0 flex align-items-center gap-1' : 'comic-button-secondary flex-shrink-0 flex align-items-center gap-1'}
                 title={
-                  sortMode === 'date'
+                  agenda?.liveMeetingActive
+                    ? 'Sortierung ist während einer aktiven Sitzung gesperrt'
+                    : sortMode === 'date'
                     ? `Nach Datum sortiert (${sortOrder === 'asc' ? 'älteste zuerst' : 'neueste zuerst'}). Klicken zum Ändern.`
                     : 'Nach Datum sortieren'
                 }
@@ -1667,9 +1744,12 @@ export default function AgendaTimeline({
               </Button>
               <Button
                 onClick={sortByRating}
+                disabled={agenda?.liveMeetingActive}
                 className={sortMode === 'rating' ? 'comic-button flex-shrink-0 flex align-items-center gap-1' : 'comic-button-secondary flex-shrink-0 flex align-items-center gap-1'}
                 title={
-                  sortMode === 'rating'
+                  agenda?.liveMeetingActive
+                    ? 'Sortierung ist während einer aktiven Sitzung gesperrt'
+                    : sortMode === 'rating'
                     ? `Nach Bewertung sortiert (${sortOrder === 'desc' ? 'meiste zuerst' : 'wenigste zuerst'}). Klicken zum Ändern.`
                     : 'Nach Bewertung sortieren'
                 }
@@ -1681,8 +1761,9 @@ export default function AgendaTimeline({
               </Button>
               <Button
                 onClick={sortRandomly}
+                disabled={agenda?.liveMeetingActive}
                 className={sortMode === 'random' ? 'comic-button flex-shrink-0 flex align-items-center' : 'comic-button-secondary flex-shrink-0 flex align-items-center'}
-                title={sortMode === 'random' ? 'Zufällig sortiert. Erneut klicken zum Mischen.' : 'Zufällig sortieren'}
+                title={agenda?.liveMeetingActive ? 'Sortierung ist während einer aktiven Sitzung gesperrt' : sortMode === 'random' ? 'Zufällig sortiert. Erneut klicken zum Mischen.' : 'Zufällig sortieren'}
               >
                 <i className="mdi mdi-dice-multiple"></i>
               </Button>
@@ -1707,10 +1788,13 @@ export default function AgendaTimeline({
       </div>
 
       {isClosed && (
-        <div className="p-3 mb-4 border-round-xl border-3 border-black text-center" style={{ backgroundColor: 'var(--gray-800)', boxShadow: '4px 4px 0px #000' }}>
-          <i className="pi pi-lock text-yellow-500 text-3xl mb-2"></i>
-          <h3 className="m-0 text-white font-luckiest tracking-wider text-xl">Agenda ist geschlossen</h3>
-          <p className="m-0 text-sm mt-1 text-gray-400 font-bold">Der Annahmeschluss wurde erreicht. Es können keine neuen Punkte hinzugefügt werden.</p>
+        <div
+          className="flex align-items-center justify-content-center gap-2 py-2 px-3 mb-3 border-round-lg"
+          style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)' }}
+        >
+          <i className="pi pi-lock text-yellow-400 text-sm" />
+          <span className="text-gray-200 text-xs sm:text-sm font-semibold">Agenda ist geschlossen</span>
+          <span className="text-gray-400 text-xs hidden sm:inline">— Keine neuen Agendapunkte möglich</span>
         </div>
       )}
 

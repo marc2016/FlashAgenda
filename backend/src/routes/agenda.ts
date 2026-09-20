@@ -146,7 +146,7 @@ router.post('/login-by-code', async (req: Request, res: Response): Promise<void>
       ? await Agenda.findOne({ 'attendees.securityCode': cleanCode })
       : null;
     if (staticAgenda) {
-      const match = (staticAgenda.attendees || []).find((a: any) => 
+      const match = (staticAgenda.attendees || []).find((a: any) =>
         a.securityCode && String(a.securityCode).trim() === cleanCode
       );
       if (match) {
@@ -312,7 +312,7 @@ router.get('/user-achievements', async (req: Request, res: Response): Promise<vo
 
     const userProfile = {
       cardColor: (req.query.cardColor as string) || foundAttendee?.cardColor,
-      avatarUrl: (req.query.avatarUrl as string) || foundAttendee?.avatarUrl,
+      avatarUrl: (req.query.avatarUrl as string) || (req.query.hasAvatar === 'true' || req.query.hasAvatar === '1' ? 'has-avatar' : foundAttendee?.avatarUrl),
       securityCode: (req.query.securityCode as string) || foundAttendee?.securityCode,
       secretGuid: (req.query.secretGuid as string) || foundAttendee?.secretGuid,
       pinnedAchievements: foundAttendee?.pinnedAchievements || []
@@ -356,7 +356,7 @@ router.put('/user-profile', async (req: Request, res: Response): Promise<void> =
       let modified = false;
       for (const att of (ag.attendees || [])) {
         const match = (cleanUserId && (att.id === cleanUserId || (att as any)._id?.toString() === cleanUserId)) ||
-                      (cleanOldName && att.name && att.name.trim().toLowerCase() === cleanOldName.toLowerCase());
+          (cleanOldName && att.name && att.name.trim().toLowerCase() === cleanOldName.toLowerCase());
         if (match) {
           if (name !== undefined) att.name = name;
           if (email !== undefined) att.email = email;
@@ -490,7 +490,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ message: 'Invalid agenda ID format' });
       return;
     }
-    
+
     const existingAgenda = await Agenda.findById(id);
     if (!existingAgenda) {
       res.status(404).json({ message: 'Agenda not found' });
@@ -560,13 +560,13 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
           const isTransferredRecipient =
             isTransferredAccepted &&
             ((requestingUserId && deletedItem.transferredTo?.toUserId === requestingUserId) ||
-             (requestingUserName && deletedItem.transferredTo?.toUserName && deletedItem.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
+              (requestingUserName && deletedItem.transferredTo?.toUserName && deletedItem.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
 
           const isAuthorized = isTransferredAccepted
             ? isTransferredRecipient
             : ((requestingUserId && deletedItem.createdBy === requestingUserId) ||
-               (requestingUserName && deletedItem.author && deletedItem.author.trim().toLowerCase() === requestingUserName) ||
-               (requestingUserName && deletedItem.createdBy && deletedItem.createdBy.trim().toLowerCase() === requestingUserName));
+              (requestingUserName && deletedItem.author && deletedItem.author.trim().toLowerCase() === requestingUserName) ||
+              (requestingUserName && deletedItem.createdBy && deletedItem.createdBy.trim().toLowerCase() === requestingUserName));
 
           if (!isAuthorized) {
             res.status(403).json({ message: 'Nur der aktuelle Besitzer kann diesen Agendapunkt löschen.' });
@@ -661,7 +661,28 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    const allowedFields = ['title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed', 'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder', 'auditLogs'];
+    // Prevent sort mode/order changes while live meeting is active (unless ending it)
+    const isEndingMeeting = req.body.liveMeetingActive === false;
+    if (existingAgenda.liveMeetingActive && !isEndingMeeting) {
+      if ((req.body.sortMode !== undefined && req.body.sortMode !== existingAgenda.sortMode) ||
+          (req.body.sortOrder !== undefined && req.body.sortOrder !== existingAgenda.sortOrder)) {
+        res.status(400).json({ message: 'Sortierung ist während einer laufenden Sitzung gesperrt.' });
+        return;
+      }
+    }
+
+    // Once a meeting is marked 'completed', it cannot be restarted or reverted
+    if (existingAgenda.liveMeetingStatus === 'completed' && req.body.liveMeetingStatus && req.body.liveMeetingStatus !== 'completed') {
+      res.status(400).json({ message: 'Eine bereits abgeschlossene Sitzung kann nicht erneut gestartet oder fortgesetzt werden.' });
+      return;
+    }
+
+    const allowedFields = [
+      'title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed',
+      'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder', 'auditLogs',
+      'liveMeetingActive', 'liveMeetingStatus', 'liveMeetingElapsedSeconds',
+      'liveMeetingPhase', 'liveMeetingCurrentItemIndex', 'liveMeetingCurrentAttendeeIndex'
+    ];
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         (existingAgenda as any)[field] = req.body[field];
@@ -798,7 +819,7 @@ router.put('/:id/attendees/:attendeeId/ping', async (req: Request, res: Response
       return;
     }
     const targetId = req.params.attendeeId;
-    const attendee = agenda.attendees.find((a: any) => 
+    const attendee = agenda.attendees.find((a: any) =>
       (a._id && a._id.toString() === targetId) ||
       (a.id && a.id.toString() === targetId) ||
       (a.name && a.name === targetId)
@@ -816,6 +837,46 @@ router.put('/:id/attendees/:attendeeId/ping', async (req: Request, res: Response
   }
 });
 
+// Remove an attendee
+router.delete('/:id/attendees/:attendeeId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const attendeeId = req.params.attendeeId as string;
+    const agenda = await Agenda.findById(id);
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    if (agenda.isArchived) {
+      res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
+      return;
+    }
+
+    const index = (agenda.attendees || []).findIndex(
+      (a: any) =>
+        (a._id && a._id.toString() === attendeeId) ||
+        (a.id && a.id.toString() === attendeeId) ||
+        (a.name && a.name.trim().toLowerCase() === attendeeId.trim().toLowerCase())
+    );
+
+    if (index === -1) {
+      res.status(404).json({ message: 'Teilnehmer nicht gefunden.' });
+      return;
+    }
+
+    const removed = agenda.attendees.splice(index, 1)[0];
+    agenda.markModified('attendees');
+    logAudit(agenda, 'Teilnehmer entfernt', req.body?.user || 'System', `Teilnehmer "${removed.name}" wurde aus der Agenda entfernt.`);
+
+    const saved = await agenda.save();
+    broadcastAgendaEvent(id, 'agenda_updated', { agenda: saved });
+    res.json(saved);
+  } catch (error) {
+    console.error('Error deleting attendee:', error);
+    res.status(500).json({ message: 'Failed to delete attendee' });
+  }
+});
+
 // Add an agenda item
 router.post('/:id/items', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -825,18 +886,18 @@ router.post('/:id/items', async (req: Request, res: Response): Promise<void> => 
       res.status(404).json({ message: 'Agenda not found' });
       return;
     }
-    
+
     if (agenda.isArchived) {
       res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
       return;
     }
-    
+
     // Check deadline
     if (isAgendaClosed(agenda)) {
       res.status(403).json({ message: 'Agenda ist bereits geschlossen für neue Punkte' });
       return;
     }
-    
+
     if (req.body?.imageUrl && !isSafeImageUrl(req.body.imageUrl)) {
       res.status(400).json({ message: 'Ungültiges oder unsicheres Bild-URL-Format' });
       return;
@@ -883,7 +944,7 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
       res.status(404).json({ message: 'Item not found' });
       return;
     }
-    
+
     if (req.body?.imageUrl !== undefined) {
       if (!isSafeImageUrl(req.body.imageUrl)) {
         res.status(400).json({ message: 'Ungültiges oder unsicheres Bild-URL-Format' });
@@ -947,7 +1008,8 @@ router.put('/:id/items/:itemId', async (req: Request, res: Response): Promise<vo
     if (req.body?.location !== undefined) item.location = req.body.location;
     if (req.body?.upvotes !== undefined) item.upvotes = req.body.upvotes;
     if (req.body?.poll !== undefined) item.poll = req.body.poll;
-    
+    if (req.body?.durationSeconds !== undefined) item.durationSeconds = req.body.durationSeconds;
+
     const savedAgenda = await agenda.save();
     broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });
     res.json(savedAgenda);
@@ -989,15 +1051,15 @@ router.delete('/:id/items/:itemId', async (req: Request, res: Response): Promise
       const isTransferredRecipient =
         isTransferredAccepted &&
         ((requestingUserId && itemToDelete.transferredTo?.toUserId === requestingUserId) ||
-         (requestingUserName && itemToDelete.transferredTo?.toUserName && itemToDelete.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
+          (requestingUserName && itemToDelete.transferredTo?.toUserName && itemToDelete.transferredTo.toUserName.trim().toLowerCase() === requestingUserName));
 
       const isAuthorized =
         isAgendaCreator ||
         (isTransferredAccepted
           ? isTransferredRecipient
           : ((requestingUserId && itemToDelete.createdBy === requestingUserId) ||
-             (requestingUserName && itemToDelete.author && itemToDelete.author.trim().toLowerCase() === requestingUserName) ||
-             (requestingUserName && itemToDelete.createdBy && itemToDelete.createdBy.trim().toLowerCase() === requestingUserName)));
+            (requestingUserName && itemToDelete.author && itemToDelete.author.trim().toLowerCase() === requestingUserName) ||
+            (requestingUserName && itemToDelete.createdBy && itemToDelete.createdBy.trim().toLowerCase() === requestingUserName)));
 
       if (!isAuthorized) {
         res.status(403).json({ message: 'Nur der aktuelle Besitzer kann diesen Agendapunkt löschen.' });
