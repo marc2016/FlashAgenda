@@ -111,6 +111,10 @@ export interface IAgenda extends Document {
   liveMeetingPhase?: string;
   liveMeetingCurrentItemIndex?: number;
   liveMeetingCurrentAttendeeIndex?: number;
+  liveMeetingCurrentItemElapsedSeconds?: number;
+  liveMeetingPaused?: boolean;
+  liveMeetingStartedAt?: Date | null;
+  liveMeetingItemStartedAt?: Date | null;
   attendees: IAttendee[];
   items: IAgendaItem[];
   auditLogs: IAuditLog[];
@@ -224,6 +228,10 @@ const AgendaSchema = new Schema<IAgenda>({
   liveMeetingPhase: { type: String, default: 'intro' },
   liveMeetingCurrentItemIndex: { type: Number, default: 0 },
   liveMeetingCurrentAttendeeIndex: { type: Number, default: 0 },
+  liveMeetingCurrentItemElapsedSeconds: { type: Number, default: 0 },
+  liveMeetingPaused: { type: Boolean, default: false },
+  liveMeetingStartedAt: { type: Date, default: null },
+  liveMeetingItemStartedAt: { type: Date, default: null },
   attendees: [AttendeeSchema],
   items: [AgendaItemSchema],
   auditLogs: [AuditLogSchema]

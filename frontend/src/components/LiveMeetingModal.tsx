@@ -73,6 +73,35 @@ export const isUserOnline = (lastSeen?: string | Date) => {
   }
 };
 
+export const calculateSessionSeconds = (agenda: any, now: number = Date.now()): number => {
+  if (!agenda) return 0;
+  const base = typeof agenda.liveMeetingElapsedSeconds === 'number' ? agenda.liveMeetingElapsedSeconds : 0;
+  if (!agenda.liveMeetingPaused && agenda.liveMeetingActive && agenda.liveMeetingStartedAt) {
+    const startMs = new Date(agenda.liveMeetingStartedAt).getTime();
+    if (!isNaN(startMs)) {
+      const diffSec = Math.max(0, Math.floor((now - startMs) / 1000));
+      return base + diffSec;
+    }
+  }
+  return base;
+};
+
+export const calculateItemSeconds = (agenda: any, targetItem?: any, now: number = Date.now()): number => {
+  if (!agenda) return targetItem?.durationSeconds || 0;
+  const base = typeof agenda.liveMeetingCurrentItemElapsedSeconds === 'number' && agenda.liveMeetingCurrentItemElapsedSeconds > 0
+    ? agenda.liveMeetingCurrentItemElapsedSeconds
+    : (targetItem?.durationSeconds || 0);
+
+  if (agenda.liveMeetingPhase === 'agenda_items' && !agenda.liveMeetingPaused && agenda.liveMeetingActive && agenda.liveMeetingItemStartedAt) {
+    const startMs = new Date(agenda.liveMeetingItemStartedAt).getTime();
+    if (!isNaN(startMs)) {
+      const diffSec = Math.max(0, Math.floor((now - startMs) / 1000));
+      return base + diffSec;
+    }
+  }
+  return base;
+};
+
 export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
   visible,
   onHide,
@@ -154,18 +183,49 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [itemSeconds, setItemSeconds] = useState(0);
   const [isSessionRunning, setIsSessionRunning] = useState(true);
-  const [isItemRunning, setIsItemRunning] = useState(true);
   const isInitializedRef = useRef(false);
   const prevItemIndexRef = useRef<number>(-1);
   const prevPhaseRef = useRef<LiveMeetingPhase | null>(null);
 
   // Toggle pause/resume for both session and item timers
   const handleTogglePause = () => {
-    setIsSessionRunning((prev) => {
-      const next = !prev;
-      setIsItemRunning(next);
-      return next;
-    });
+    const isCurrentlyRunning = !agenda?.liveMeetingPaused;
+    const now = Date.now();
+    const curSessionSec = calculateSessionSeconds(agenda, now);
+    const targetItem = (localItems || [])[currentItemIndex];
+    const curItemSec = calculateItemSeconds(agenda, targetItem, now);
+
+    if (isCurrentlyRunning) {
+      // Pause: accumulate elapsed seconds on server and clear startedAt
+      setIsSessionRunning(false);
+      if (phase === 'agenda_items' && curItemSec > 0) {
+        saveCurrentItemDuration(currentItemIndex, curItemSec);
+      }
+      onUpdateAgenda({
+        liveMeetingPaused: true,
+        liveMeetingElapsedSeconds: curSessionSec,
+        liveMeetingCurrentItemElapsedSeconds: curItemSec,
+        liveMeetingStartedAt: null,
+        liveMeetingItemStartedAt: null,
+        liveMeetingPhase: phase,
+        liveMeetingCurrentItemIndex: currentItemIndex,
+        liveMeetingCurrentAttendeeIndex: currentAttendeeIndex,
+      });
+    } else {
+      // Resume: set new start timestamps from now, keeping accumulated seconds
+      setIsSessionRunning(true);
+      const isoNow = new Date().toISOString();
+      onUpdateAgenda({
+        liveMeetingPaused: false,
+        liveMeetingElapsedSeconds: curSessionSec,
+        liveMeetingCurrentItemElapsedSeconds: curItemSec,
+        liveMeetingStartedAt: isoNow,
+        liveMeetingItemStartedAt: isoNow,
+        liveMeetingPhase: phase,
+        liveMeetingCurrentItemIndex: currentItemIndex,
+        liveMeetingCurrentAttendeeIndex: currentAttendeeIndex,
+      });
+    }
   };
 
   // Quick note / decision state
@@ -182,25 +242,36 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
         (agenda?.liveMeetingElapsedSeconds || 0) > 0 ||
         !!agenda?.liveMeetingPhase;
 
+      let initialPhase: LiveMeetingPhase = 'intro';
+      let initialItemIdx = 0;
+      let initialAttIdx = 0;
+
       if (isResuming && agenda?.liveMeetingPhase) {
-        setPhase(agenda.liveMeetingPhase as LiveMeetingPhase);
+        initialPhase = agenda.liveMeetingPhase as LiveMeetingPhase;
         const restoredItemIdx = typeof agenda.liveMeetingCurrentItemIndex === 'number' ? agenda.liveMeetingCurrentItemIndex : 0;
         const restoredAttIdx = typeof agenda.liveMeetingCurrentAttendeeIndex === 'number' ? agenda.liveMeetingCurrentAttendeeIndex : 0;
-        setCurrentItemIndex(Math.min(restoredItemIdx, Math.max(0, (items || []).length - 1)));
-        setCurrentAttendeeIndex(Math.min(restoredAttIdx, Math.max(0, (attendees || []).length - 1)));
+        initialItemIdx = Math.min(restoredItemIdx, Math.max(0, (items || []).length - 1));
+        initialAttIdx = Math.min(restoredAttIdx, Math.max(0, (attendees || []).length - 1));
       } else if (isResuming && typeof agenda?.liveMeetingCurrentItemIndex === 'number') {
-        setPhase('agenda_items');
-        setCurrentItemIndex(Math.min(agenda.liveMeetingCurrentItemIndex, Math.max(0, (items || []).length - 1)));
-        setCurrentAttendeeIndex(0);
-      } else {
-        setPhase('intro');
-        setCurrentAttendeeIndex(0);
-        setCurrentItemIndex(0);
+        initialPhase = 'agenda_items';
+        initialItemIdx = Math.min(agenda.liveMeetingCurrentItemIndex, Math.max(0, (items || []).length - 1));
+        initialAttIdx = 0;
       }
-      setSessionSeconds(agenda?.liveMeetingElapsedSeconds || 0);
-      setItemSeconds(0);
-      setIsSessionRunning(true);
-      setIsItemRunning(true);
+
+      setPhase(initialPhase);
+      setCurrentItemIndex(initialItemIdx);
+      setCurrentAttendeeIndex(initialAttIdx);
+
+      const now = Date.now();
+      const targetItem = (items || [])[initialItemIdx];
+      setSessionSeconds(calculateSessionSeconds(agenda, now));
+      setItemSeconds(calculateItemSeconds(agenda, targetItem, now));
+
+      prevItemIndexRef.current = initialItemIdx;
+      prevPhaseRef.current = initialPhase;
+
+      const initialRunning = !agenda?.liveMeetingPaused;
+      setIsSessionRunning(initialRunning);
       setLocalAttendees(attendees || []);
       setLocalItems(items || []);
     } else if (!visible) {
@@ -210,48 +281,86 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
     }
   }, [visible, agenda, attendees, items]);
 
-  // Overall session timer effect
+  // Synchronize state when external agenda updates arrive from server or other devices
   useEffect(() => {
-    if (!visible || !isSessionRunning) return;
-    const interval = setInterval(() => {
-      setSessionSeconds((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [visible, isSessionRunning]);
+    if (!visible || !isInitializedRef.current || !agenda) return;
 
-  // Whenever currentItemIndex changes or entering agenda_items phase, reset the item timer
-  useEffect(() => {
-    if (phase === 'agenda_items') {
-      if (prevItemIndexRef.current !== currentItemIndex || prevPhaseRef.current !== 'agenda_items') {
-        setItemSeconds(0);
+    // External phase change
+    if (agenda.liveMeetingPhase && agenda.liveMeetingPhase !== phase) {
+      setPhase(agenda.liveMeetingPhase as LiveMeetingPhase);
+    }
+
+    // External item index change
+    if (
+      typeof agenda.liveMeetingCurrentItemIndex === 'number' &&
+      agenda.liveMeetingCurrentItemIndex !== currentItemIndex
+    ) {
+      const validIdx = Math.min(
+        agenda.liveMeetingCurrentItemIndex,
+        Math.max(0, (items || []).length - 1)
+      );
+      setCurrentItemIndex(validIdx);
+    }
+
+    // External attendee index change
+    if (
+      typeof agenda.liveMeetingCurrentAttendeeIndex === 'number' &&
+      agenda.liveMeetingCurrentAttendeeIndex !== currentAttendeeIndex
+    ) {
+      const validIdx = Math.min(
+        agenda.liveMeetingCurrentAttendeeIndex,
+        Math.max(0, (attendees || []).length - 1)
+      );
+      setCurrentAttendeeIndex(validIdx);
+    }
+
+    // External pause state change
+    if (agenda.liveMeetingPaused !== undefined) {
+      const shouldBeRunning = !agenda.liveMeetingPaused;
+      if (shouldBeRunning !== isSessionRunning) {
+        setIsSessionRunning(shouldBeRunning);
       }
     }
-    prevItemIndexRef.current = currentItemIndex;
-    prevPhaseRef.current = phase;
-  }, [currentItemIndex, phase]);
 
-  // Periodically persist session seconds and state to server
-  useEffect(() => {
-    if (!visible || sessionSeconds === 0) return;
-    const interval = setInterval(() => {
-      onUpdateAgenda({
-        liveMeetingElapsedSeconds: sessionSeconds,
-        liveMeetingPhase: phase,
-        liveMeetingCurrentItemIndex: currentItemIndex,
-        liveMeetingCurrentAttendeeIndex: currentAttendeeIndex,
-      });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [visible, sessionSeconds, phase, currentItemIndex, currentAttendeeIndex, onUpdateAgenda]);
+    // If meeting was closed externally
+    if (agenda.liveMeetingActive === false && visible) {
+      if (agenda.liveMeetingStatus === 'completed') {
+        setPhase('summary');
+      } else {
+        onHide();
+      }
+    }
+  }, [
+    visible,
+    agenda?.liveMeetingPhase,
+    agenda?.liveMeetingCurrentItemIndex,
+    agenda?.liveMeetingCurrentAttendeeIndex,
+    agenda?.liveMeetingPaused,
+    agenda?.liveMeetingActive,
+    agenda?.liveMeetingStatus,
+    items,
+    attendees,
+    phase,
+    currentItemIndex,
+    currentAttendeeIndex,
+    isSessionRunning,
+    onHide,
+  ]);
 
-  // Active agenda item timer effect (stops when isSessionRunning is false)
+  // Server-authoritative timer ticker (calculates elapsed seconds based on Date.now() and server timestamps)
   useEffect(() => {
-    if (!visible || !isSessionRunning || !isItemRunning || phase !== 'agenda_items') return;
-    const interval = setInterval(() => {
-      setItemSeconds((prev) => prev + 1);
-    }, 1000);
+    if (!visible) return;
+    const updateTimers = () => {
+      const now = Date.now();
+      const currentItem = (localItems || [])[currentItemIndex];
+      setSessionSeconds(calculateSessionSeconds(agenda, now));
+      setItemSeconds(calculateItemSeconds(agenda, currentItem, now));
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000);
     return () => clearInterval(interval);
-  }, [visible, isSessionRunning, isItemRunning, phase]);
+  }, [visible, agenda, localItems, currentItemIndex]);
 
   // Attendee statistics
   const presentCount = useMemo(
@@ -290,7 +399,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
           if (idx === itemIdx) {
             return {
               ...item,
-              durationSeconds: (item.durationSeconds || 0) + elapsedSec,
+              durationSeconds: Math.max(item.durationSeconds || 0, elapsedSec),
             };
           }
           return item;
@@ -361,17 +470,36 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
 
   // Close meeting helper
   const handleCloseMeeting = async (status: 'completed' | 'in_progress' = 'in_progress') => {
-    if (itemSeconds > 0 && phase === 'agenda_items') {
-      saveCurrentItemDuration(currentItemIndex, itemSeconds);
+    const now = Date.now();
+    const curSession = calculateSessionSeconds(agenda, now);
+    const targetItem = (localItems || [])[currentItemIndex];
+    const curItem = calculateItemSeconds(agenda, targetItem, now);
+    if (curItem > 0 && phase === 'agenda_items') {
+      saveCurrentItemDuration(currentItemIndex, curItem);
     }
-    await onUpdateAgenda({
-      liveMeetingActive: false,
-      liveMeetingStatus: status,
-      liveMeetingElapsedSeconds: sessionSeconds,
-      liveMeetingPhase: phase,
-      liveMeetingCurrentItemIndex: currentItemIndex,
-      liveMeetingCurrentAttendeeIndex: currentAttendeeIndex,
-    });
+    if (status === 'completed') {
+      await onUpdateAgenda({
+        liveMeetingActive: false,
+        liveMeetingStatus: 'completed',
+        liveMeetingElapsedSeconds: curSession,
+        liveMeetingCurrentItemElapsedSeconds: curItem,
+        liveMeetingStartedAt: null,
+        liveMeetingItemStartedAt: null,
+        liveMeetingPhase: phase,
+        liveMeetingCurrentItemIndex: currentItemIndex,
+        liveMeetingCurrentAttendeeIndex: currentAttendeeIndex,
+        liveMeetingPaused: true,
+      });
+    } else {
+      // User exits the view on their device: meeting stays active and running on server!
+      await onUpdateAgenda({
+        liveMeetingActive: true,
+        liveMeetingStatus: 'in_progress',
+        liveMeetingPhase: phase,
+        liveMeetingCurrentItemIndex: currentItemIndex,
+        liveMeetingCurrentAttendeeIndex: currentAttendeeIndex,
+      });
+    }
     onHide();
   };
 
@@ -520,12 +648,14 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
   // Agenda Item Actions
 
   const handleNextItem = async (markAsCompleted = true) => {
-    const elapsed = itemSeconds;
+    const now = Date.now();
+    const targetItem = (localItems || [])[currentItemIndex];
+    const elapsed = calculateItemSeconds(agenda, targetItem, now);
     const updated = localItems.map((item, idx) => {
       if (idx === currentItemIndex) {
         return {
           ...item,
-          durationSeconds: (item.durationSeconds || 0) + (elapsed > 0 ? elapsed : 0),
+          durationSeconds: Math.max(item.durationSeconds || 0, elapsed),
           completed: markAsCompleted ? true : item.completed,
         };
       }
@@ -538,33 +668,47 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
       console.error('Failed to update item on next:', err);
     }
 
+    const curSession = calculateSessionSeconds(agenda, now);
+    const isRunning = !agenda?.liveMeetingPaused;
+    const isoNow = new Date().toISOString();
+
     if (currentItemIndex + 1 < localItems.length) {
       const nextIdx = currentItemIndex + 1;
+      const nextDuration = updated[nextIdx]?.durationSeconds || 0;
       setCurrentItemIndex(nextIdx);
-      setItemSeconds(0);
+      setItemSeconds(nextDuration);
       await onUpdateAgenda({
         liveMeetingCurrentItemIndex: nextIdx,
+        liveMeetingCurrentItemElapsedSeconds: nextDuration,
+        liveMeetingItemStartedAt: isRunning ? isoNow : null,
         liveMeetingPhase: 'agenda_items',
-        liveMeetingElapsedSeconds: sessionSeconds,
+        liveMeetingElapsedSeconds: curSession,
+        liveMeetingStartedAt: isRunning ? (agenda?.liveMeetingStartedAt || isoNow) : null,
+        liveMeetingPaused: !isRunning,
       });
     } else {
       setPhase('summary');
       await onUpdateAgenda({
         liveMeetingPhase: 'summary',
-        liveMeetingElapsedSeconds: sessionSeconds,
+        liveMeetingElapsedSeconds: curSession,
+        liveMeetingItemStartedAt: null,
+        liveMeetingPaused: !isRunning,
       });
     }
   };
 
   const handlePrevItem = async () => {
     if (currentItemIndex > 0) {
-      const elapsed = itemSeconds;
+      const now = Date.now();
+      const targetItem = (localItems || [])[currentItemIndex];
+      const elapsed = calculateItemSeconds(agenda, targetItem, now);
+      let updated = localItems;
       if (elapsed > 0) {
-        const updated = localItems.map((item, idx) => {
+        updated = localItems.map((item, idx) => {
           if (idx === currentItemIndex) {
             return {
               ...item,
-              durationSeconds: (item.durationSeconds || 0) + elapsed,
+              durationSeconds: Math.max(item.durationSeconds || 0, elapsed),
             };
           }
           return item;
@@ -576,26 +720,37 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
           console.error('Failed to update item duration on prev:', err);
         }
       }
+      const curSession = calculateSessionSeconds(agenda, now);
+      const isRunning = !agenda?.liveMeetingPaused;
+      const isoNow = new Date().toISOString();
       const prevIdx = currentItemIndex - 1;
+      const prevDuration = updated[prevIdx]?.durationSeconds || 0;
       setCurrentItemIndex(prevIdx);
-      setItemSeconds(0);
+      setItemSeconds(prevDuration);
       await onUpdateAgenda({
         liveMeetingCurrentItemIndex: prevIdx,
+        liveMeetingCurrentItemElapsedSeconds: prevDuration,
+        liveMeetingItemStartedAt: isRunning ? isoNow : null,
         liveMeetingPhase: 'agenda_items',
-        liveMeetingElapsedSeconds: sessionSeconds,
+        liveMeetingElapsedSeconds: curSession,
+        liveMeetingStartedAt: isRunning ? (agenda?.liveMeetingStartedAt || isoNow) : null,
+        liveMeetingPaused: !isRunning,
       });
     }
   };
 
   const handleJumpToItem = async (index: number) => {
+    const now = Date.now();
+    let updated = localItems;
     if (phase === 'agenda_items') {
-      const elapsed = itemSeconds;
+      const targetItem = (localItems || [])[currentItemIndex];
+      const elapsed = calculateItemSeconds(agenda, targetItem, now);
       if (elapsed > 0) {
-        const updated = localItems.map((item, idx) => {
+        updated = localItems.map((item, idx) => {
           if (idx === currentItemIndex) {
             return {
               ...item,
-              durationSeconds: (item.durationSeconds || 0) + elapsed,
+              durationSeconds: Math.max(item.durationSeconds || 0, elapsed),
             };
           }
           return item;
@@ -608,13 +763,37 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
         }
       }
     }
+    const curSession = calculateSessionSeconds(agenda, now);
+    const isRunning = !agenda?.liveMeetingPaused;
+    const isoNow = new Date().toISOString();
+    const targetDuration = updated[index]?.durationSeconds || 0;
     setCurrentItemIndex(index);
-    setItemSeconds(0);
+    setItemSeconds(targetDuration);
     setShowItemDrawer(false);
     await onUpdateAgenda({
       liveMeetingCurrentItemIndex: index,
+      liveMeetingCurrentItemElapsedSeconds: targetDuration,
+      liveMeetingItemStartedAt: isRunning ? isoNow : null,
       liveMeetingPhase: 'agenda_items',
+      liveMeetingElapsedSeconds: curSession,
+      liveMeetingStartedAt: isRunning ? (agenda?.liveMeetingStartedAt || isoNow) : null,
+      liveMeetingPaused: !isRunning,
+    });
+  };
+
+  const handleStartAgendaItems = async (startIdx = 0) => {
+    const now = new Date().toISOString();
+    const startDuration = (localItems || [])[startIdx]?.durationSeconds || 0;
+    setCurrentItemIndex(startIdx);
+    setPhase('agenda_items');
+    await onUpdateAgenda({
+      liveMeetingPhase: 'agenda_items',
+      liveMeetingCurrentItemIndex: startIdx,
+      liveMeetingCurrentItemElapsedSeconds: startDuration,
+      liveMeetingItemStartedAt: isSessionRunning ? now : null,
       liveMeetingElapsedSeconds: sessionSeconds,
+      liveMeetingStartedAt: isSessionRunning ? (agenda?.liveMeetingStartedAt || now) : null,
+      liveMeetingPaused: !isSessionRunning,
     });
   };
 
@@ -697,6 +876,18 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
 
         {/* Center: Live Timers (Task timer links, Gesamt timer rechts, etwas größer) */}
         <div className="flex align-items-center gap-2 sm:gap-3 flex-wrap justify-content-center">
+          {/* Paused Indicator */}
+          {!isSessionRunning && (
+            <div
+              className="flex align-items-center gap-1 px-2 py-1 bg-red-900 border-round text-xs font-bold text-red-200 border-1 border-red-500 shadow-1 animate-pulse"
+              title="Sitzung ist aktuell pausiert"
+              data-testid="paused-indicator"
+            >
+              <i className="pi pi-pause text-red-300 text-xs" />
+              <span className="text-3xs sm:text-xs">PAUSIERT</span>
+            </div>
+          )}
+
           {/* TOP / Task Timer (only in agenda_items phase) */}
           {phase === 'agenda_items' && (
             <div
@@ -854,15 +1045,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                   label="Tagesordnung starten"
                   icon="pi pi-list"
                   className="comic-button-success flex-1 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
-                  onClick={() => {
-                    setCurrentItemIndex(0);
-                    setPhase('agenda_items');
-                    onUpdateAgenda({
-                      liveMeetingPhase: 'agenda_items',
-                      liveMeetingCurrentItemIndex: 0,
-                      liveMeetingElapsedSeconds: sessionSeconds,
-                    });
-                  }}
+                  onClick={() => handleStartAgendaItems(0)}
                   data-testid="start-items-direct-btn"
                 />
               )}
@@ -874,15 +1057,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                   iconPos="right"
                   className="comic-button-secondary flex-1 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
                   style={{ minWidth: '12rem' }}
-                  onClick={() => {
-                    setCurrentItemIndex(0);
-                    setPhase('agenda_items');
-                    onUpdateAgenda({
-                      liveMeetingPhase: 'agenda_items',
-                      liveMeetingCurrentItemIndex: 0,
-                      liveMeetingElapsedSeconds: sessionSeconds,
-                    });
-                  }}
+                  onClick={() => handleStartAgendaItems(0)}
                   title="Anwesenheitsprüfung überspringen und direkt zu Agendapunkten"
                   data-testid="start-items-direct-btn"
                 />
@@ -1284,15 +1459,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                 icon="pi pi-arrow-right"
                 iconPos="right"
                 className="comic-button-success px-4 py-3 text-base sm:text-lg font-bold flex align-items-center gap-2"
-                onClick={() => {
-                  setCurrentItemIndex(0);
-                  setPhase('agenda_items');
-                  onUpdateAgenda({
-                    liveMeetingPhase: 'agenda_items',
-                    liveMeetingCurrentItemIndex: 0,
-                    liveMeetingElapsedSeconds: sessionSeconds,
-                  });
-                }}
+                onClick={() => handleStartAgendaItems(0)}
                 data-testid="start-agenda-items-btn"
               />
             </div>

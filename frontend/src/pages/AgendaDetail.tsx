@@ -581,6 +581,40 @@ export default function AgendaDetail() {
     prevPendingCountRef.current = pendingTransfers.length;
   }, [pendingTransfers.length]);
 
+  // Automatically open modal when live meeting is already active on initial page load (only once user is identified)
+  const hasAutoJoinedLiveMeetingRef = useRef(false);
+
+  // Reset auto-join flag when user changes/logs in so running meetings open for new user
+  useEffect(() => {
+    hasAutoJoinedLiveMeetingRef.current = false;
+  }, [currentUser?.id, currentUser?._id, currentUser?.name]);
+
+  useEffect(() => {
+    if (
+      currentUser &&
+      agenda?.liveMeetingActive &&
+      !hasAutoJoinedLiveMeetingRef.current &&
+      !agenda.isManuallyClosed &&
+      agenda.liveMeetingStatus !== 'completed'
+    ) {
+      hasAutoJoinedLiveMeetingRef.current = true;
+      setIsLiveMeetingOpen(true);
+    }
+  }, [currentUser, agenda?.liveMeetingActive, agenda?.isManuallyClosed, agenda?.liveMeetingStatus]);
+
+  const handleUserIdentified = (user: any) => {
+    setCurrentUser(user);
+    setShowUserModal(false);
+    if (
+      agenda?.liveMeetingActive &&
+      !agenda.isManuallyClosed &&
+      agenda.liveMeetingStatus !== 'completed'
+    ) {
+      hasAutoJoinedLiveMeetingRef.current = true;
+      setIsLiveMeetingOpen(true);
+    }
+  };
+
   const handleAcceptTransfer = async (itemToAccept: any) => {
     if (!agenda) return;
     const currentName = currentUser?.name || 'Teilnehmer';
@@ -913,6 +947,55 @@ export default function AgendaDetail() {
           </div>
         )}
 
+        {agenda.liveMeetingActive && !isLiveMeetingOpen && agenda.liveMeetingStatus !== 'completed' && (
+          <div
+            className="mb-4 p-3 sm:p-4 border-round-xl flex flex-column sm:flex-row align-items-center justify-content-between gap-3 bg-red-950 border-2 border-red-500 shadow-4"
+            style={{
+              boxShadow: '4px 4px 0px #000000',
+            }}
+            data-testid="live-meeting-active-banner"
+          >
+            <div className="flex align-items-center gap-3">
+              <span className="p-2 sm:p-3 border-circle bg-red-600 text-white flex align-items-center justify-content-center flex-shrink-0">
+                <i className="pi pi-play text-lg sm:text-xl font-bold" />
+              </span>
+              <div>
+                <div className="flex align-items-center gap-2">
+                  <span className="font-extrabold text-white text-base sm:text-lg block">
+                    🔴 Live-Sitzung ist aktiv!
+                  </span>
+                  {agenda.liveMeetingPaused && (
+                    <span className="px-2 py-0.5 bg-red-900 border-1 border-red-400 text-red-200 text-3xs font-bold border-round">
+                      Pausiert
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs sm:text-sm text-gray-300">
+                  {agenda.liveMeetingPhase === 'agenda_items' && agenda.items?.[agenda.liveMeetingCurrentItemIndex || 0]
+                    ? `Aktueller TOP: TOP ${(agenda.liveMeetingCurrentItemIndex || 0) + 1} – "${agenda.items[agenda.liveMeetingCurrentItemIndex || 0].title}"`
+                    : agenda.liveMeetingPhase === 'roll_call_step' || agenda.liveMeetingPhase === 'roll_call_summary'
+                    ? 'Aktuelle Phase: Anwesenheitsabfrage (Roll-Call)'
+                    : 'Die Präsentation läuft gerade.'}
+                </span>
+              </div>
+            </div>
+            <Button
+              label="Jetzt live beitreten"
+              icon="pi pi-arrow-right"
+              iconPos="right"
+              className="p-button-danger comic-button font-bold text-xs sm:text-sm py-2 px-3 sm:px-4 flex-shrink-0"
+              onClick={() => {
+                if (!currentUser) {
+                  setShowUserModal(true);
+                } else {
+                  setIsLiveMeetingOpen(true);
+                }
+              }}
+              data-testid="join-live-meeting-banner-btn"
+            />
+          </div>
+        )}
+
         <AgendaHeader 
           agenda={agenda} 
           onUpdate={handleUpdateAgenda}
@@ -959,16 +1042,26 @@ export default function AgendaDetail() {
           onUpdate={handleUpdateItems}
           onUpdateAgenda={handleUpdateAgenda}
           onStartLiveMeeting={async () => {
+            if (!currentUser) {
+              setShowUserModal(true);
+              return;
+            }
             setIsLiveMeetingOpen(true);
+            const now = new Date().toISOString();
             const isFreshStart = !agenda.liveMeetingStatus || agenda.liveMeetingStatus === 'not_started';
             await handleUpdateAgenda({
               liveMeetingActive: true,
               liveMeetingStatus: 'in_progress',
+              liveMeetingPaused: false,
+              liveMeetingStartedAt: now,
+              liveMeetingItemStartedAt: now,
               ...(isFreshStart
                 ? {
                     liveMeetingPhase: 'intro',
                     liveMeetingCurrentItemIndex: 0,
                     liveMeetingCurrentAttendeeIndex: 0,
+                    liveMeetingElapsedSeconds: 0,
+                    liveMeetingCurrentItemElapsedSeconds: 0,
                   }
                 : {}),
             });
@@ -1003,7 +1096,7 @@ export default function AgendaDetail() {
         agendaId={agenda._id}
         attendees={agenda.attendees || []}
         currentUser={currentUser}
-        onIdentified={setCurrentUser}
+        onIdentified={handleUserIdentified}
         onAddAttendee={handleAddAttendee}
         onUpdateAttendee={handleUpdateAttendee}
         isOpen={showUserModal}

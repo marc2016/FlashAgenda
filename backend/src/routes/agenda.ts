@@ -681,7 +681,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       'title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed',
       'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder', 'auditLogs',
       'liveMeetingActive', 'liveMeetingStatus', 'liveMeetingElapsedSeconds',
-      'liveMeetingPhase', 'liveMeetingCurrentItemIndex', 'liveMeetingCurrentAttendeeIndex'
+      'liveMeetingPhase', 'liveMeetingCurrentItemIndex', 'liveMeetingCurrentAttendeeIndex',
+      'liveMeetingPaused', 'liveMeetingCurrentItemElapsedSeconds',
+      'liveMeetingStartedAt', 'liveMeetingItemStartedAt'
     ];
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
