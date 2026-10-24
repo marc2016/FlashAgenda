@@ -81,6 +81,7 @@ export interface IAgendaItem {
   poll?: IPoll;
   comments?: IComment[];
   durationSeconds?: number;
+  systemKey?: 'welcome' | 'next_meeting' | 'location';
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -105,6 +106,7 @@ export interface IAgenda extends Document {
   createdBy?: string;
   sortMode?: 'date' | 'rating' | 'random';
   sortOrder?: 'asc' | 'desc';
+  includeStandardItems?: boolean;
   liveMeetingActive?: boolean;
   liveMeetingStatus?: 'not_started' | 'in_progress' | 'completed';
   liveMeetingElapsedSeconds?: number;
@@ -206,6 +208,7 @@ const AgendaItemSchema = new Schema<IAgendaItem>({
   poll: { type: PollSchema },
   comments: [CommentSchema],
   durationSeconds: { type: Number, default: 0 },
+  systemKey: { type: String, enum: ['welcome', 'next_meeting', 'location'] },
   createdAt: { type: Date },
   updatedAt: { type: Date }
 });
@@ -222,6 +225,7 @@ const AgendaSchema = new Schema<IAgenda>({
   createdBy: { type: String },
   sortMode: { type: String, enum: ['date', 'rating', 'random'], default: 'date' },
   sortOrder: { type: String, enum: ['asc', 'desc'], default: 'asc' },
+  includeStandardItems: { type: Boolean, default: false },
   liveMeetingActive: { type: Boolean, default: false },
   liveMeetingStatus: { type: String, enum: ['not_started', 'in_progress', 'completed'], default: 'not_started' },
   liveMeetingElapsedSeconds: { type: Number, default: 0 },

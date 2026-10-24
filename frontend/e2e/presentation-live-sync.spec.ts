@@ -116,8 +116,14 @@ test.describe('FlashAgenda - Multi-Device Presentation Live Sync', () => {
     // Verify live meeting banner is now visible on the agenda page
     const liveBanner = page.getByTestId('live-meeting-active-banner');
     await expect(liveBanner).toBeVisible();
-    await expect(liveBanner).toContainText('Live-Sitzung ist aktiv');
-    await expect(liveBanner).toContainText('Architektur & Sync-Konzept');
+    await expect(liveBanner).toContainText('Live-Sitzung aktiv');
+    await expect(liveBanner).toHaveAttribute('title', /Architektur & Sync-Konzept/);
+
+    // No emojis: status uses Material Design icon + HTML indicator, placed in the title row
+    await expect(liveBanner).not.toContainText('🔴');
+    await expect(liveBanner.locator('.mdi-broadcast')).toBeVisible();
+    const titleRow = page.locator('h1').locator('..');
+    await expect(titleRow.getByTestId('live-meeting-active-banner')).toBeVisible();
 
     // Click banner to rejoin live meeting
     await page.getByTestId('join-live-meeting-banner-btn').click();
@@ -197,6 +203,13 @@ test.describe('FlashAgenda - Multi-Device Presentation Live Sync', () => {
     // Test iPhone dimensions
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(banner).toBeVisible();
+
+    // Banner wraps below the title instead of causing horizontal scroll
+    await page.setViewportSize({ width: 320, height: 568 });
+    await expect(banner).toBeVisible();
+    const hasHorizontalScroll = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    expect(hasHorizontalScroll).toBe(false);
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.getByTestId('join-live-meeting-banner-btn').click();
     await expect(dialog).toBeVisible();
   });

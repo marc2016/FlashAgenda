@@ -74,6 +74,38 @@ export function isAgendaClosed(agenda: { isManuallyClosed?: boolean; date?: stri
   return false;
 }
 
+export const STANDARD_ITEMS = [
+  { systemKey: 'welcome', title: 'Begrüßung' },
+  { systemKey: 'next_meeting', title: 'Neuer Termin' },
+  { systemKey: 'location', title: 'Location' }
+] as const;
+
+// Adds the standard system items (Begrüßung, Neuer Termin, Location) to the top of the agenda,
+// or removes them again when disabled. Items belong to the system user, not to any attendee.
+export function applyStandardItems(agenda: any, enabled: boolean): void {
+  const items: any[] = agenda.items || [];
+  if (enabled) {
+    const now = new Date();
+    const missing = STANDARD_ITEMS
+      .filter((std) => !items.some((item: any) => item.systemKey === std.systemKey))
+      .map((std) => ({
+        title: std.title,
+        systemKey: std.systemKey,
+        author: 'System',
+        createdBy: 'system',
+        pinned: true,
+        completed: false,
+        upvotes: [],
+        createdAt: now,
+        updatedAt: now
+      }));
+    agenda.items = [...missing, ...items];
+  } else {
+    agenda.items = items.filter((item: any) => !item.systemKey);
+  }
+  if (typeof agenda.markModified === 'function') agenda.markModified('items');
+}
+
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -467,6 +499,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       attendees: req.body?.attendees || [],
       items: req.body?.items || [],
       createdBy: req.body?.createdBy || undefined,
+      includeStandardItems: !!req.body?.includeStandardItems,
       auditLogs: [{
         action: 'Agenda erstellt',
         user: userName,
@@ -474,6 +507,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         timestamp: new Date()
       }]
     });
+    if (req.body?.includeStandardItems) {
+      applyStandardItems(newAgenda, true);
+    }
     const savedAgenda = await newAgenda.save();
     res.status(201).json(savedAgenda);
   } catch (error) {
@@ -503,7 +539,10 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     // Validation: Only creator can change closeBeforeHours or isManuallyClosed
-    const isClosingSettingUpdate = req.body.closeBeforeHours !== undefined || req.body.isManuallyClosed !== undefined;
+    const isClosingSettingUpdate =
+      req.body.closeBeforeHours !== undefined ||
+      req.body.isManuallyClosed !== undefined ||
+      req.body.includeStandardItems !== undefined;
     if (isClosingSettingUpdate && existingAgenda.createdBy) {
       const requestingUserId = req.body.userId;
       const requestingUserName = req.body.userName;
@@ -591,6 +630,13 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       auditDetails.push(req.body.isManuallyClosed ? 'Agenda manuell geschlossen' : 'Agenda manuell wieder geöffnet');
     }
 
+    const standardItemsChanged =
+      req.body.includeStandardItems !== undefined &&
+      !!req.body.includeStandardItems !== !!existingAgenda.includeStandardItems;
+    if (standardItemsChanged) {
+      auditDetails.push(req.body.includeStandardItems ? 'Standardpunkte aktiviert' : 'Standardpunkte deaktiviert');
+    }
+
     if (auditDetails.length > 0) {
       logAudit(existingAgenda, 'Agenda aktualisiert', userName, auditDetails.join(', '));
     }
@@ -669,6 +715,10 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
         res.status(400).json({ message: 'Sortierung ist während einer laufenden Sitzung gesperrt.' });
         return;
       }
+      if (standardItemsChanged) {
+        res.status(400).json({ message: 'Standardpunkte können während einer laufenden Sitzung nicht geändert werden.' });
+        return;
+      }
     }
 
     // Once a meeting is marked 'completed', it cannot be restarted or reverted
@@ -679,7 +729,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
 
     const allowedFields = [
       'title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed',
-      'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder', 'auditLogs',
+      'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder', 'auditLogs', 'includeStandardItems',
       'liveMeetingActive', 'liveMeetingStatus', 'liveMeetingElapsedSeconds',
       'liveMeetingPhase', 'liveMeetingCurrentItemIndex', 'liveMeetingCurrentAttendeeIndex',
       'liveMeetingPaused', 'liveMeetingCurrentItemElapsedSeconds',
@@ -694,6 +744,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
     // changes (e.g. imageUrls inside AgendaItemSchema) to MongoDB.
     if (req.body.items !== undefined) existingAgenda.markModified('items');
     if (req.body.attendees !== undefined) existingAgenda.markModified('attendees');
+    if (standardItemsChanged) applyStandardItems(existingAgenda, !!req.body.includeStandardItems);
     if (req.body.auditLogs !== undefined) existingAgenda.markModified('auditLogs');
 
     try {
@@ -711,6 +762,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
             }
           }
           if (req.body.items !== undefined) freshAgenda.markModified('items');
+          if (req.body.includeStandardItems !== undefined) applyStandardItems(freshAgenda, !!req.body.includeStandardItems);
           if (req.body.attendees !== undefined) freshAgenda.markModified('attendees');
           if (req.body.auditLogs !== undefined) freshAgenda.markModified('auditLogs');
           const saved = await freshAgenda.save();

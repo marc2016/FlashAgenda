@@ -5,6 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
 import { Checkbox } from 'primereact/checkbox';
+import { InputSwitch } from 'primereact/inputswitch';
 import { parseISO } from 'date-fns';
 import SafeQRCode from './SafeQRCode';
 import { getNotificationPermissionState, requestNotificationPermission } from '../services/notificationService';
@@ -51,6 +52,12 @@ interface AgendaData {
   location?: LocationObj;
   menuUrl?: string;
   closeBeforeHours?: number;
+  includeStandardItems?: boolean;
+  liveMeetingActive?: boolean;
+  liveMeetingStatus?: string;
+  liveMeetingPaused?: boolean;
+  liveMeetingPhase?: string;
+  liveMeetingCurrentItemIndex?: number;
   attendees?: any[];
   items?: any[];
 }
@@ -63,6 +70,8 @@ interface Props {
   isConnected?: boolean;
   activeCount?: number;
   activeUsers?: { user: string; name: string }[];
+  isLiveMeetingOpen?: boolean;
+  onJoinLiveMeeting?: () => void;
 }
 
 interface NominatimResult {
@@ -169,7 +178,7 @@ function MapControls({
   );
 }
 
-export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator, isConnected = false, activeCount = 0, activeUsers = [] }: Props) {
+export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator, isConnected = false, activeCount = 0, activeUsers = [], isLiveMeetingOpen = false, onJoinLiveMeeting }: Props) {
   const navigate = useNavigate();
   const [editField, setEditField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<any>('');
@@ -381,17 +390,31 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
   const [selectedAttendeeKeys, setSelectedAttendeeKeys] = useState<string[]>([]);
   const [selectedItemKeys, setSelectedItemKeys] = useState<string[]>([]);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newIncludeStandardItems, setNewIncludeStandardItems] = useState(false);
+
+  // System standard items are recreated by the server and must not be copied over
+  const getCopyableItems = (): any[] => ((agenda as any).items || []).filter((i: any) => !i.systemKey);
+
+  const toggleStandardItems = async () => {
+    if (!isCreator || agenda.liveMeetingActive) return;
+    const enable = !agenda.includeStandardItems;
+    if (!enable && !window.confirm('Begrüßung, Neuer Termin und Location werden inkl. Kommentaren aus der Agenda entfernt. Fortfahren?')) {
+      return;
+    }
+    await onUpdate({ includeStandardItems: enable });
+  };
 
   const openCreateModal = () => {
     const attendees = (agenda as any).attendees || [];
     const allAttKeys = attendees.map((a: any) => a._id || a.id || a.name);
     setSelectedAttendeeKeys(allAttKeys);
 
-    const items = (agenda as any).items || [];
+    const items = getCopyableItems();
     const pinnedKeys = items
       .filter((i: any) => i.pinned)
       .map((i: any, idx: number) => i._id || i.title || String(idx));
     setSelectedItemKeys(pinnedKeys);
+    setNewIncludeStandardItems(!!agenda.includeStandardItems);
 
     setShowCreateModal(true);
   };
@@ -419,7 +442,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
   };
 
   const toggleAllItems = () => {
-    const items = (agenda as any).items || [];
+    const items = getCopyableItems();
     const allItemKeys = items.map((i: any, idx: number) => i._id || i.title || String(idx));
     if (selectedItemKeys.length === allItemKeys.length) {
       setSelectedItemKeys([]);
@@ -442,7 +465,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
           lastSeen: new Date()
         }));
 
-      const items = (agenda as any).items || [];
+      const items = getCopyableItems();
       const selectedItems = items
         .filter((i: any, idx: number) => selectedItemKeys.includes(i._id || i.title || String(idx)))
         .map((i: any) => ({
@@ -465,6 +488,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
           title: agenda.title,
           attendees: selectedAttendees,
           items: selectedItems,
+          includeStandardItems: newIncludeStandardItems,
           createdBy: currentUser?.id || currentUser?._id || currentUser?.name
         })
       });
@@ -686,6 +710,49 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
             className="text-gray-400 hover:text-yellow-400 p-0 flex-shrink-0"
             style={{ width: '2.2rem', height: '2.2rem' }}
           />
+          {agenda.liveMeetingActive && !isLiveMeetingOpen && agenda.liveMeetingStatus !== 'completed' && (() => {
+            const currentIndex = agenda.liveMeetingCurrentItemIndex || 0;
+            const currentItem = agenda.items?.[currentIndex];
+            const statusText = agenda.liveMeetingPhase === 'agenda_items' && currentItem
+              ? `TOP ${currentIndex + 1} – "${currentItem.title}"`
+              : agenda.liveMeetingPhase === 'roll_call_step' || agenda.liveMeetingPhase === 'roll_call_summary'
+              ? 'Anwesenheitsabfrage'
+              : 'Die Präsentation läuft gerade.';
+            return (
+              <div
+                className="comic-panel-dark flex align-items-center gap-2 sm:gap-3 px-3 py-2 min-w-0 font-bold"
+                style={{ maxWidth: '100%' }}
+                title={`Live-Sitzung aktiv: ${statusText}`}
+                data-testid="live-meeting-active-banner"
+              >
+                <span className="relative flex-shrink-0 flex align-items-center">
+                  <i className="mdi mdi-broadcast text-yellow-500 text-xl sm:text-2xl" />
+                  <span
+                    className={`absolute border-circle ${agenda.liveMeetingPaused ? 'bg-gray-400' : 'bg-red-500 animate-pulse'}`}
+                    style={{ width: '9px', height: '9px', top: '1px', right: '-3px', border: '2px solid #1f2937' }}
+                  />
+                </span>
+                <span className="text-white text-sm sm:text-base white-space-nowrap flex-shrink-0">
+                  <span className="hidden sm:inline">Live-Sitzung aktiv</span>
+                  <span className="sm:hidden">LIVE</span>
+                </span>
+                {agenda.liveMeetingPaused && (
+                  <span className="flex align-items-center gap-1 text-gray-400 text-sm white-space-nowrap flex-shrink-0">
+                    <i className="mdi mdi-pause" />
+                    <span className="hidden sm:inline">Pausiert</span>
+                  </span>
+                )}
+                <Button
+                  label="Beitreten"
+                  icon="mdi mdi-arrow-right"
+                  iconPos="right"
+                  className="p-button-warning comic-button font-bold text-xs sm:text-sm py-2 px-3 flex-shrink-0 ml-1"
+                  onClick={onJoinLiveMeeting}
+                  data-testid="join-live-meeting-banner-btn"
+                />
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -816,6 +883,43 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
                 disabled
                 className="text-gray-600 opacity-40 flex-shrink-0 ml-1 sm:ml-2 cursor-default"
                 title="Nur der Ersteller kann den Annahmeschluss bearbeiten"
+              />
+            )}
+          </div>
+
+          {/* Standardpunkte (Begrüßung, Neuer Termin, Location) */}
+          <div
+            data-testid="standard-items-setting"
+            className={`comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full ${isCreator && !agenda.liveMeetingActive ? 'cursor-pointer' : ''}`}
+            onClick={toggleStandardItems}
+            title={
+              agenda.liveMeetingActive
+                ? 'Während einer laufenden Sitzung nicht änderbar'
+                : 'Begrüßung, Neuer Termin und Location als erste Punkte der Agenda'
+            }
+          >
+            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+              <i className="pi pi-list text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+              <span className="text-white font-bold text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+                Standardpunkte: {agenda.includeStandardItems ? 'An' : 'Aus'}
+              </span>
+            </div>
+            {isCreator ? (
+              <InputSwitch
+                checked={!!agenda.includeStandardItems}
+                disabled={!!agenda.liveMeetingActive}
+                onChange={() => {}}
+                className="flex-shrink-0 ml-1 sm:ml-2"
+                aria-label="Standardpunkte umschalten"
+              />
+            ) : (
+              <Button
+                icon="pi pi-lock"
+                rounded
+                text
+                disabled
+                className="text-gray-600 opacity-40 flex-shrink-0 ml-1 sm:ml-2 cursor-default"
+                title="Nur der Ersteller kann die Standardpunkte ändern"
               />
             )}
           </div>
@@ -1146,9 +1250,9 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
                 <i className="pi pi-list text-sm"></i>
                 Agenda-Themen
               </span>
-              {((agenda as any).items || []).length > 0 && (
+              {getCopyableItems().length > 0 && (
                 <Button
-                  label={selectedItemKeys.length === ((agenda as any).items || []).length ? 'Alle abwählen' : 'Alle wählen'}
+                  label={selectedItemKeys.length === getCopyableItems().length ? 'Alle abwählen' : 'Alle wählen'}
                   text
                   className="p-0 text-xs text-gray-400 hover:text-yellow-400 font-normal"
                   onClick={toggleAllItems}
@@ -1156,11 +1260,11 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
               )}
             </div>
 
-            {((agenda as any).items || []).length === 0 ? (
+            {getCopyableItems().length === 0 ? (
               <p className="text-gray-500 text-xs italic m-0">Keine Agendapunkte vorhanden</p>
             ) : (
               <div className="flex flex-column gap-2 max-h-14rem overflow-y-auto pr-1">
-                {((agenda as any).items || []).map((item: any, idx: number) => {
+                {getCopyableItems().map((item: any, idx: number) => {
                   const key = item._id || item.title || String(idx);
                   const isChecked = selectedItemKeys.includes(key);
                   return (
@@ -1188,6 +1292,22 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
                 })}
               </div>
             )}
+          </div>
+
+          {/* Section 3: Standardpunkte */}
+          <div
+            className="flex align-items-center gap-3 p-3 border-round bg-gray-900 border-1 border-gray-700 cursor-pointer"
+            onClick={() => setNewIncludeStandardItems((v) => !v)}
+          >
+            <Checkbox
+              inputId="new-include-standard-items"
+              checked={newIncludeStandardItems}
+              onChange={(e) => setNewIncludeStandardItems(!!e.checked)}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span className="text-white text-sm font-semibold">
+              Standardpunkte (Begrüßung, Neuer Termin, Location) übernehmen
+            </span>
           </div>
 
           <div className="flex gap-2 justify-content-end mt-2">

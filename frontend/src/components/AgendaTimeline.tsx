@@ -111,6 +111,7 @@ export interface AgendaItem {
   comments?: IComment[];
   notes?: string;
   durationSeconds?: number;
+  systemKey?: 'welcome' | 'next_meeting' | 'location';
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
@@ -126,7 +127,7 @@ interface Props {
   onStartLiveMeeting?: () => void;
 }
 
-// ─── Helper for sorting while retaining pinned items' positions ───────────
+// ─── Helper for sorting while retaining pinned and system standard items' positions ───
 const sortWithPinned = (
   items: AgendaItem[],
   compareFn: (a: AgendaItem, b: AgendaItem) => number
@@ -135,7 +136,7 @@ const sortWithPinned = (
   const result: (AgendaItem | null)[] = new Array(items.length).fill(null);
 
   items.forEach((item, index) => {
-    if (item.pinned) {
+    if (item.pinned || item.systemKey) {
       result[index] = item;
     } else {
       unpinnedItems.push(item);
@@ -446,14 +447,16 @@ const AgendaCard = memo(function AgendaCard({
             )}
           </button>
 
-          <button
-            type="button"
-            className={`comic-group-btn ${isPinned ? 'comic-group-btn-active-yellow' : ''}`}
-            title={isPinned ? 'Anpinnung aufheben' : 'Agendapunkt anpinnen'}
-            onClick={() => onTogglePinned(index)}
-          >
-            <i className={isPinned ? 'mdi mdi-pin text-lg' : 'mdi mdi-pin-outline text-lg'}></i>
-          </button>
+          {!item.systemKey && (
+            <button
+              type="button"
+              className={`comic-group-btn ${isPinned ? 'comic-group-btn-active-yellow' : ''}`}
+              title={isPinned ? 'Anpinnung aufheben' : 'Agendapunkt anpinnen'}
+              onClick={() => onTogglePinned(index)}
+            >
+              <i className={isPinned ? 'mdi mdi-pin text-lg' : 'mdi mdi-pin-outline text-lg'}></i>
+            </button>
+          )}
 
           <button
             type="button"
