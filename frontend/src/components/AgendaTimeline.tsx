@@ -24,6 +24,7 @@ import {
   InsertImage
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
+import { READONLY_PLUGINS } from '../utils/markdownPlugins';
 
 const EDITOR_PLUGINS = [
   headingsPlugin(),
@@ -48,14 +49,6 @@ const EDITOR_PLUGINS = [
   })
 ];
 
-const READONLY_PLUGINS = [
-  headingsPlugin(),
-  listsPlugin(),
-  quotePlugin(),
-  thematicBreakPlugin(),
-  linkPlugin(),
-  imagePlugin()
-];
 
 import { Checkbox } from 'primereact/checkbox';
 import { PollVoteModal, type IPoll } from './PollVoteModal';

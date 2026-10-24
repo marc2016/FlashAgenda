@@ -114,7 +114,7 @@ test.describe('FlashAgenda - Live Meeting Mode (Sitzungsmodus mit Roll-Call & Ti
 
     // Verify Intro Screen
     await expect(page.locator('.live-meeting-dialog')).toBeVisible();
-    await expect(page.locator('text=FlashAgenda Live')).toBeVisible();
+    await expect(page.getByTestId('live-topbar')).toContainText('Live');
     await expect(page.locator('.live-meeting-dialog h1:has-text("Quartals-Meeting Q3 FlashAgenda")')).toBeVisible();
     await expect(page.locator('text=Sitzung').first()).toBeVisible();
 
@@ -187,7 +187,7 @@ test.describe('FlashAgenda - Live Meeting Mode (Sitzungsmodus mit Roll-Call & Ti
     await startBtn.click();
 
     // Verify Title & Roll Call on mobile
-    await expect(page.locator('text=FlashAgenda Live')).toBeVisible();
+    await expect(page.getByTestId('live-topbar')).toContainText('Live');
     await page.getByTestId('start-rollcall-btn').click();
 
     // Interact with green attendance button on mobile

@@ -8,6 +8,9 @@ import { format } from 'date-fns';
 import { CARD_COLOR_PALETTE } from './AgendaAttendees';
 import { PinnedAchievementBadge } from './PinnedAchievementBadge';
 import { calculateAttendeeItemCounts, formatTimer } from '../utils/attendeeUtils';
+import { MDXEditor } from '@mdxeditor/editor';
+import '@mdxeditor/editor/style.css';
+import { READONLY_PLUGINS } from '../utils/markdownPlugins';
 
 export { formatTimer } from '../utils/attendeeUtils';
 
@@ -101,6 +104,108 @@ export const calculateItemSeconds = (agenda: any, targetItem?: any, now: number 
   }
   return base;
 };
+
+const plural = (count: number, singular: string, pluralForm: string): string =>
+  `${count} ${count === 1 ? singular : pluralForm}`;
+
+const hasValidDate = (dateInput?: string | Date): boolean => {
+  if (!dateInput) return false;
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  return !isNaN(date.getTime());
+};
+
+// Dark comic panel that sits directly on the red presentation stage
+const Panel: React.FC<{
+  title?: React.ReactNode;
+  icon?: string;
+  aside?: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  children?: React.ReactNode;
+  testId?: string;
+}> = ({ title, icon, aside, className = '', style, children, testId }) => (
+  <div className={`comic-panel-dark p-3 sm:p-4 ${className}`} style={style} data-testid={testId}>
+    {title && (
+      <div className="flex align-items-center justify-content-between gap-2 mb-3">
+        <span className="text-xs sm:text-sm font-bold text-yellow-400 uppercase flex align-items-center gap-2">
+          {icon && <i className={icon} />}
+          {title}
+        </span>
+        {aside}
+      </div>
+    )}
+    {children}
+  </div>
+);
+
+// Avatar + details of a person card; empty fields (no email, unknown last seen) are omitted
+const PersonCardBody: React.FC<{ att: any; count: number }> = ({ att, count }) => (
+  <div className="flex flex-1 text-white p-3 sm:p-4 align-items-center">
+    <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-2 sm:pr-4 mr-2 sm:mr-4 flex-shrink-0">
+      {att.avatarUrl ? (
+        <img
+          src={att.avatarUrl}
+          alt={att.name}
+          style={{ width: '4.5rem', height: '4.5rem', objectFit: 'cover' }}
+          className="border-circle border-2 border-white-alpha-40"
+          loading="lazy"
+        />
+      ) : (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          style={{ width: '4.5rem', height: '4.5rem' }}
+          className="text-white-alpha-90"
+        >
+          <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
+        </svg>
+      )}
+    </div>
+
+    <div className="flex flex-column flex-1 justify-content-center m-0 p-0 min-w-0">
+      <div className="font-bold text-lg sm:text-2xl overflow-hidden text-overflow-ellipsis white-space-nowrap text-white mb-1 sm:mb-2">
+        {att.name}
+      </div>
+
+      <div className="flex flex-column gap-1 text-xs sm:text-sm text-white-alpha-90">
+        {att.email && (
+          <div>
+            <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">E-Mail</strong>
+            <a
+              href={`mailto:${att.email}`}
+              className="m-0 p-0 line-height-1 text-white-alpha-90 hover:text-yellow-300 flex align-items-center gap-1 font-semibold overflow-hidden text-overflow-ellipsis"
+              title={att.email}
+            >
+              <i className="mdi mdi-email text-yellow-400 text-xs flex-shrink-0" />
+              <span className="overflow-hidden text-overflow-ellipsis white-space-nowrap">{att.email}</span>
+            </a>
+          </div>
+        )}
+        {hasValidDate(att.lastSeen) && (
+          <div>
+            <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Zuletzt online</strong>
+            <span className={`m-0 p-0 line-height-1 ${isUserOnline(att.lastSeen) ? 'text-green-300 font-bold' : ''}`}>
+              {formatDate(att.lastSeen)}
+            </span>
+          </div>
+        )}
+        <div>
+          <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Erstellte Punkte</strong>
+          <span className="m-0 p-0 line-height-1 font-bold text-yellow-300">{plural(count, 'Punkt', 'Punkte')}</span>
+        </div>
+
+        {att.pinnedAchievements && att.pinnedAchievements.length > 0 && (
+          <div className="flex align-items-center mt-1.5 pt-1 border-top-1 border-white-alpha-20" style={{ gap: '0.75rem' }}>
+            {att.pinnedAchievements.slice(0, 3).map((achId: string) => (
+              <PinnedAchievementBadge key={achId} achId={achId} size="small" />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
 
 export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
   visible,
@@ -536,7 +641,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
       if (it.poll && it.poll.options) {
         md += `**Abstimmung:** ${it.poll.question || 'Umfrage'}\n`;
         it.poll.options.forEach((opt: any) => {
-          md += `- ${opt.text}: ${opt.votes?.length || 0} Stimmen\n`;
+          md += `- ${opt.text}: ${plural(opt.votes?.length || 0, 'Stimme', 'Stimmen')}\n`;
         });
         md += `\n`;
       }
@@ -829,6 +934,22 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
     }
   };
 
+  const renderStatTile = (icon: string, value: React.ReactNode, label: string, valueClass = 'text-yellow-400') => (
+    <div className="comic-panel-dark px-3 sm:px-4 py-3 flex align-items-center gap-3 min-w-0">
+      <i className={`${icon} text-yellow-500 text-2xl flex-shrink-0`} />
+      <div className="flex flex-column min-w-0">
+        <span className={`text-xl sm:text-2xl font-bold line-height-2 ${valueClass}`}>{value}</span>
+        <span className="text-xs text-gray-300 font-bold uppercase">{label}</span>
+      </div>
+    </div>
+  );
+
+  const tileGridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '0.75rem',
+  };
+
   return (
     <Dialog
       visible={visible}
@@ -837,9 +958,10 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
       blockScroll={true}
       dismissableMask={false}
       showHeader={false}
+      focusOnShow={false}
       className="live-meeting-dialog m-0 p-0"
+      maskClassName="live-meeting-mask"
       contentStyle={{
-        backgroundColor: '#111827',
         color: '#f9fafb',
         padding: 0,
         overflow: 'hidden',
@@ -849,220 +971,189 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
         width: '100vw'
       }}
     >
-      {/* ─── SLIM TOP STICKY BAR: Consistent with other dialog headers ─── */}
-      <header
-        className="flex align-items-center justify-content-between px-3 sm:px-4 py-2 border-bottom-1 border-gray-800 flex-shrink-0 z-5 gap-2"
-        style={{
-          backgroundColor: '#1f2937',
-        }}
-      >
-        {/* Left: Icon & Title */}
-        <div className="flex align-items-center gap-2 flex-shrink-0">
-          <i className="pi pi-play text-yellow-400 text-lg font-bold" />
-          <div className="flex align-items-center gap-2">
-            <span className="font-bold text-yellow-400 text-sm sm:text-base">
-              FlashAgenda Live
-            </span>
+      {/* ─── TOP BAR: compact pill in the style of the agenda action bar ─── */}
+      <div className="flex-shrink-0 px-3 sm:px-4 pt-3 sm:pt-4 z-5">
+        <header
+          data-testid="live-topbar"
+          className="flex align-items-center justify-content-between gap-2 mx-auto"
+          style={{
+            maxWidth: '1200px',
+            background: 'rgba(0,0,0,0.85)',
+            borderRadius: '999px',
+            padding: '4px 6px 4px 14px',
+            border: '1px solid rgba(234,179,8,0.3)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)'
+          }}
+        >
+          {/* Left: Icon & Title */}
+          <div className="flex align-items-center gap-2 min-w-0">
+            <i className="pi pi-play text-yellow-400 text-sm flex-shrink-0" />
+            <span className="font-bold text-yellow-400 text-xs sm:text-sm white-space-nowrap">Live</span>
             {agenda?.title && (
-              <>
-                <span className="text-gray-500 hidden sm:inline">•</span>
-                <span className="text-gray-200 text-xs sm:text-sm font-semibold white-space-nowrap overflow-hidden text-overflow-ellipsis max-w-10rem sm:max-w-18rem hidden sm:inline">
-                  {agenda.title}
-                </span>
-              </>
+              <span className="text-gray-200 text-xs sm:text-sm font-semibold white-space-nowrap overflow-hidden text-overflow-ellipsis hidden sm:inline" style={{ maxWidth: '18rem' }}>
+                {agenda.title}
+              </span>
             )}
           </div>
-        </div>
 
-        {/* Center: Live Timers (Task timer links, Gesamt timer rechts, etwas größer) */}
-        <div className="flex align-items-center gap-2 sm:gap-3 flex-wrap justify-content-center">
-          {/* Paused Indicator */}
-          {!isSessionRunning && (
+          {/* Center: labelled timers */}
+          <div className="flex align-items-center gap-1 sm:gap-2">
+            {!isSessionRunning && (
+              <div
+                className="flex align-items-center gap-1 px-2 py-1 border-round-xl text-xs font-bold text-red-200 animate-pulse"
+                style={{ backgroundColor: 'rgba(127, 29, 29, 0.8)', border: '1px solid #ef4444' }}
+                title="Sitzung ist aktuell pausiert"
+                data-testid="paused-indicator"
+              >
+                <i className="pi pi-pause text-red-300 text-xs" />
+                <span className="text-3xs sm:text-xs">PAUSIERT</span>
+              </div>
+            )}
+
+            {phase === 'agenda_items' && (
+              <div
+                className="flex align-items-center gap-1 sm:gap-2 px-2 py-1 border-round-xl bg-black-alpha-40 font-mono font-bold text-xs sm:text-sm"
+                title="Dauer für aktuellen Agendapunkt (TOP)"
+                data-testid="item-timer-display"
+              >
+                <i className="pi pi-check-square text-blue-400 text-xs sm:text-sm" />
+                <small className="live-timer-label">TOP</small>
+                <span className="text-blue-200">{formatTimer(itemSeconds)}</span>
+              </div>
+            )}
+
             <div
-              className="flex align-items-center gap-1 px-2 py-1 bg-red-900 border-round text-xs font-bold text-red-200 border-1 border-red-500 shadow-1 animate-pulse"
-              title="Sitzung ist aktuell pausiert"
-              data-testid="paused-indicator"
+              className="flex align-items-center gap-1 sm:gap-2 px-2 py-1 border-round-xl bg-black-alpha-40 font-mono font-bold text-xs sm:text-sm text-white"
+              title="Gesamte Sitzungsdauer"
+              data-testid="session-timer-display"
             >
-              <i className="pi pi-pause text-red-300 text-xs" />
-              <span className="text-3xs sm:text-xs">PAUSIERT</span>
+              <i className="pi pi-clock text-yellow-400 text-xs sm:text-sm" />
+              <small className="live-timer-label">Gesamt</small>
+              <span>{formatTimer(sessionSeconds)}</span>
             </div>
-          )}
-
-          {/* TOP / Task Timer (only in agenda_items phase) */}
-          {phase === 'agenda_items' && (
-            <div
-              className="flex align-items-center gap-2 px-3 py-1.5 bg-gray-900 border-round text-sm sm:text-base font-mono font-bold text-blue-300 shadow-1"
-              title="Dauer für aktuellen Agendapunkt (Task)"
-              data-testid="item-timer-display"
-            >
-              <i className="pi pi-check-square text-blue-400 text-sm sm:text-base" />
-              <span className="text-blue-200">{formatTimer(itemSeconds)}</span>
-            </div>
-          )}
-
-          {/* Total Session Timer */}
-          <div
-            className="flex align-items-center gap-2 px-3 py-1.5 bg-gray-900 border-round text-sm sm:text-base font-mono font-bold text-gray-200 shadow-1"
-            title="Gesamte Sitzungsdauer"
-            data-testid="session-timer-display"
-          >
-            <i className="pi pi-clock text-yellow-400 text-sm sm:text-base" />
-            <span>{formatTimer(sessionSeconds)}</span>
           </div>
-        </div>
 
-        {/* Right: Wake lock indicator & Close */}
-        <div className="flex align-items-center gap-2 flex-shrink-0">
-          {wakeLockActive && (
-            <span
-              className="text-yellow-400 text-xs flex align-items-center gap-1 font-semibold mr-1"
-              title="Bildschirm bleibt aktiv (WakeLock aktiv)"
-            >
-              <i className="pi pi-sun text-sm" />
-              <span className="hidden md:inline">Aktiv</span>
-            </span>
-          )}
+          {/* Right: Wake lock indicator & Close */}
+          <div className="flex align-items-center gap-1 flex-shrink-0">
+            {wakeLockActive && (
+              <span
+                className="text-yellow-400 text-xs hidden md:flex align-items-center gap-1 font-semibold"
+                title="Bildschirm bleibt aktiv (WakeLock aktiv)"
+              >
+                <i className="pi pi-sun text-sm" />
+                <span>Aktiv</span>
+              </span>
+            )}
+            <Button
+              icon="pi pi-times"
+              rounded
+              text
+              size="small"
+              className="text-gray-300 hover:text-yellow-400"
+              style={{ width: '2.2rem', height: '2.2rem' }}
+              onClick={() => handleCloseMeeting('in_progress')}
+              title="Sitzungsmodus verlassen"
+              aria-label="Sitzungsmodus verlassen"
+              data-testid="close-live-meeting-btn"
+            />
+          </div>
+        </header>
+      </div>
 
-          <button
-            type="button"
-            className="dialog-header-close-btn"
-            onClick={() => handleCloseMeeting('in_progress')}
-            title="Sitzungsmodus verlassen"
-            data-testid="close-live-meeting-btn"
-          >
-            <i className="pi pi-times" />
-          </button>
-        </div>
-      </header>
-
-      {/* ─── MAIN CONTENT AREA ─── */}
-      <main className="flex-1 overflow-y-auto p-3 sm:p-5 flex flex-column align-items-center justify-content-center relative">
-        {/* Background ambient comic glow */}
-        <div
-          className="absolute top-0 left-0 w-24rem h-24rem bg-yellow-500 border-circle blur-8xl opacity-10 pointer-events-none"
-          style={{ transform: 'translate(-30%, -30%)' }}
-        />
-        <div
-          className="absolute bottom-0 right-0 w-24rem h-24rem bg-red-600 border-circle blur-8xl opacity-10 pointer-events-none"
-          style={{ transform: 'translate(30%, 30%)' }}
-        />
+      {/* ─── STAGE: red background, panels scroll ─── */}
+      <main className="flex-1 overflow-y-auto flex flex-column">
+        <div className="w-full mx-auto flex flex-column flex-1 px-3 sm:px-4 md:px-5 py-3 sm:py-4" style={{ maxWidth: '1200px' }}>
 
         {/* ═══════════════════════════════════════════════════════════════════════
             PHASE 1: INTRO / TITLE SPLASH
             ═══════════════════════════════════════════════════════════════════════ */}
         {phase === 'intro' && (
-          <div className="w-full max-w-2xl text-center flex flex-column align-items-center gap-4 py-4 z-1">
-            <div className="flex align-items-center justify-content-center mb-2">
+          <div className="w-full flex flex-column gap-3 my-auto mx-auto" style={{ maxWidth: '760px' }}>
+            <Panel className="flex flex-column align-items-center text-center gap-3">
               <img
                 src="/favicon.svg"
                 alt="FlashAgenda"
-                className="flex-shrink-0 transition-transform hover:scale-105"
-                style={{ width: '11.5rem', height: '11.5rem', filter: 'drop-shadow(6px 6px 0 #000)' }}
+                className="flex-shrink-0"
+                style={{ width: 'clamp(5rem, 18vw, 8rem)', height: 'clamp(5rem, 18vw, 8rem)', filter: 'drop-shadow(5px 5px 0 #000)' }}
               />
-            </div>
+              <h1
+                className="text-3xl sm:text-5xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 line-height-2 word-break-break-word"
+                style={{ filter: 'drop-shadow(3px 3px 0px #000)', paddingBottom: '0.1em' }}
+              >
+                {agenda?.title || 'Agenda'}
+              </h1>
+            </Panel>
 
-            <h1
-              className="text-3xl sm:text-5xl md:text-6xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 line-height-2"
-              style={{ filter: 'drop-shadow(4px 4px 0px #000)', paddingBottom: '0.1em' }}
-            >
-              {agenda?.title || 'Agenda'}
-            </h1>
-
-            {/* Date & Location summary */}
-            <div className="flex flex-wrap align-items-center justify-content-center gap-3 text-sm sm:text-base font-bold text-gray-300">
-              {agenda?.date && (
-                <div className="comic-panel-dark px-3 py-2 flex align-items-center gap-2">
-                  <i className="pi pi-calendar text-yellow-400" />
-                  <span>
-                    {(() => {
-                      try {
-                        return format(new Date(agenda.date), 'dd.MM.yyyy · HH:mm');
-                      } catch {
-                        return agenda.date;
-                      }
-                    })()}
-                  </span>
-                </div>
+            <div style={{ ...tileGridStyle, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
+              {agenda?.date && renderStatTile(
+                'pi pi-calendar-plus',
+                <span className="text-white text-base sm:text-lg">
+                  {(() => {
+                    try {
+                      return format(new Date(agenda.date), 'dd.MM.yyyy · HH:mm');
+                    } catch {
+                      return agenda.date;
+                    }
+                  })()}
+                </span>,
+                'Datum'
               )}
               {agenda?.location?.name && (
-                <div className="comic-panel-dark px-3 py-2 flex align-items-center gap-2">
-                  <i className="pi pi-map-marker text-yellow-400" />
-                  <span className="max-w-15rem white-space-nowrap overflow-hidden text-overflow-ellipsis">
-                    {agenda.location.name}
-                  </span>
+                <div className="comic-panel-dark px-3 sm:px-4 py-3 flex align-items-center gap-3 min-w-0">
+                  <i className="pi pi-map-marker text-yellow-500 text-2xl flex-shrink-0" />
+                  <div className="flex flex-column min-w-0">
+                    <span className="text-white text-base sm:text-lg font-bold white-space-nowrap overflow-hidden text-overflow-ellipsis" title={agenda.location.name}>
+                      {agenda.location.name}
+                    </span>
+                    <span className="text-xs text-gray-300 font-bold uppercase">Ort</span>
+                  </div>
                 </div>
               )}
+              {renderStatTile('pi pi-users', totalAttendees, 'Teilnehmer')}
+              {renderStatTile('pi pi-list', totalItems, 'Agendapunkte')}
             </div>
 
-            {/* Overview Stats Badges */}
-            <div className="flex align-items-center justify-content-center gap-3 sm:gap-6 my-2 w-full">
-              <div
-                className="flex flex-column align-items-center p-3 border-round-xl flex-1 max-w-14rem"
-                style={{
-                  backgroundColor: '#1f2937',
-                  border: '2px solid #000',
-                  boxShadow: '3px 3px 0px #000'
-                }}
-              >
-                <span className="text-3xl sm:text-4xl font-bold text-yellow-400">{totalAttendees}</span>
-                <span className="text-xs text-gray-300 font-bold uppercase mt-1">Teilnehmer</span>
+            <Panel>
+              <div className="flex flex-column sm:flex-row align-items-stretch gap-3">
+                {totalAttendees > 0 ? (
+                  <Button
+                    label="Anwesenheit prüfen"
+                    icon="pi pi-users"
+                    className="comic-button-success flex-1 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
+                    onClick={() => {
+                      setCurrentAttendeeIndex(0);
+                      setPhase('roll_call_step');
+                      onUpdateAgenda({
+                        liveMeetingPhase: 'roll_call_step',
+                        liveMeetingCurrentAttendeeIndex: 0,
+                        liveMeetingElapsedSeconds: sessionSeconds,
+                      });
+                    }}
+                    data-testid="start-rollcall-btn"
+                  />
+                ) : (
+                  <Button
+                    label="Tagesordnung starten"
+                    icon="pi pi-list"
+                    className="comic-button-success flex-1 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
+                    onClick={() => handleStartAgendaItems(0)}
+                    data-testid="start-items-direct-btn"
+                  />
+                )}
+
+                {totalAttendees > 0 && (
+                  <Button
+                    label="Direkt zu Punkten"
+                    icon="pi pi-arrow-right"
+                    iconPos="right"
+                    className="comic-button-secondary flex-1 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
+                    onClick={() => handleStartAgendaItems(0)}
+                    title="Anwesenheitsprüfung überspringen und direkt zu Agendapunkten"
+                    data-testid="start-items-direct-btn"
+                  />
+                )}
               </div>
-
-              <div
-                className="flex flex-column align-items-center p-3 border-round-xl flex-1 max-w-14rem"
-                style={{
-                  backgroundColor: '#1f2937',
-                  border: '2px solid #000',
-                  boxShadow: '3px 3px 0px #000'
-                }}
-              >
-                <span className="text-3xl sm:text-4xl font-bold text-yellow-400">{totalItems}</span>
-                <span className="text-xs text-gray-300 font-bold uppercase mt-1">Agendapunkte</span>
-              </div>
-            </div>
-
-            {/* Actions to proceed */}
-            <div className="flex flex-column sm:flex-row align-items-stretch justify-content-center gap-3 w-full max-w-md mt-3">
-              {totalAttendees > 0 ? (
-                <Button
-                  label="Anwesenheit prüfen"
-                  icon="pi pi-users"
-                  className="comic-button-success flex-1 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
-                  style={{ minWidth: '12rem' }}
-                  onClick={() => {
-                    setCurrentAttendeeIndex(0);
-                    setPhase('roll_call_step');
-                    onUpdateAgenda({
-                      liveMeetingPhase: 'roll_call_step',
-                      liveMeetingCurrentAttendeeIndex: 0,
-                      liveMeetingElapsedSeconds: sessionSeconds,
-                    });
-                  }}
-                  data-testid="start-rollcall-btn"
-                />
-              ) : (
-                <Button
-                  label="Tagesordnung starten"
-                  icon="pi pi-list"
-                  className="comic-button-success flex-1 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
-                  onClick={() => handleStartAgendaItems(0)}
-                  data-testid="start-items-direct-btn"
-                />
-              )}
-
-              {totalAttendees > 0 && (
-                <Button
-                  label="Direkt zu Punkten"
-                  icon="pi pi-arrow-right"
-                  iconPos="right"
-                  className="comic-button-secondary flex-1 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
-                  style={{ minWidth: '12rem' }}
-                  onClick={() => handleStartAgendaItems(0)}
-                  title="Anwesenheitsprüfung überspringen und direkt zu Agendapunkten"
-                  data-testid="start-items-direct-btn"
-                />
-              )}
-            </div>
+            </Panel>
           </div>
         )}
 
@@ -1070,124 +1161,55 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
             PHASE 2: ROLL CALL SCHRITT-FÜR-SCHRITT (Personen-Karte groß)
             ═══════════════════════════════════════════════════════════════════════ */}
         {phase === 'roll_call_step' && (
-          <div className="w-full max-w-lg flex flex-column align-items-center gap-4 z-1">
-            {/* Header / Progress Indicator */}
-            <div className="w-full flex align-items-center justify-content-between text-xs font-bold text-gray-400">
-              <span>Anwesenheitsabfrage (Roll-Call)</span>
-              <span className="text-yellow-400">
-                Person {currentAttendeeIndex + 1} von {totalAttendees}
-              </span>
-            </div>
+          <div className="w-full flex flex-column gap-3 my-auto mx-auto" style={{ maxWidth: '560px' }}>
+            <Panel
+              title="Anwesenheitsabfrage"
+              icon="pi pi-users"
+              aside={
+                <span className="text-xs font-bold text-white">
+                  Person {currentAttendeeIndex + 1} von {totalAttendees}
+                </span>
+              }
+            >
+              <ProgressBar
+                value={totalAttendees > 0 ? Math.round(((currentAttendeeIndex + 1) / totalAttendees) * 100) : 0}
+                showValue={false}
+                className="w-full"
+                style={{ height: '8px', border: '1px solid #000', backgroundColor: '#374151' }}
+              />
+            </Panel>
 
-            <ProgressBar
-              value={totalAttendees > 0 ? Math.round(((currentAttendeeIndex + 1) / totalAttendees) * 100) : 0}
-              showValue={false}
-              className="w-full"
-              style={{ height: '8px', border: '1px solid #000', backgroundColor: '#374151' }}
-            />
-
-            {/* Authentic Person Card in exact AgendaAttendees format */}
             {currentAttendee ? (
-              <div key={currentAttendee._id || currentAttendee.id || currentAttendee.name} className="w-full flex flex-column align-items-center gap-3">
-                <div
-                  className="relative overflow-hidden w-full"
-                  style={{
-                    maxWidth: '380px',
-                    minHeight: '210px',
-                    height: 'auto',
-                    background: getCardBackground(currentAttendee, currentAttendeeIndex),
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    border: '3px solid #000',
-                    boxShadow: '6px 6px 0px #000',
-                    borderRadius: '12px'
-                  }}
-                >
-                  <div className="flex flex-1 text-white p-3 sm:p-4 align-items-center">
-                    {/* Left: Profile Icon or Custom Avatar */}
-                    <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-2 sm:pr-4 mr-2 sm:mr-4 flex-shrink-0">
-                      <div className="relative flex align-items-center justify-content-center">
-                        {currentAttendee.avatarUrl ? (
-                          <img
-                            src={currentAttendee.avatarUrl}
-                            alt={currentAttendee.name}
-                            style={{ width: '4.5rem', height: '4.5rem', objectFit: 'cover' }}
-                            className="border-circle border-2 border-white-alpha-40"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                            style={{ width: '4.5rem', height: '4.5rem' }}
-                            className="text-white-alpha-90"
-                          >
-                            <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
+              <div
+                key={currentAttendee._id || currentAttendee.id || currentAttendee.name}
+                className="relative overflow-hidden w-full"
+                style={{
+                  background: getCardBackground(currentAttendee, currentAttendeeIndex),
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  border: '3px solid #000',
+                  boxShadow: '6px 6px 0px #000',
+                  borderRadius: '12px'
+                }}
+              >
+                <PersonCardBody
+                  att={currentAttendee}
+                  count={itemCounts.get(currentAttendee._id || currentAttendee.id || currentAttendee.name) || 0}
+                />
+              </div>
+            ) : (
+              <Panel>
+                <p className="text-gray-400 m-0">Kein Teilnehmer ausgewählt.</p>
+              </Panel>
+            )}
 
-                    {/* Right: Details */}
-                    <div className="flex flex-column flex-1 justify-content-center m-0 p-0 min-w-0">
-                      <div className="flex justify-content-between align-items-start mb-1 sm:mb-2 gap-1">
-                        <div className="font-bold text-lg sm:text-2xl overflow-hidden text-overflow-ellipsis white-space-nowrap text-white flex-1 min-w-0">
-                          {currentAttendee.name}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-column gap-1 text-xs sm:text-sm text-white-alpha-90">
-                        <div>
-                          <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">E-Mail</strong>
-                          {currentAttendee.email ? (
-                            <a
-                              href={`mailto:${currentAttendee.email}`}
-                              className="m-0 p-0 line-height-1 text-white-alpha-90 hover:text-yellow-300 flex align-items-center gap-1 font-semibold overflow-hidden text-overflow-ellipsis"
-                              title={currentAttendee.email}
-                            >
-                              <i className="mdi mdi-email text-yellow-400 text-xs flex-shrink-0" />
-                              <span className="overflow-hidden text-overflow-ellipsis white-space-nowrap">{currentAttendee.email}</span>
-                            </a>
-                          ) : (
-                            <span className="m-0 p-0 line-height-1 text-white-alpha-40 italic">Keine E-Mail</span>
-                          )}
-                        </div>
-                        <div>
-                          <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Zuletzt online</strong>
-                          <span className={`m-0 p-0 line-height-1 ${isUserOnline(currentAttendee.lastSeen) ? 'text-green-300 font-bold' : ''}`}>
-                            {formatDate(currentAttendee.lastSeen)}
-                          </span>
-                        </div>
-                        <div>
-                          <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Erstellte Punkte</strong>
-                          <span className="m-0 p-0 line-height-1 font-bold text-yellow-300">
-                            {itemCounts.get(currentAttendee._id || currentAttendee.id || currentAttendee.name) || 0} Punkte
-                          </span>
-                        </div>
-
-                        {/* Pinned Badges */}
-                        {currentAttendee.pinnedAchievements && currentAttendee.pinnedAchievements.length > 0 && (
-                          <div 
-                            className="flex align-items-center mt-1.5 pt-1 border-top-1 border-white-alpha-20"
-                            style={{ gap: '0.75rem' }}
-                          >
-                            {currentAttendee.pinnedAchievements.slice(0, 3).map((achId: string) => (
-                              <PinnedAchievementBadge key={achId} achId={achId} size="small" />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Big Prominent Buttons: Green (Present) & Red (Absent) */}
-                <div className="flex flex-column sm:flex-row align-items-stretch justify-content-center gap-3 w-full max-w-sm mt-2 flex-shrink-0">
+            <Panel className="flex flex-column gap-3">
+              {currentAttendee && (
+                <div className="flex flex-column sm:flex-row align-items-stretch gap-3">
                   <Button
                     label="Anwesend"
                     icon="pi pi-check text-xl"
                     className="comic-button-success flex-1 py-3 text-lg font-bold flex align-items-center justify-content-center gap-2"
-                    style={{ minHeight: '3.8rem' }}
+                    style={{ minHeight: '3.5rem' }}
                     onClick={() => handleRecordAttendance('present')}
                     data-testid="attendance-present-btn"
                   />
@@ -1195,52 +1217,49 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                     label="Abwesend"
                     icon="pi pi-times text-xl"
                     className="comic-button-danger flex-1 py-3 text-lg font-bold flex align-items-center justify-content-center gap-2"
-                    style={{ minHeight: '3.8rem' }}
+                    style={{ minHeight: '3.5rem' }}
                     onClick={() => handleRecordAttendance('absent')}
                     data-testid="attendance-absent-btn"
                   />
                 </div>
-              </div>
-            ) : (
-              <p className="text-gray-400">Kein Teilnehmer ausgewählt.</p>
-            )}
+              )}
 
-            {/* Sub Controls: Back, Skip, View All */}
-            <div className="flex align-items-center justify-content-between w-full gap-2 mt-2 flex-wrap">
-              <Button
-                label="Zurück"
-                icon="pi pi-chevron-left"
-                text
-                size="small"
-                disabled={currentAttendeeIndex === 0}
-                onClick={handlePrevAttendee}
-                className="text-gray-300 hover:text-white"
-              />
-              <Button
-                label="Überspringen"
-                icon="pi pi-chevron-right"
-                iconPos="right"
-                text
-                size="small"
-                onClick={handleSkipAttendee}
-                className="text-gray-300 hover:text-yellow-400"
-              />
-              <Button
-                label="Gesamtübersicht"
-                icon="pi pi-list"
-                text
-                size="small"
-                onClick={() => {
-                  setPhase('roll_call_summary');
-                  onUpdateAgenda({
-                    liveMeetingPhase: 'roll_call_summary',
-                    liveMeetingElapsedSeconds: sessionSeconds,
-                  });
-                }}
-                className="text-yellow-400 hover:underline ml-auto"
-                data-testid="view-rollcall-summary-btn"
-              />
-            </div>
+              <div className="flex align-items-center justify-content-between w-full gap-2 flex-wrap">
+                <Button
+                  label="Zurück"
+                  icon="pi pi-chevron-left"
+                  text
+                  size="small"
+                  disabled={currentAttendeeIndex === 0}
+                  onClick={handlePrevAttendee}
+                  className="text-gray-300 hover:text-white"
+                />
+                <Button
+                  label="Überspringen"
+                  icon="pi pi-chevron-right"
+                  iconPos="right"
+                  text
+                  size="small"
+                  onClick={handleSkipAttendee}
+                  className="text-gray-300 hover:text-yellow-400"
+                />
+                <Button
+                  label="Gesamtübersicht"
+                  icon="pi pi-list"
+                  text
+                  size="small"
+                  onClick={() => {
+                    setPhase('roll_call_summary');
+                    onUpdateAgenda({
+                      liveMeetingPhase: 'roll_call_summary',
+                      liveMeetingElapsedSeconds: sessionSeconds,
+                    });
+                  }}
+                  className="text-yellow-400 ml-auto"
+                  data-testid="view-rollcall-summary-btn"
+                />
+              </div>
+            </Panel>
           </div>
         )}
 
@@ -1248,19 +1267,17 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
             PHASE 3: ANWESENHEITS-ÜBERSICHT (Personen-Karten auf einer Seite)
             ═══════════════════════════════════════════════════════════════════════ */}
         {phase === 'roll_call_summary' && (
-          <div className="w-full max-w-4xl flex flex-column gap-4 z-1 my-auto">
-            {/* Header with quick stats */}
-            <div className="flex flex-column sm:flex-row align-items-start sm:align-items-center justify-content-between gap-3 border-bottom-1 border-gray-700 pb-3">
+          <div className="w-full flex flex-column gap-3 my-auto">
+            <Panel className="flex flex-column md:flex-row align-items-start md:align-items-center justify-content-between gap-3">
               <div>
                 <h2 className="text-2xl sm:text-3xl font-bold m-0 text-yellow-400" style={{ textShadow: '2px 2px 0 #000' }}>
                   Anwesenheits-Übersicht
                 </h2>
-                <span className="text-xs text-gray-400">
-                  Überprüfe die Anwesenheit aller Teilnehmer. Klicke auf die Buttons einer Personen-Karte, um den Status anzupassen.
+                <span className="text-xs sm:text-sm text-gray-300">
+                  Status einer Person über die Buttons auf ihrer Karte anpassen.
                 </span>
               </div>
 
-              {/* Status pill badges */}
               <div className="flex align-items-center gap-2 flex-wrap">
                 <span
                   className="px-3 py-1 border-round-xl text-xs font-bold text-green-300 flex align-items-center gap-1"
@@ -1283,127 +1300,48 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                   Quote: {attendanceRate}%
                 </span>
               </div>
-            </div>
+            </Panel>
 
-            {/* Grid of all attendees in exact Person Card format */}
             <div
-              className="grid gap-3 overflow-y-auto max-h-30rem p-1 justify-content-center"
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 340px))'
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
+                gap: '0.75rem'
               }}
             >
               {localAttendees.map((att, idx) => {
                 const isPresent = att.attendanceStatus === 'present';
                 const isAbsent = att.attendanceStatus === 'absent';
                 const attendeeId = att._id || att.id || att.name;
-                const count = itemCounts.get(attendeeId) || 0;
-                const online = isUserOnline(att.lastSeen);
 
                 return (
                   <div
                     key={attendeeId || idx}
                     className="relative overflow-hidden w-full flex flex-column justify-content-between"
                     style={{
-                      maxWidth: '340px',
-                      minHeight: '220px',
-                      height: 'auto',
                       background: getCardBackground(att, idx),
                       fontFamily: 'system-ui, -apple-system, sans-serif',
-                      border: isPresent
-                        ? '3px solid #22c55e'
-                        : isAbsent
-                        ? '3px solid #ef4444'
-                        : '3px solid #000000',
-                      boxShadow: '4px 4px 0px #000000',
+                      border: isPresent ? '3px solid #22c55e' : isAbsent ? '3px solid #ef4444' : '3px solid #000000',
+                      boxShadow: '6px 6px 0px #000000',
                       borderRadius: '12px'
                     }}
                   >
-                    <div className="flex flex-1 text-white p-3 sm:p-4 align-items-center">
-                      {/* Left: Profile Icon or Custom Avatar */}
-                      <div className="relative flex align-items-center justify-content-center border-right-1 border-white-alpha-30 pr-2 sm:pr-4 mr-2 sm:mr-4 flex-shrink-0">
-                        <div className="relative flex align-items-center justify-content-center">
-                          {att.avatarUrl ? (
-                            <img
-                              src={att.avatarUrl}
-                              alt={att.name}
-                              style={{ width: '4.5rem', height: '4.5rem', objectFit: 'cover' }}
-                              className="border-circle border-2 border-white-alpha-40"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              style={{ width: '4.5rem', height: '4.5rem' }}
-                              className="text-white-alpha-90"
-                            >
-                              <path d="M12,19.2C9.5,19.2 7.29,17.92 6,16C6.03,14 10,12.9 12,12.9C14,12.9 17.97,14 18,16C16.71,17.92 14.5,19.2 12,19.2M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z" />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
+                    <PersonCardBody att={att} count={itemCounts.get(attendeeId) || 0} />
 
-                      {/* Right: Details */}
-                      <div className="flex flex-column flex-1 justify-content-center m-0 p-0 min-w-0">
-                        <div className="flex justify-content-between align-items-start mb-1 sm:mb-2 gap-1">
-                          <div className="font-bold text-lg sm:text-2xl overflow-hidden text-overflow-ellipsis white-space-nowrap text-white flex-1 min-w-0">
-                            {att.name}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-column gap-1 text-xs sm:text-sm text-white-alpha-90">
-                          <div>
-                            <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">E-Mail</strong>
-                            {att.email ? (
-                              <a
-                                href={`mailto:${att.email}`}
-                                className="m-0 p-0 line-height-1 text-white-alpha-90 hover:text-yellow-300 flex align-items-center gap-1 font-semibold overflow-hidden text-overflow-ellipsis"
-                                title={att.email}
-                              >
-                                <i className="mdi mdi-email text-yellow-400 text-xs flex-shrink-0" />
-                                <span className="overflow-hidden text-overflow-ellipsis white-space-nowrap">{att.email}</span>
-                              </a>
-                            ) : (
-                              <span className="m-0 p-0 line-height-1 text-white-alpha-40 italic">Keine E-Mail</span>
-                            )}
-                          </div>
-                          <div>
-                            <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Zuletzt online</strong>
-                            <span className={`m-0 p-0 line-height-1 ${online ? 'text-green-300 font-bold' : ''}`}>
-                              {formatDate(att.lastSeen)}
-                            </span>
-                          </div>
-                          <div>
-                            <strong className="block text-3xs sm:text-xs text-white-alpha-60 uppercase tracking-wide mt-1 mb-0">Erstellte Punkte</strong>
-                            <span className="m-0 p-0 line-height-1 font-bold text-yellow-300">
-                              {count} Punkte
-                            </span>
-                          </div>
-
-                          {/* Pinned Badges */}
-                          {att.pinnedAchievements && att.pinnedAchievements.length > 0 && (
-                            <div 
-                              className="flex align-items-center mt-1.5 pt-1 border-top-1 border-white-alpha-20"
-                              style={{ gap: '0.75rem' }}
-                            >
-                              {att.pinnedAchievements.slice(0, 3).map((achId: string) => (
-                                <PinnedAchievementBadge key={achId} achId={achId} size="small" />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Status Toggle Action Bar at the bottom of the Card */}
                     <div
                       className="flex align-items-center justify-content-between gap-2 px-3 py-2 border-top-1 border-white-alpha-30"
                       style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)' }}
                     >
-                      <span className="text-xs font-bold text-white">
-                        {isPresent ? '🟢 Anwesend' : isAbsent ? '🔴 Abwesend' : '⚪ Unbestätigt'}
+                      <span className="text-xs font-bold text-white flex align-items-center gap-2">
+                        <span
+                          className="inline-block border-circle flex-shrink-0"
+                          style={{
+                            width: '9px',
+                            height: '9px',
+                            backgroundColor: isPresent ? '#22c55e' : isAbsent ? '#ef4444' : '#9ca3af'
+                          }}
+                        />
+                        {isPresent ? 'Anwesend' : isAbsent ? 'Abwesend' : 'Unbestätigt'}
                       </span>
                       <div className="flex align-items-center gap-1">
                         <Button
@@ -1437,45 +1375,45 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
               })}
             </div>
 
-            {/* Bottom Actions */}
-            <div className="flex flex-column sm:flex-row align-items-center justify-content-between gap-3 border-top-1 border-gray-700 pt-3">
-              <Button
-                label="Erneut Schritt-für-Schritt"
-                icon="pi pi-refresh"
-                className="comic-button-secondary text-xs sm:text-sm font-bold"
-                onClick={() => {
-                  setCurrentAttendeeIndex(0);
-                  setPhase('roll_call_step');
-                  onUpdateAgenda({
-                    liveMeetingPhase: 'roll_call_step',
-                    liveMeetingCurrentAttendeeIndex: 0,
-                    liveMeetingElapsedSeconds: sessionSeconds,
-                  });
-                }}
-              />
-
-              <Button
-                label="Tagesordnung starten"
-                icon="pi pi-arrow-right"
-                iconPos="right"
-                className="comic-button-success px-4 py-3 text-base sm:text-lg font-bold flex align-items-center gap-2"
-                onClick={() => handleStartAgendaItems(0)}
-                data-testid="start-agenda-items-btn"
-              />
-            </div>
+            <Panel className="live-controls-sticky">
+              <div className="flex flex-column-reverse sm:flex-row align-items-stretch sm:align-items-center justify-content-between gap-3">
+                <Button
+                  label="Erneut Schritt-für-Schritt"
+                  icon="pi pi-refresh"
+                  className="comic-button-secondary text-xs sm:text-sm font-bold"
+                  onClick={() => {
+                    setCurrentAttendeeIndex(0);
+                    setPhase('roll_call_step');
+                    onUpdateAgenda({
+                      liveMeetingPhase: 'roll_call_step',
+                      liveMeetingCurrentAttendeeIndex: 0,
+                      liveMeetingElapsedSeconds: sessionSeconds,
+                    });
+                  }}
+                />
+                <Button
+                  label="Tagesordnung starten"
+                  icon="pi pi-arrow-right"
+                  iconPos="right"
+                  className="comic-button-success px-4 py-3 text-base sm:text-lg font-bold flex align-items-center justify-content-center gap-2"
+                  onClick={() => handleStartAgendaItems(0)}
+                  data-testid="start-agenda-items-btn"
+                />
+              </div>
+            </Panel>
           </div>
         )}
 
         {/* ═══════════════════════════════════════════════════════════════════════
-            PHASE 4: SCHRITT-FÜR-SCHRITT AGENDAPUNKTE (2-Spalten-Layout)
+            PHASE 4: SCHRITT-FÜR-SCHRITT AGENDAPUNKTE (Panels, 2 Spalten ab md)
             ═══════════════════════════════════════════════════════════════════════ */}
         {phase === 'agenda_items' && (
-          <div className="w-full max-w-6xl flex flex-column gap-3 z-1 h-full max-h-full py-1">
+          <div className="w-full flex flex-column gap-3 flex-1">
             {totalItems === 0 ? (
-              <div className="text-center p-6 my-auto">
+              <Panel className="text-center my-auto">
                 <i className="pi pi-folder-open text-gray-500 text-5xl mb-3" />
                 <h2 className="text-2xl font-bold text-white mb-2">Keine Agendapunkte vorhanden</h2>
-                <p className="text-gray-400 mb-4">Füge in der Hauptansicht Agendapunkte hinzu, um sie hier durchzugehen.</p>
+                <p className="text-gray-300 mb-4">Füge in der Hauptansicht Agendapunkte hinzu, um sie hier durchzugehen.</p>
                 <Button
                   label="Sitzung beenden"
                   icon="pi pi-check"
@@ -1488,82 +1426,65 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                     });
                   }}
                 />
-              </div>
+              </Panel>
             ) : currentItem ? (
-              <div className="flex flex-column gap-2 sm:gap-3 h-full justify-content-between overflow-hidden">
-                {/* Navigation Bar / TOP Indicator Header */}
-                <div className="flex align-items-center justify-content-between gap-2 flex-wrap px-1 py-1 flex-shrink-0">
-                  <div className="flex align-items-center gap-2">
-                    <span className="text-sm sm:text-base font-bold text-yellow-400 font-mono tracking-wide">
-                      TOP {currentItemIndex + 1} von {totalItems}
-                    </span>
-                    {currentItem.completed && (
-                      <span className="text-green-400 text-xs font-bold flex align-items-center gap-1">
-                        <i className="pi pi-check" /> Besprochen
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex align-items-center gap-2">
-                    <Button
-                      label="Alle TOPs"
-                      icon="pi pi-list"
-                      className="comic-button-secondary text-xs p-button-sm flex align-items-center gap-1"
-                      onClick={() => setShowItemDrawer(true)}
-                      data-testid="open-all-tops-drawer-btn"
-                    />
-                  </div>
-                </div>
-
-                {/* Main Topic Information: 2-Column Responsive Layout */}
+              <>
                 {(() => {
                   const currentComments = currentItem.comments || [];
                   const notes = currentComments.filter((c: any) => c.text && (c.text.startsWith('📝') || c.text.includes('Sitzungsnotiz')));
                   const regularComments = currentComments.filter((c: any) => !c.text || (!c.text.startsWith('📝') && !c.text.includes('Sitzungsnotiz')));
                   const hasPoll = !!(currentItem.poll && currentItem.poll.options && currentItem.poll.options.length > 0);
                   const hasRightColumn = hasPoll || regularComments.length > 0;
+                  const upvotes: string[] = currentItem.upvotes || [];
 
                   return (
-                    <div className="flex-1 overflow-hidden flex flex-column md:flex-row gap-3 min-h-0">
-                      {/* Left Column: Title, Referent, Badges, Description, Images, Notes List & Input */}
-                      <div
-                        className={`comic-panel-dark p-3 sm:p-4 overflow-y-auto flex flex-column gap-3 border-round-2xl ${
-                          hasRightColumn ? 'flex-1 min-w-0' : 'w-full'
-                        }`}
-                        style={{
-                          backgroundColor: '#1f2937',
-                          border: '3px solid #000000',
-                          boxShadow: '4px 4px 0px #000000'
-                        }}
-                      >
-                        {/* Topic Title Header */}
-                        <div className="flex flex-column gap-2 border-bottom-1 border-gray-700 pb-3">
-                          <div className="flex align-items-start justify-content-between gap-2">
-                            <h2
-                              className="text-xl sm:text-2xl md:text-3xl font-bold m-0 text-white line-height-2 flex-1"
-                              style={{ textShadow: '2px 2px 0 #000' }}
-                            >
-                              {currentItem.title}
-                            </h2>
-
-                            {/* Live Pin Toggle: nur Pin-Icon rechts oben in der Ecke */}
-                            <Button
-                              icon={currentItem.pinned ? 'mdi mdi-pin text-base' : 'mdi mdi-pin-outline text-base'}
-                              className={
-                                currentItem.pinned
-                                  ? 'comic-button-warning p-2 flex-shrink-0 flex align-items-center justify-content-center'
-                                  : 'comic-button-secondary p-2 text-gray-300 flex-shrink-0 flex align-items-center justify-content-center'
-                              }
-                              style={{ width: '2.2rem', height: '2.2rem' }}
-                              onClick={handleTogglePinCurrentItem}
-                              title={currentItem.pinned ? 'Anheftung lösen' : 'TOP anheften'}
-                              data-testid="toggle-pin-item-btn"
-                            />
+                    <div className="flex flex-column md:flex-row gap-3 align-items-stretch md:align-items-start">
+                      {/* Left column: topic, notes */}
+                      <div className={`flex flex-column gap-3 min-w-0 ${hasRightColumn ? 'flex-1' : 'w-full'}`}>
+                        <Panel className="flex flex-column gap-3">
+                          <div className="flex align-items-center justify-content-between gap-2">
+                            <div className="flex align-items-center gap-2">
+                              <span className="text-xs sm:text-sm font-bold text-yellow-400 font-mono">
+                                TOP {currentItemIndex + 1} von {totalItems}
+                              </span>
+                              {currentItem.completed && (
+                                <span className="text-green-400 text-xs font-bold flex align-items-center gap-1">
+                                  <i className="pi pi-check" /> Besprochen
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex align-items-center gap-2">
+                              <Button
+                                label="Alle TOPs"
+                                icon="pi pi-list"
+                                className="comic-button-secondary text-xs p-button-sm flex align-items-center gap-1"
+                                onClick={() => setShowItemDrawer(true)}
+                                data-testid="open-all-tops-drawer-btn"
+                              />
+                              <Button
+                                icon={currentItem.pinned ? 'mdi mdi-pin text-base' : 'mdi mdi-pin-outline text-base'}
+                                className={
+                                  currentItem.pinned
+                                    ? 'comic-button-warning p-2 flex-shrink-0 flex align-items-center justify-content-center'
+                                    : 'comic-button-secondary p-2 text-gray-300 flex-shrink-0 flex align-items-center justify-content-center'
+                                }
+                                style={{ width: '2.2rem', height: '2.2rem' }}
+                                onClick={handleTogglePinCurrentItem}
+                                title={currentItem.pinned ? 'Anheftung lösen' : 'TOP anheften'}
+                                data-testid="toggle-pin-item-btn"
+                              />
+                            </div>
                           </div>
 
-                          {/* Author Badge */}
+                          <h2
+                            className="text-2xl md:text-3xl font-bold m-0 text-white line-height-2 word-break-break-word"
+                            style={{ textShadow: '2px 2px 0 #000' }}
+                          >
+                            {currentItem.title}
+                          </h2>
+
                           {currentItem.author && (
-                            <div className="flex align-items-center gap-2 flex-wrap mt-1">
+                            <div className="flex align-items-center gap-2 flex-wrap">
                               <PersonChip
                                 name={currentItem.author}
                                 color={getAttendeeColor(attendees, currentItem.author).color}
@@ -1572,80 +1493,89 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                             </div>
                           )}
 
-                          {/* Da drunter: Likes Display (Daumen ohne Zahl und Badges der likes) */}
-                          <div className="flex align-items-center gap-2 flex-wrap text-2xs text-gray-300 mt-2" data-testid="item-likes-container">
+                          <div className="flex align-items-center gap-2 flex-wrap text-xs text-gray-300" data-testid="item-likes-container">
                             <span
-                              className={`flex align-items-center ${hasLiked ? 'text-yellow-400' : 'text-gray-400 hover:text-white'} cursor-pointer mr-2`}
+                              className={`flex align-items-center ${hasLiked ? 'text-yellow-400' : 'text-gray-400 hover:text-white'} cursor-pointer`}
                               onClick={handleToggleLikeCurrentItem}
                               title={hasLiked ? 'Like zurücknehmen' : 'Diesen TOP liken'}
                               data-testid="item-likes-indicator"
                             >
-                              <i className={`text-base ${hasLiked || (currentItem.upvotes && currentItem.upvotes.length > 0) ? 'pi pi-thumbs-up-fill text-yellow-400' : 'pi pi-thumbs-up'}`} />
+                              <i className={`text-base ${hasLiked || upvotes.length > 0 ? 'pi pi-thumbs-up-fill text-yellow-400' : 'pi pi-thumbs-up'}`} />
                             </span>
-                            {currentItem.upvotes && currentItem.upvotes.map((voterId: string) => {
-                              const att = attendees.find(
-                                (a: any) =>
-                                  (a.id && a.id === voterId) ||
-                                  (a._id && a._id === voterId) ||
-                                  a.name === voterId
-                              );
-                              const name = att?.name || voterId;
-                              return (
-                                <PersonChip
-                                  key={voterId}
-                                  name={name}
-                                  color={getAttendeeColor(attendees, voterId).color}
-                                  size="sm"
-                                />
-                              );
-                            })}
+                            {upvotes.length > 0 ? (
+                              <>
+                                <span className="font-bold">Daumen hoch von:</span>
+                                {upvotes.map((voterId: string) => {
+                                  const att = attendees.find(
+                                    (a: any) =>
+                                      (a.id && a.id === voterId) ||
+                                      (a._id && a._id === voterId) ||
+                                      a.name === voterId
+                                  );
+                                  return (
+                                    <PersonChip
+                                      key={voterId}
+                                      name={att?.name || voterId}
+                                      color={getAttendeeColor(attendees, voterId).color}
+                                      size="sm"
+                                    />
+                                  );
+                                })}
+                              </>
+                            ) : (
+                              <span className="text-gray-400">Noch keine Likes</span>
+                            )}
                           </div>
-                        </div>
 
-                        {/* Topic Description */}
-                        {currentItem.description ? (
-                          <div className="text-gray-100 text-sm sm:text-base line-height-3 white-space-pre-wrap">
-                            {currentItem.description}
+                          <div className="border-top-1 border-gray-700 pt-3">
+                            {currentItem.description ? (
+                              <div className="agenda-details-container text-gray-100 text-sm sm:text-base line-height-3">
+                                <MDXEditor
+                                  key={currentItem._id || currentItem.id || currentItemIndex}
+                                  markdown={currentItem.description}
+                                  readOnly
+                                  plugins={READONLY_PLUGINS}
+                                />
+                              </div>
+                            ) : (
+                              <div className="text-gray-400 text-xs italic">Keine zusätzliche Beschreibung vorhanden.</div>
+                            )}
                           </div>
-                        ) : (
-                          <div className="text-gray-400 text-xs italic">Keine zusätzliche Beschreibung vorhanden.</div>
-                        )}
 
-                        {/* Topic Images */}
-                        {(currentItem.imageUrl || (currentItem.imageUrls && currentItem.imageUrls.length > 0)) && (
-                          <div className="flex flex-column gap-2 mt-1">
-                            <span className="text-xs font-bold text-yellow-400 uppercase tracking-wider">Anhänge & Bilder</span>
-                            <div className="flex flex-wrap gap-2">
-                              {currentItem.imageUrl && (
-                                <img
-                                  src={currentItem.imageUrl}
-                                  alt="TOP Anhang"
-                                  className="border-round-xl object-contain max-h-16rem max-w-full"
-                                  style={{ border: '2px solid #000', boxShadow: '2px 2px 0 #000' }}
-                                />
-                              )}
-                              {currentItem.imageUrls?.map((imgUrl: string, imgIdx: number) => (
-                                <img
-                                  key={imgIdx}
-                                  src={imgUrl}
-                                  alt={`TOP Anhang ${imgIdx + 1}`}
-                                  className="border-round-xl object-contain max-h-16rem max-w-full"
-                                  style={{ border: '2px solid #000', boxShadow: '2px 2px 0 #000' }}
-                                />
-                              ))}
+                          {(currentItem.imageUrl || (currentItem.imageUrls && currentItem.imageUrls.length > 0)) && (
+                            <div className="flex flex-column gap-2">
+                              <span className="text-xs font-bold text-yellow-400 uppercase">Anhänge & Bilder</span>
+                              <div className="flex flex-wrap gap-2">
+                                {currentItem.imageUrl && (
+                                  <img
+                                    src={currentItem.imageUrl}
+                                    alt="TOP Anhang"
+                                    className="border-round-xl object-contain max-h-16rem max-w-full"
+                                    style={{ border: '2px solid #000', boxShadow: '2px 2px 0 #000' }}
+                                  />
+                                )}
+                                {currentItem.imageUrls?.map((imgUrl: string, imgIdx: number) => (
+                                  <img
+                                    key={imgIdx}
+                                    src={imgUrl}
+                                    alt={`TOP Anhang ${imgIdx + 1}`}
+                                    className="border-round-xl object-contain max-h-16rem max-w-full"
+                                    style={{ border: '2px solid #000', boxShadow: '2px 2px 0 #000' }}
+                                  />
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </Panel>
 
-                        {/* Saved Notes / Decisions list for this TOP */}
-                        {notes.length > 0 && (
-                          <div className="flex flex-column gap-2 bg-gray-950 p-3 border-round-xl border-1 border-yellow-500-alpha-30 mt-1">
-                            <span className="text-xs font-bold text-yellow-400 flex align-items-center gap-1">
-                              <i className="pi pi-book" /> Protokollierte Notizen / Beschlüsse ({notes.length}):
-                            </span>
-                            <div className="flex flex-column gap-2 max-h-12rem overflow-y-auto">
+                        <Panel title="Sitzungsbeschluss / Notiz" icon="pi pi-pencil" className="flex flex-column gap-3">
+                          {notes.length > 0 && (
+                            <div className="flex flex-column gap-2">
+                              <span className="text-xs font-bold text-gray-300 flex align-items-center gap-1">
+                                <i className="pi pi-book" /> Protokollierte Notizen / Beschlüsse ({notes.length}):
+                              </span>
                               {notes.map((n: any, nIdx: number) => (
-                                <div key={n.id || nIdx} className="text-xs text-gray-200 bg-gray-900 p-2 border-round flex flex-column gap-1">
+                                <div key={n.id || nIdx} className="text-xs text-gray-200 bg-gray-900 p-2 border-round flex flex-column gap-1" style={{ border: '2px solid #000' }}>
                                   <div className="flex align-items-center justify-content-between">
                                     <span className="font-bold text-yellow-300">{n.author || 'Notiz'}</span>
                                     <span className="text-gray-500 text-3xs">{formatDate(n.createdAt)}</span>
@@ -1654,14 +1584,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        )}
-
-                        {/* Live Meeting Notes / Decisions Input */}
-                        <div className="flex flex-column gap-2 border-top-1 border-gray-700 pt-3 mt-auto">
-                          <span className="text-xs font-bold text-yellow-400 flex align-items-center gap-1">
-                            <i className="pi pi-pencil" /> Sitzungsbeschluss / Notiz festhalten:
-                          </span>
+                          )}
                           <div className="flex gap-2">
                             <InputTextarea
                               value={quickNote}
@@ -1669,47 +1592,27 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                               placeholder="Kurzen Beschluss oder Notiz zu diesem TOP notieren..."
                               rows={2}
                               autoResize={false}
-                              className="w-full text-sm bg-gray-900 text-white font-medium resize-none"
+                              className="w-full text-sm bg-gray-900 text-white font-medium"
                               style={{ border: '2px solid #000', borderRadius: '8px', resize: 'none' }}
                             />
                             <Button
                               icon="pi pi-check"
                               label="Speichern"
-                              className="comic-button-success p-button-sm text-xs font-bold flex-shrink-0 self-end py-2 px-3"
+                              className="comic-button-success p-button-sm text-xs font-bold flex-shrink-0 align-self-end py-2 px-3"
                               disabled={!quickNote.trim() || isSavingNote}
                               loading={isSavingNote}
                               onClick={handleAddQuickNote}
+                              aria-label="Notiz speichern"
                             />
                           </div>
-                        </div>
+                        </Panel>
                       </div>
 
-                      {/* Right Column: Poll & Comments */}
+                      {/* Right column: poll & comments */}
                       {hasRightColumn && (
-                        <div
-                          className="w-full md:w-5 min-w-0 overflow-y-auto flex flex-column gap-3 comic-panel-dark p-3 sm:p-4 border-round-2xl flex-shrink-0"
-                          style={{
-                            backgroundColor: '#1f2937',
-                            border: '3px solid #000000',
-                            boxShadow: '4px 4px 0px #000000'
-                          }}
-                        >
-                          {/* Poll */}
+                        <div className="flex flex-column gap-3 min-w-0 w-full md:w-5 flex-shrink-0">
                           {hasPoll && (
-                            <div
-                              className="p-3 border-round-xl flex flex-column gap-2"
-                              style={{
-                                backgroundColor: '#111827',
-                                border: '2px solid #eab308',
-                                boxShadow: '3px 3px 0 #000'
-                              }}
-                            >
-                              <div className="flex align-items-center gap-2">
-                                <i className="pi pi-chart-bar text-yellow-400 text-base" />
-                                <span className="font-bold text-white text-sm">
-                                  {currentItem.poll.question || 'Abstimmung'}
-                                </span>
-                              </div>
+                            <Panel title={currentItem.poll.question || 'Abstimmung'} icon="pi pi-chart-bar">
                               <div className="flex flex-column gap-2">
                                 {currentItem.poll.options.map((opt: any, optIdx: number) => {
                                   const votesCount = opt.votes?.length || 0;
@@ -1721,9 +1624,9 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
 
                                   return (
                                     <div key={opt.id || optIdx} className="flex flex-column gap-1">
-                                      <div className="flex justify-content-between text-xs font-bold">
+                                      <div className="flex justify-content-between gap-2 text-xs font-bold">
                                         <span className="text-gray-200">{opt.text}</span>
-                                        <span className="text-yellow-400">{votesCount} Stimmen ({percentage}%)</span>
+                                        <span className="text-yellow-400 white-space-nowrap">{plural(votesCount, 'Stimme', 'Stimmen')} ({percentage}%)</span>
                                       </div>
                                       <ProgressBar
                                         value={percentage}
@@ -1734,24 +1637,18 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                                   );
                                 })}
                               </div>
-                            </div>
+                            </Panel>
                           )}
 
-                          {/* Comments List */}
                           {regularComments.length > 0 && (
-                            <div className="flex flex-column gap-2 flex-1 min-h-0">
-                              <span className="text-xs font-bold text-yellow-400 flex align-items-center gap-1">
-                                <i className="pi pi-comments" /> Kommentare ({regularComments.length})
-                              </span>
-                              <div className="flex flex-column overflow-y-auto flex-1">
+                            <Panel title={`Kommentare (${regularComments.length})`} icon="pi pi-comments">
+                              <div className="flex flex-column">
                                 {regularComments.map((comment: any, cIdx: number) => (
                                   <div
                                     key={comment.id || cIdx}
-                                    className={`py-2.5 flex flex-column gap-1 ${
-                                      cIdx < regularComments.length - 1 ? 'border-bottom-1 border-gray-700' : ''
-                                    }`}
+                                    className={`py-2 flex flex-column gap-1 ${cIdx < regularComments.length - 1 ? 'border-bottom-1 border-gray-700' : ''}`}
                                   >
-                                    <div className="flex align-items-center justify-content-between">
+                                    <div className="flex align-items-center justify-content-between gap-2">
                                       <PersonChip
                                         name={comment.author || 'Teilnehmer'}
                                         color={getAttendeeColor(attendees, comment.createdBy || comment.author).color}
@@ -1759,7 +1656,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                                       />
                                       <span className="text-3xs text-gray-500">{formatDate(comment.createdAt)}</span>
                                     </div>
-                                    <p className="m-0 text-xs text-gray-200 white-space-pre-wrap">{comment.text}</p>
+                                    <p className="m-0 text-xs sm:text-sm text-gray-200 white-space-pre-wrap">{comment.text}</p>
                                     {comment.attachments && comment.attachments.length > 0 && (
                                       <div className="flex flex-wrap gap-1 mt-1">
                                         {comment.attachments.map((att: any, aIdx: number) => (
@@ -1779,7 +1676,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                                   </div>
                                 ))}
                               </div>
-                            </div>
+                            </Panel>
                           )}
                         </div>
                       )}
@@ -1787,27 +1684,29 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                   );
                 })()}
 
-                {/* Bottom Sticky Navigation */}
-                <div className="flex align-items-center justify-content-between gap-2 sm:gap-3 pt-2 flex-wrap flex-shrink-0">
-                  <Button
-                    label="Vorheriger TOP"
-                    icon="pi pi-chevron-left"
-                    className="comic-button-secondary text-xs sm:text-sm font-bold"
-                    disabled={currentItemIndex === 0}
-                    onClick={handlePrevItem}
-                    data-testid="prev-top-btn"
-                  />
+                {/* Controls panel: one row on desktop, sticky with full-width primary action on mobile */}
+                <div className="comic-panel-dark p-2 sm:p-3 live-controls-sticky mt-auto" data-testid="live-item-controls">
+                  <div className="flex align-items-center gap-2 flex-wrap live-controls-row">
+                    <Button
+                      label="Vorheriger TOP"
+                      icon="pi pi-chevron-left"
+                      className="comic-button-secondary text-xs sm:text-sm font-bold live-btn-compact"
+                      disabled={currentItemIndex === 0}
+                      onClick={handlePrevItem}
+                      aria-label="Vorheriger TOP"
+                      title="Vorheriger TOP"
+                      data-testid="prev-top-btn"
+                    />
 
+                    <div className="flex-1" />
 
-                  <div className="flex align-items-center gap-2">
                     {currentItemIndex + 1 < totalItems && (
                       <Button
                         label="Überspringen"
                         icon="pi pi-forward"
-                        text
-                        size="small"
-                        className="text-gray-400 hover:text-white text-xs font-bold"
+                        className="comic-button-secondary text-xs sm:text-sm font-bold live-btn-compact"
                         onClick={() => handleNextItem(false)}
+                        aria-label="Überspringen"
                         title="Zum nächsten Punkt wechseln ohne diesen als erledigt abzuhaken"
                         data-testid="skip-top-btn"
                       />
@@ -1816,10 +1715,9 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                     <Button
                       label={isSessionRunning ? 'Pause' : 'Fortsetzen'}
                       icon={isSessionRunning ? 'pi pi-pause' : 'pi pi-play'}
-                      className={`${
-                        isSessionRunning ? 'comic-button-secondary' : 'comic-button-warning'
-                      } text-xs sm:text-sm font-bold px-3 sm:px-4 py-2`}
+                      className={`${isSessionRunning ? 'comic-button-secondary' : 'comic-button-warning'} text-xs sm:text-sm font-bold live-btn-compact`}
                       onClick={handleTogglePause}
+                      aria-label={isSessionRunning ? 'Pause' : 'Fortsetzen'}
                       title={isSessionRunning ? 'Sitzung pausieren (beide Timer anhalten)' : 'Sitzung fortsetzen (beide Timer starten)'}
                       data-testid="toggle-session-timer-btn"
                     />
@@ -1828,13 +1726,13 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                       label={currentItemIndex + 1 < totalItems ? 'Abhaken & Weiter' : 'Abhaken & Beenden'}
                       icon="pi pi-check"
                       iconPos="right"
-                      className="comic-button-success text-xs sm:text-sm font-bold px-3 sm:px-4 py-2"
+                      className="comic-button-success text-sm font-bold justify-content-center live-primary-action"
                       onClick={() => handleNextItem(true)}
                       data-testid="next-top-btn"
                     />
                   </div>
                 </div>
-              </div>
+              </>
             ) : null}
 
             {/* Quick-Jump Drawer Dialog for all TOPs */}
@@ -1890,74 +1788,38 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
             PHASE 5: SITZUNGSABSCHLUSS / SUMMARY & PROTOKOLL
             ═══════════════════════════════════════════════════════════════════════ */}
         {phase === 'summary' && (
-          <div className="w-full max-w-3xl text-center flex flex-column align-items-center gap-4 py-4 z-1 my-auto overflow-y-auto max-h-full">
-            <span
-              className="p-4 border-circle bg-yellow-500 text-black flex align-items-center justify-content-center flex-shrink-0"
-              style={{ width: '5rem', height: '5rem', border: '3px solid #000', boxShadow: '4px 4px 0 #000' }}
-            >
-              <i className="pi pi-check text-3xl font-bold" />
-            </span>
-
-            <h1
-              className="text-2xl sm:text-4xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 line-height-2"
-              style={{ filter: 'drop-shadow(3px 3px 0px #000)' }}
-            >
-              Sitzung abgeschlossen!
-            </h1>
-
-            <p className="text-gray-300 text-sm sm:text-base m-0 max-w-md">
-              Alle Agendapunkte und Anwesenheitsdaten wurden erfolgreich erfasst und gespeichert.
-            </p>
-
-            {/* Results Grid */}
-            <div className="grid w-full gap-3 sm:gap-4 my-1">
-              <div
-                className="p-3 border-round-xl flex flex-column align-items-center flex-1"
-                style={{ backgroundColor: '#1f2937', border: '2px solid #000', boxShadow: '3px 3px 0 #000' }}
+          <div className="w-full flex flex-column gap-3 my-auto mx-auto" style={{ maxWidth: '900px' }}>
+            <Panel className="flex flex-column align-items-center text-center gap-2">
+              <span
+                className="border-circle text-black flex align-items-center justify-content-center flex-shrink-0"
+                style={{ width: '4rem', height: '4rem', backgroundColor: '#eab308', border: '3px solid #000', boxShadow: '4px 4px 0 #000' }}
               >
-                <span className="text-xl sm:text-2xl font-bold text-yellow-400 font-mono">
-                  {formatTimer(sessionSeconds)}
-                </span>
-                <span className="text-xs text-gray-400 uppercase font-bold mt-1">Sitzungsdauer</span>
-              </div>
-
-              <div
-                className="p-3 border-round-xl flex flex-column align-items-center flex-1"
-                style={{ backgroundColor: '#1f2937', border: '2px solid #000', boxShadow: '3px 3px 0 #000' }}
+                <i className="pi pi-check text-2xl font-bold" />
+              </span>
+              <h1
+                className="text-2xl sm:text-4xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 line-height-2"
+                style={{ filter: 'drop-shadow(3px 3px 0px #000)' }}
               >
-                <span className="text-xl sm:text-2xl font-bold text-green-400">
-                  {completedItemsCount}/{totalItems}
-                </span>
-                <span className="text-xs text-gray-400 uppercase font-bold mt-1">Besprochen</span>
-              </div>
+                Sitzung abgeschlossen!
+              </h1>
+              <p className="text-gray-300 text-sm sm:text-base m-0">
+                Alle Agendapunkte und Anwesenheitsdaten wurden erfasst und gespeichert.
+              </p>
+            </Panel>
 
-              <div
-                className="p-3 border-round-xl flex flex-column align-items-center flex-1"
-                style={{ backgroundColor: '#1f2937', border: '2px solid #000', boxShadow: '3px 3px 0 #000' }}
-              >
-                <span className="text-xl sm:text-2xl font-bold text-blue-400">
-                  {presentCount}/{totalAttendees}
-                </span>
-                <span className="text-xs text-gray-400 uppercase font-bold mt-1">Anwesend ({attendanceRate}%)</span>
-              </div>
+            <div style={tileGridStyle}>
+              {renderStatTile('pi pi-clock', <span className="font-mono">{formatTimer(sessionSeconds)}</span>, 'Sitzungsdauer')}
+              {renderStatTile('pi pi-check-square', `${completedItemsCount}/${totalItems}`, 'Besprochen', 'text-green-400')}
+              {renderStatTile('pi pi-users', `${presentCount}/${totalAttendees}`, `Anwesend (${attendanceRate}%)`, 'text-blue-300')}
             </div>
 
-            {/* TOP Duration Table */}
-            <div
-              className="w-full p-3 sm:p-4 border-round-xl flex flex-column gap-2 text-left"
-              style={{ backgroundColor: '#1f2937', border: '2px solid #000', boxShadow: '3px 3px 0 #000' }}
+            <Panel
+              title="Besprechungsdauer je Agendapunkt"
+              icon="pi pi-table"
+              aside={<span className="text-2xs text-gray-400 font-mono">Summe: {formatTimer(sessionSeconds)}</span>}
             >
-              <div className="flex align-items-center justify-content-between border-bottom-1 border-gray-700 pb-2">
-                <span className="text-xs sm:text-sm font-bold text-yellow-400 uppercase tracking-wider flex align-items-center gap-1">
-                  <i className="pi pi-table" /> Besprechungsdauer je Agendapunkt
-                </span>
-                <span className="text-2xs text-gray-400 font-mono">
-                  Summe: {formatTimer(sessionSeconds)}
-                </span>
-              </div>
-
-              <div className="max-h-16rem overflow-y-auto">
-                <table className="w-full text-xs text-gray-200" style={{ borderCollapse: 'collapse' }}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs sm:text-sm text-gray-200" style={{ borderCollapse: 'collapse' }}>
                   <thead>
                     <tr className="border-bottom-1 border-gray-700 text-gray-400 font-bold">
                       <th className="py-2 px-2 text-left">TOP</th>
@@ -1968,14 +1830,14 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                   </thead>
                   <tbody>
                     {localItems.map((it, idx) => (
-                      <tr key={it._id || it.id || idx} className="border-bottom-1 border-gray-800 hover:bg-gray-800">
+                      <tr key={it._id || it.id || idx} className="border-bottom-1 border-gray-800">
                         <td className="py-2 px-2 text-gray-400 font-mono">#{idx + 1}</td>
-                        <td className="py-2 px-2 font-semibold text-white white-space-nowrap overflow-hidden text-overflow-ellipsis max-w-16rem">
-                          {it.title}
-                        </td>
-                        <td className="py-2 px-2 text-center">
+                        <td className="py-2 px-2 font-semibold text-white word-break-break-word">{it.title}</td>
+                        <td className="py-2 px-2 text-center white-space-nowrap">
                           {it.completed ? (
-                            <span className="text-green-400 font-bold">✓ Besprochen</span>
+                            <span className="text-green-400 font-bold inline-flex align-items-center gap-1">
+                              <i className="pi pi-check text-xs" /> Besprochen
+                            </span>
                           ) : (
                             <span className="text-gray-400">Offen</span>
                           )}
@@ -1988,49 +1850,49 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                   </tbody>
                 </table>
               </div>
-            </div>
+            </Panel>
 
-            {/* Protocol Actions */}
-            <div className="flex align-items-center justify-content-center gap-2 sm:gap-3 flex-wrap w-full">
-              <Button
-                label={copiedProtocol ? 'Protokoll kopiert!' : 'Protokoll kopieren'}
-                icon={copiedProtocol ? 'pi pi-check text-green-400' : 'pi pi-copy'}
-                className="comic-button-secondary text-xs sm:text-sm font-bold py-2 px-3"
-                onClick={handleCopyProtocol}
-                title="Sitzungsprotokoll in die Zwischenablage kopieren"
-                data-testid="copy-protocol-btn"
-              />
-              <Button
-                label="Protokoll (.md) herunterladen"
-                icon="pi pi-download"
-                className="comic-button-secondary text-xs sm:text-sm font-bold py-2 px-3"
-                onClick={handleDownloadProtocol}
-                title="Sitzungsprotokoll als Markdown-Datei herunterladen"
-                data-testid="download-protocol-btn"
-              />
-            </div>
-
-            {/* Final Action Buttons */}
-            <div className="flex flex-column sm:flex-row align-items-center justify-content-center gap-3 w-full max-w-md mt-2">
-              <Button
-                label="Zurück zur Agenda"
-                icon="pi pi-arrow-left"
-                className="comic-button-secondary flex-1 py-3 text-sm font-bold flex align-items-center justify-content-center gap-2"
-                onClick={() => handleCloseMeeting('in_progress')}
-                title="Zurückkehren - Sitzung kann später fortgesetzt werden"
-                data-testid="return-from-meeting-btn"
-              />
-              <Button
-                label="Sitzung endgültig abschließen"
-                icon="pi pi-check"
-                className="comic-button-success flex-1 py-3 text-sm font-bold flex align-items-center justify-content-center gap-2"
-                onClick={() => handleCloseMeeting('completed')}
-                title="Sitzung beenden und abschließen"
-                data-testid="finish-live-meeting-btn"
-              />
-            </div>
+            <Panel className="flex flex-column gap-3">
+              <div className="flex align-items-center justify-content-center gap-2 sm:gap-3 flex-wrap">
+                <Button
+                  label={copiedProtocol ? 'Protokoll kopiert!' : 'Protokoll kopieren'}
+                  icon={copiedProtocol ? 'pi pi-check text-green-400' : 'pi pi-copy'}
+                  className="comic-button-secondary text-xs sm:text-sm font-bold py-2 px-3"
+                  onClick={handleCopyProtocol}
+                  title="Sitzungsprotokoll in die Zwischenablage kopieren"
+                  data-testid="copy-protocol-btn"
+                />
+                <Button
+                  label="Protokoll (.md) herunterladen"
+                  icon="pi pi-download"
+                  className="comic-button-secondary text-xs sm:text-sm font-bold py-2 px-3"
+                  onClick={handleDownloadProtocol}
+                  title="Sitzungsprotokoll als Markdown-Datei herunterladen"
+                  data-testid="download-protocol-btn"
+                />
+              </div>
+              <div className="flex flex-column sm:flex-row align-items-stretch gap-3">
+                <Button
+                  label="Zurück zur Agenda"
+                  icon="pi pi-arrow-left"
+                  className="comic-button-secondary flex-1 py-3 text-sm font-bold flex align-items-center justify-content-center gap-2"
+                  onClick={() => handleCloseMeeting('in_progress')}
+                  title="Zurückkehren - Sitzung kann später fortgesetzt werden"
+                  data-testid="return-from-meeting-btn"
+                />
+                <Button
+                  label="Sitzung endgültig abschließen"
+                  icon="pi pi-check"
+                  className="comic-button-success flex-1 py-3 text-sm font-bold flex align-items-center justify-content-center gap-2"
+                  onClick={() => handleCloseMeeting('completed')}
+                  title="Sitzung beenden und abschließen"
+                  data-testid="finish-live-meeting-btn"
+                />
+              </div>
+            </Panel>
           </div>
         )}
+        </div>
       </main>
     </Dialog>
   );

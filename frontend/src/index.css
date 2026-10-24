@@ -713,3 +713,54 @@ body.p-overflow-hidden {
 .object-cover {
   object-fit: cover !important;
 }
+
+/* Live presentation: opaque comic-red stage, content lives in individual panels */
+.p-dialog.live-meeting-dialog {
+  background: #b71c1c !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.p-dialog.live-meeting-dialog .p-dialog-content {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.p-dialog-mask.live-meeting-mask {
+  background-color: #b71c1c !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.live-timer-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+@media (max-width: 767px) {
+  /* Mobile: controls stay reachable at the bottom of the scrolling stage */
+  .live-controls-sticky {
+    position: sticky;
+    bottom: 16px;
+    z-index: 5;
+  }
+
+  .live-controls-row .live-primary-action {
+    order: -1;
+    width: 100%;
+  }
+
+  .live-btn-compact .p-button-label {
+    display: none;
+  }
+
+  .live-btn-compact .p-button-icon {
+    margin: 0 !important;
+  }
+}
