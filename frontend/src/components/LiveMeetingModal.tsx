@@ -11,6 +11,7 @@ import { calculateAttendeeItemCounts, formatTimer } from '../utils/attendeeUtils
 import { MDXEditor } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
 import { READONLY_PLUGINS } from '../utils/markdownPlugins';
+import CreateFollowUpAgendaDialog from './CreateFollowUpAgendaDialog';
 
 export { formatTimer } from '../utils/attendeeUtils';
 
@@ -221,6 +222,7 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
   const [currentAttendeeIndex, setCurrentAttendeeIndex] = useState(0);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [showItemDrawer, setShowItemDrawer] = useState(false);
+  const [showFollowUpDialog, setShowFollowUpDialog] = useState(false);
 
   // Local mirrors for instantaneous UI responsiveness
   const [localAttendees, setLocalAttendees] = useState<any[]>(attendees);
@@ -1870,6 +1872,14 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                   title="Sitzungsprotokoll als Markdown-Datei herunterladen"
                   data-testid="download-protocol-btn"
                 />
+                <Button
+                  label="Neue Agenda vorbereiten"
+                  icon="pi pi-plus-circle"
+                  className="comic-button-secondary text-xs sm:text-sm font-bold py-2 px-3"
+                  onClick={() => setShowFollowUpDialog(true)}
+                  title="Neue Agenda mit den Personen und den gepinnten Punkten erstellen"
+                  data-testid="create-follow-up-agenda-btn"
+                />
               </div>
               <div className="flex flex-column sm:flex-row align-items-stretch gap-3">
                 <Button
@@ -1890,6 +1900,13 @@ export const LiveMeetingModal: React.FC<LiveMeetingModalProps> = ({
                 />
               </div>
             </Panel>
+
+            <CreateFollowUpAgendaDialog
+              visible={showFollowUpDialog}
+              onHide={() => setShowFollowUpDialog(false)}
+              agenda={{ ...agenda, items: localItems, attendees: localAttendees }}
+              currentUser={currentUser}
+            />
           </div>
         )}
         </div>
