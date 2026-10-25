@@ -965,7 +965,7 @@ export default function AgendaDetail() {
           }}
         />
 
-        <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
+        <div className="border-top-1 border-gray-700 my-3 sm:my-4"></div>
 
         <AgendaAttendees 
           agendaId={agenda._id}
@@ -979,7 +979,7 @@ export default function AgendaDetail() {
           onOpenProfile={() => setShowProfileModal(true)}
         />
 
-        <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
+        <div className="border-top-1 border-gray-700 my-3 sm:my-4"></div>
 
         {/* Agenda & Personal Achievements Showcase */}
         <AgendaAchievementBanner
@@ -990,7 +990,7 @@ export default function AgendaDetail() {
           refreshTrigger={refreshAchievements}
         />
 
-        <div className="border-top-1 border-gray-700 my-4 sm:my-6"></div>
+        <div className="border-top-1 border-gray-700 my-3 sm:my-4"></div>
 
         <AgendaTimeline 
           agenda={agenda}

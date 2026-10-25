@@ -25,6 +25,8 @@ import {
 } from '@mdxeditor/editor';
 import '@mdxeditor/editor/style.css';
 import { READONLY_PLUGINS } from '../utils/markdownPlugins';
+import SectionCollapseToggle from './SectionCollapseToggle';
+import { useCollapsedSection } from '../hooks/useCollapsedSection';
 
 const EDITOR_PLUGINS = [
   headingsPlugin(),
@@ -910,6 +912,7 @@ export default function AgendaTimeline({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<MDXEditorMethods>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const [itemsCollapsed, toggleItems] = useCollapsedSection('items');
   const [sortMode, setSortMode] = useState<'date' | 'rating' | 'random'>(
     (agenda?.sortMode as any) || 'date'
   );
@@ -1607,59 +1610,105 @@ export default function AgendaTimeline({
   );
 
   return (
-    <div className="mb-6">
-      <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-4 gap-3">
-        <div className="flex align-items-center gap-2 flex-wrap">
-          <h3 className="text-2xl m-0 text-yellow-500 font-bold" style={{ textShadow: '2px 2px 0px #000' }}>Agendapunkte</h3>
-          
-          <span
-            className="inline-flex align-items-center justify-content-center gap-2 text-xs sm:text-sm font-bold text-yellow-400 px-3"
-            style={{
-              height: '38px',
-              backgroundColor: '#1f2937',
-              border: '2px solid #000',
-              boxShadow: '3px 3px 0px #000',
-              borderRadius: '8px',
-              boxSizing: 'border-box',
-              lineHeight: 1
-            }}
-            title={`${completedCount} von ${totalCount} Agendampunkten besprochen`}
-          >
-            <i className="pi pi-check-circle text-yellow-400 text-sm"></i>
-            <span>{completedCount}/{totalCount} besprochen</span>
-          </span>
+    <div className={itemsCollapsed ? 'mb-0' : 'mb-6'}>
+      <div className={`flex align-items-start gap-2 ${itemsCollapsed ? 'mb-0' : 'mb-4'}`}>
+        <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center gap-3 flex-1 min-w-0">
+          <div className="flex align-items-center gap-2 flex-wrap">
+            <div className="flex align-items-center gap-2 cursor-pointer select-none" onClick={toggleItems} data-testid="section-heading-items">
+              <i className="mdi mdi-format-list-checks text-yellow-500 text-2xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
+              <h3 className="text-2xl m-0 text-yellow-500 font-bold" style={{ textShadow: '2px 2px 0px #000' }}>Agendapunkte</h3>
+            </div>
+            
+            <span
+              className="inline-flex align-items-center justify-content-center gap-2 text-xs sm:text-sm font-bold text-yellow-400 px-3"
+              style={{
+                height: '38px',
+                backgroundColor: '#1f2937',
+                border: '2px solid #000',
+                boxShadow: '3px 3px 0px #000',
+                borderRadius: '8px',
+                boxSizing: 'border-box',
+                lineHeight: 1
+              }}
+              title={`${completedCount} von ${totalCount} Agendampunkten besprochen`}
+            >
+              <i className="pi pi-check-circle text-yellow-400 text-sm"></i>
+              <span>{completedCount}/{totalCount} besprochen</span>
+            </span>
 
-          {onStartLiveMeeting && (() => {
-            const isCompleted = agenda?.liveMeetingStatus === 'completed';
-            const isResumable = !isCompleted && (agenda?.liveMeetingStatus === 'in_progress' || (agenda?.liveMeetingElapsedSeconds || 0) > 0 || agenda?.liveMeetingActive);
+            {onStartLiveMeeting && (() => {
+              const isCompleted = agenda?.liveMeetingStatus === 'completed';
+              const isResumable = !isCompleted && (agenda?.liveMeetingStatus === 'in_progress' || (agenda?.liveMeetingElapsedSeconds || 0) > 0 || agenda?.liveMeetingActive);
 
-            if (isCompleted) {
+              if (isCompleted) {
+                return (
+                  <Button
+                    label="Sitzung abgeschlossen"
+                    icon="pi pi-check"
+                    disabled
+                    className="comic-button-secondary flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm opacity-60 cursor-not-allowed"
+                    style={{
+                      height: '38px',
+                      border: '2px solid #000',
+                      boxShadow: '3px 3px 0px #000',
+                      borderRadius: '8px',
+                      boxSizing: 'border-box',
+                      lineHeight: 1
+                    }}
+                    title="Die Sitzung wurde bereits abgeschlossen und kann nicht erneut gestartet werden."
+                    data-testid="live-meeting-completed-btn"
+                  />
+                );
+              }
+
+              if (isResumable) {
+                return (
+                  <Button
+                    label="Sitzung fortsetzen"
+                    icon="pi pi-play"
+                    className="comic-button-warning flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm"
+                    style={{
+                      height: '38px',
+                      border: '2px solid #000',
+                      boxShadow: '3px 3px 0px #000',
+                      borderRadius: '8px',
+                      boxSizing: 'border-box',
+                      lineHeight: 1
+                    }}
+                    onClick={onStartLiveMeeting}
+                    title="Bereits gestartete Sitzung fortsetzen"
+                    data-testid="resume-live-meeting-btn"
+                  />
+                );
+              }
+
+              if (!isMeetingTimeReached) {
+                const scheduledDateStr = agenda?.date ? new Date(agenda.date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '';
+                return (
+                  <Button
+                    label="Sitzung starten"
+                    icon="pi pi-clock"
+                    disabled
+                    className="comic-button-secondary flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm opacity-60 cursor-not-allowed"
+                    style={{
+                      height: '38px',
+                      border: '2px solid #000',
+                      boxShadow: '3px 3px 0px #000',
+                      borderRadius: '8px',
+                      boxSizing: 'border-box',
+                      lineHeight: 1
+                    }}
+                    title={scheduledDateStr ? `Sitzung kann erst zum geplanten Zeitpunkt gestartet werden (${scheduledDateStr})` : 'Sitzung kann erst zum geplanten Zeitpunkt gestartet werden'}
+                    data-testid="start-live-meeting-disabled-btn"
+                  />
+                );
+              }
+
               return (
                 <Button
-                  label="Sitzung abgeschlossen"
-                  icon="pi pi-check"
-                  disabled
-                  className="comic-button-secondary flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm opacity-60 cursor-not-allowed"
-                  style={{
-                    height: '38px',
-                    border: '2px solid #000',
-                    boxShadow: '3px 3px 0px #000',
-                    borderRadius: '8px',
-                    boxSizing: 'border-box',
-                    lineHeight: 1
-                  }}
-                  title="Die Sitzung wurde bereits abgeschlossen und kann nicht erneut gestartet werden."
-                  data-testid="live-meeting-completed-btn"
-                />
-              );
-            }
-
-            if (isResumable) {
-              return (
-                <Button
-                  label="Sitzung fortsetzen"
+                  label="Sitzung starten"
                   icon="pi pi-play"
-                  className="comic-button-warning flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm"
+                  className="comic-button-success flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm"
                   style={{
                     height: '38px',
                     border: '2px solid #000',
@@ -1669,141 +1718,107 @@ export default function AgendaTimeline({
                     lineHeight: 1
                   }}
                   onClick={onStartLiveMeeting}
-                  title="Bereits gestartete Sitzung fortsetzen"
-                  data-testid="resume-live-meeting-btn"
+                  title="Interaktiven Sitzungsmodus mit Anwesenheitsabfrage & Timern starten"
+                  data-testid="start-live-meeting-btn"
                 />
               );
-            }
+            })()}
+          </div>
 
-            if (!isMeetingTimeReached) {
-              const scheduledDateStr = agenda?.date ? new Date(agenda.date).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) : '';
-              return (
-                <Button
-                  label="Sitzung starten"
-                  icon="pi pi-clock"
-                  disabled
-                  className="comic-button-secondary flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm opacity-60 cursor-not-allowed"
-                  style={{
-                    height: '38px',
-                    border: '2px solid #000',
-                    boxShadow: '3px 3px 0px #000',
-                    borderRadius: '8px',
-                    boxSizing: 'border-box',
-                    lineHeight: 1
-                  }}
-                  title={scheduledDateStr ? `Sitzung kann erst zum geplanten Zeitpunkt gestartet werden (${scheduledDateStr})` : 'Sitzung kann erst zum geplanten Zeitpunkt gestartet werden'}
-                  data-testid="start-live-meeting-disabled-btn"
-                />
-              );
-            }
+          {!itemsCollapsed && (
+            <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">
+              {items && items.length > 1 && (
+                <div className="flex gap-2 align-items-center">
+                  <Button
+                    onClick={sortByDate}
+                    disabled={agenda?.liveMeetingActive}
+                    className={sortMode === 'date' ? 'comic-button flex-shrink-0 flex align-items-center gap-1' : 'comic-button-secondary flex-shrink-0 flex align-items-center gap-1'}
+                    title={
+                      agenda?.liveMeetingActive
+                        ? 'Sortierung ist während einer aktiven Sitzung gesperrt'
+                        : sortMode === 'date'
+                        ? `Nach Datum sortiert (${sortOrder === 'asc' ? 'älteste zuerst' : 'neueste zuerst'}). Klicken zum Ändern.`
+                        : 'Nach Datum sortieren'
+                    }
+                  >
+                    <i className="pi pi-calendar"></i>
+                    {sortMode === 'date' && (
+                      <i className={`pi ${sortOrder === 'asc' ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down'} text-xs`}></i>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={sortByRating}
+                    disabled={agenda?.liveMeetingActive}
+                    className={sortMode === 'rating' ? 'comic-button flex-shrink-0 flex align-items-center gap-1' : 'comic-button-secondary flex-shrink-0 flex align-items-center gap-1'}
+                    title={
+                      agenda?.liveMeetingActive
+                        ? 'Sortierung ist während einer aktiven Sitzung gesperrt'
+                        : sortMode === 'rating'
+                        ? `Nach Bewertung sortiert (${sortOrder === 'desc' ? 'meiste zuerst' : 'wenigste zuerst'}). Klicken zum Ändern.`
+                        : 'Nach Bewertung sortieren'
+                    }
+                  >
+                    <i className="pi pi-thumbs-up"></i>
+                    {sortMode === 'rating' && (
+                      <i className={`pi ${sortOrder === 'desc' ? 'pi-sort-amount-down' : 'pi-sort-amount-up-alt'} text-xs`}></i>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={sortRandomly}
+                    disabled={agenda?.liveMeetingActive}
+                    className={sortMode === 'random' ? 'comic-button flex-shrink-0 flex align-items-center' : 'comic-button-secondary flex-shrink-0 flex align-items-center'}
+                    title={agenda?.liveMeetingActive ? 'Sortierung ist während einer aktiven Sitzung gesperrt' : sortMode === 'random' ? 'Zufällig sortiert. Erneut klicken zum Mischen.' : 'Zufällig sortieren'}
+                  >
+                    <i className="mdi mdi-dice-multiple"></i>
+                  </Button>
+                </div>
+              )}
 
-            return (
-              <Button
-                label="Sitzung starten"
-                icon="pi pi-play"
-                className="comic-button-success flex-shrink-0 flex align-items-center justify-content-center gap-2 font-bold px-3 text-xs sm:text-sm"
-                style={{
-                  height: '38px',
-                  border: '2px solid #000',
-                  boxShadow: '3px 3px 0px #000',
-                  borderRadius: '8px',
-                  boxSizing: 'border-box',
-                  lineHeight: 1
-                }}
-                onClick={onStartLiveMeeting}
-                title="Interaktiven Sitzungsmodus mit Anwesenheitsabfrage & Timern starten"
-                data-testid="start-live-meeting-btn"
-              />
-            );
-          })()}
-        </div>
+              {items && items.length > 1 && isCreator && (
+                <div className="border-left-2 border-gray-600 mx-1 align-self-center" style={{ height: '2.2rem' }} />
+              )}
 
-        <div className="flex gap-2 flex-wrap align-items-center justify-content-between w-full md:w-auto">
-          {items && items.length > 1 && (
-            <div className="flex gap-2 align-items-center">
-              <Button
-                onClick={sortByDate}
-                disabled={agenda?.liveMeetingActive}
-                className={sortMode === 'date' ? 'comic-button flex-shrink-0 flex align-items-center gap-1' : 'comic-button-secondary flex-shrink-0 flex align-items-center gap-1'}
-                title={
-                  agenda?.liveMeetingActive
-                    ? 'Sortierung ist während einer aktiven Sitzung gesperrt'
-                    : sortMode === 'date'
-                    ? `Nach Datum sortiert (${sortOrder === 'asc' ? 'älteste zuerst' : 'neueste zuerst'}). Klicken zum Ändern.`
-                    : 'Nach Datum sortieren'
-                }
-              >
-                <i className="pi pi-calendar"></i>
-                {sortMode === 'date' && (
-                  <i className={`pi ${sortOrder === 'asc' ? 'pi-sort-amount-up-alt' : 'pi-sort-amount-down'} text-xs`}></i>
-                )}
-              </Button>
-              <Button
-                onClick={sortByRating}
-                disabled={agenda?.liveMeetingActive}
-                className={sortMode === 'rating' ? 'comic-button flex-shrink-0 flex align-items-center gap-1' : 'comic-button-secondary flex-shrink-0 flex align-items-center gap-1'}
-                title={
-                  agenda?.liveMeetingActive
-                    ? 'Sortierung ist während einer aktiven Sitzung gesperrt'
-                    : sortMode === 'rating'
-                    ? `Nach Bewertung sortiert (${sortOrder === 'desc' ? 'meiste zuerst' : 'wenigste zuerst'}). Klicken zum Ändern.`
-                    : 'Nach Bewertung sortieren'
-                }
-              >
-                <i className="pi pi-thumbs-up"></i>
-                {sortMode === 'rating' && (
-                  <i className={`pi ${sortOrder === 'desc' ? 'pi-sort-amount-down' : 'pi-sort-amount-up-alt'} text-xs`}></i>
-                )}
-              </Button>
-              <Button
-                onClick={sortRandomly}
-                disabled={agenda?.liveMeetingActive}
-                className={sortMode === 'random' ? 'comic-button flex-shrink-0 flex align-items-center' : 'comic-button-secondary flex-shrink-0 flex align-items-center'}
-                title={agenda?.liveMeetingActive ? 'Sortierung ist während einer aktiven Sitzung gesperrt' : sortMode === 'random' ? 'Zufällig sortiert. Erneut klicken zum Mischen.' : 'Zufällig sortieren'}
-              >
-                <i className="mdi mdi-dice-multiple"></i>
-              </Button>
-            </div>
-          )}
-
-          {items && items.length > 1 && isCreator && (
-            <div className="border-left-2 border-gray-600 mx-1 align-self-center" style={{ height: '2.2rem' }} />
-          )}
-
-          {isCreator && (
-            <div className="flex gap-2 flex-wrap ml-auto md:ml-0">
-              <Button
-                icon={isClosed ? 'pi pi-lock-open' : 'pi pi-lock'}
-                onClick={toggleManualClose}
-                className="comic-button-secondary flex-shrink-0"
-                title={isClosed ? 'Agenda wieder öffnen' : 'Agenda schließen'}
-              />
+              {isCreator && (
+                <div className="flex gap-2 flex-wrap ml-auto md:ml-0">
+                  <Button
+                    icon={isClosed ? 'pi pi-lock-open' : 'pi pi-lock'}
+                    onClick={toggleManualClose}
+                    className="comic-button-secondary flex-shrink-0"
+                    title={isClosed ? 'Agenda wieder öffnen' : 'Agenda schließen'}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
+        <SectionCollapseToggle sectionId="items" label="Agendapunkte" collapsed={itemsCollapsed} onToggle={toggleItems} />
       </div>
 
-      {isClosed && (
-        <div
-          className="flex align-items-center justify-content-center gap-2 py-2 px-3 mb-3 border-round-lg"
-          style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)' }}
-        >
-          <i className="pi pi-lock text-yellow-400 text-sm" />
-          <span className="text-gray-200 text-xs sm:text-sm font-semibold">Agenda ist geschlossen</span>
-          <span className="text-gray-400 text-xs hidden sm:inline">— Keine neuen Agendapunkte möglich</span>
-        </div>
-      )}
+      {!itemsCollapsed && (
+        <>
+          {isClosed && (
+            <div
+              className="flex align-items-center justify-content-center gap-2 py-2 px-3 mb-3 border-round-lg"
+              style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.4)' }}
+            >
+              <i className="pi pi-lock text-yellow-400 text-sm" />
+              <span className="text-gray-200 text-xs sm:text-sm font-semibold">Agenda ist geschlossen</span>
+              <span className="text-gray-400 text-xs hidden sm:inline">— Keine neuen Agendapunkte möglich</span>
+            </div>
+          )}
 
-      {items && items.length > 0 ? (
-        <Timeline
-          align="left"
-          value={items}
-          content={customizedContent}
-          marker={customizedMarker}
-          className="w-full"
-        />
-      ) : (
-        <p className="text-gray-400 mb-4">Noch keine Agendapunkte vorhanden.</p>
+          {items && items.length > 0 ? (
+            <Timeline
+              align="left"
+              value={items}
+              content={customizedContent}
+              marker={customizedMarker}
+              className="w-full"
+            />
+          ) : (
+            <p className="text-gray-400 mb-4">Noch keine Agendapunkte vorhanden.</p>
+          )}
+        </>
       )}
 
       {/* Floating Action Button (FAB) */}

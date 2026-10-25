@@ -5,9 +5,12 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
 import { InputSwitch } from 'primereact/inputswitch';
-import { parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import SafeQRCode from './SafeQRCode';
 import CreateFollowUpAgendaDialog from './CreateFollowUpAgendaDialog';
+import SectionCollapseToggle from './SectionCollapseToggle';
+import SectionSummary from './SectionSummary';
+import { useCollapsedSection } from '../hooks/useCollapsedSection';
 import { getNotificationPermissionState, requestNotificationPermission } from '../services/notificationService';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -385,6 +388,20 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
     document.body.removeChild(link);
   };
 
+  const [detailsCollapsed, toggleDetails] = useCollapsedSection('details');
+  const detailsSummary = (() => {
+    const parts: string[] = [];
+    if (agenda.date) {
+      try {
+        parts.push(format(parseISO(agenda.date), 'dd.MM.yyyy · HH:mm'));
+      } catch {
+        // Ignore unparsable dates in the summary
+      }
+    }
+    if (agenda.location?.name) parts.push(agenda.location.name);
+    return parts.length > 0 ? parts.join(' · ') : 'Noch keine Details';
+  })();
+
   // New Agenda creation modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -470,7 +487,7 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
   };
 
   return (
-    <div className="mb-4 sm:mb-6">
+    <div className={detailsCollapsed ? 'mb-0' : 'mb-4 sm:mb-6'}>
       {/* QR Code Dialog */}
       <Dialog
         header="QR-Code scannen"
@@ -649,242 +666,254 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
         </div>
       </div>
 
+      {/* Details section (collapsible) */}
+      <div className={`flex align-items-center justify-content-between gap-2 ${detailsCollapsed ? 'mb-0' : 'mb-3'}`}>
+        <div className="flex align-items-center gap-2 cursor-pointer select-none flex-shrink-0" onClick={toggleDetails} data-testid="section-heading-details">
+          <i className="mdi mdi-card-text-outline text-yellow-500 text-xl sm:text-2xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
+          <h3 className="text-xl sm:text-2xl text-yellow-500 font-bold m-0" style={{ textShadow: '2px 2px 0px #000' }}>Details</h3>
+        </div>
+        {detailsCollapsed && <SectionSummary sectionId="details" text={detailsSummary} />}
+        <SectionCollapseToggle sectionId="details" label="Details" collapsed={detailsCollapsed} onToggle={toggleDetails} />
+      </div>
+
       {/* Layout: Boxen oben/links, Karte unten/rechts */}
-      <div className="flex flex-column md:flex-row gap-3 sm:gap-4 align-items-start mb-4 w-full">
-        {/* Links/Oben: Boxen Container - min-h-4rem fixes cutoff on small screens */}
-        <div className="flex flex-column gap-2 sm:gap-3 w-full md:flex-1 md:max-w-md min-w-0">
-          {/* Datum */}
-          <div className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full">
-            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
-              <i className="pi pi-calendar-plus text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
-              <Calendar
-                ref={calendarRef}
-                value={agenda.date ? parseISO(agenda.date) : null}
-                onChange={async (e) => {
-                  if (e.value) {
-                    const newDate = e.value as Date;
-                    await onUpdate({ date: newDate.toISOString() });
+      {!detailsCollapsed && (
+        <div className="flex flex-column md:flex-row gap-3 sm:gap-4 align-items-start mb-4 w-full">
+          {/* Links/Oben: Boxen Container - min-h-4rem fixes cutoff on small screens */}
+          <div className="flex flex-column gap-2 sm:gap-3 w-full md:flex-1 md:max-w-md min-w-0">
+            {/* Datum */}
+            <div className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full">
+              <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+                <i className="pi pi-calendar-plus text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+                <Calendar
+                  ref={calendarRef}
+                  value={agenda.date ? parseISO(agenda.date) : null}
+                  onChange={async (e) => {
+                    if (e.value) {
+                      const newDate = e.value as Date;
+                      await onUpdate({ date: newDate.toISOString() });
+                    }
+                  }}
+                  showTime
+                  hourFormat="24"
+                  dateFormat="dd.mm.yy"
+                  placeholder="Datum & Uhrzeit hinzufügen..."
+                  className="text-white font-bold w-full"
+                  inputClassName="bg-transparent text-white font-bold text-sm sm:text-xl border-none p-0 w-full cursor-pointer"
+                  panelClassName="comic-panel-dark"
+                />
+              </div>
+              <Button
+                icon="pi pi-pencil"
+                rounded
+                text
+                aria-label="Edit Date"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (calendarRef.current) {
+                    if (typeof calendarRef.current.show === 'function') {
+                      calendarRef.current.show();
+                    } else if (typeof calendarRef.current.focusInput === 'function') {
+                      calendarRef.current.focusInput();
+                    }
                   }
                 }}
-                showTime
-                hourFormat="24"
-                dateFormat="dd.mm.yy"
-                placeholder="Datum & Uhrzeit hinzufügen..."
-                className="text-white font-bold w-full"
-                inputClassName="bg-transparent text-white font-bold text-sm sm:text-xl border-none p-0 w-full cursor-pointer"
-                panelClassName="comic-panel-dark"
+                className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
               />
             </div>
-            <Button
-              icon="pi pi-pencil"
-              rounded
-              text
-              aria-label="Edit Date"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (calendarRef.current) {
-                  if (typeof calendarRef.current.show === 'function') {
-                    calendarRef.current.show();
-                  } else if (typeof calendarRef.current.focusInput === 'function') {
-                    calendarRef.current.focusInput();
-                  }
-                }
-              }}
-              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
-            />
-          </div>
 
-          {/* Ort */}
-          <div
-            className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full cursor-pointer"
-            onClick={() => openEdit('location', agenda.location?.name)}
-          >
-            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
-              <i className="pi pi-map-marker text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
-              <span className={`text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-white-alpha-60'}`}>
-                {agenda.location?.name || 'Ort hinzufügen...'}
-              </span>
-            </div>
-            <Button
-              icon="pi pi-pencil"
-              rounded
-              text
-              onClick={(e) => {
-                e.stopPropagation();
-                openEdit('location', agenda.location?.name);
-              }}
-              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
-            />
-          </div>
-
-          {/* Speisekarte */}
-          <div
-            className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full cursor-pointer"
-            onClick={() => {
-              if (agenda.menuUrl) {
-                window.open(agenda.menuUrl, '_blank');
-              } else {
-                openEdit('menuUrl', agenda.menuUrl);
-              }
-            }}
-          >
-            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
-              <i className="pi pi-book text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
-              <span className={`text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-white-alpha-60'}`}>
-                {agenda.menuUrl ? 'Speisekarte öffnen' : 'Speisekarte hinzufügen...'}
-              </span>
-            </div>
-            <Button
-              icon="pi pi-pencil"
-              rounded
-              text
-              onClick={(e) => {
-                e.stopPropagation();
-                openEdit('menuUrl', agenda.menuUrl);
-              }}
-              className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
-            />
-          </div>
-
-          {/* Annahmeschluss */}
-          <div
-            className={`comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full ${isCreator ? 'cursor-pointer' : ''}`}
-            onClick={() => isCreator && openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12)}
-          >
-            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
-              <i className="pi pi-lock text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
-              <span className="text-white font-bold text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
-                Schluss: {agenda.closeBeforeHours !== undefined ? agenda.closeBeforeHours : 12}h vorher
-              </span>
-            </div>
-            {isCreator ? (
+            {/* Ort */}
+            <div
+              className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full cursor-pointer"
+              onClick={() => openEdit('location', agenda.location?.name)}
+            >
+              <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+                <i className="pi pi-map-marker text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+                <span className={`text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.location?.name ? 'text-white' : 'text-white-alpha-60'}`}>
+                  {agenda.location?.name || 'Ort hinzufügen...'}
+                </span>
+              </div>
               <Button
                 icon="pi pi-pencil"
                 rounded
                 text
                 onClick={(e) => {
                   e.stopPropagation();
-                  openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12);
+                  openEdit('location', agenda.location?.name);
                 }}
                 className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
               />
-            ) : (
-              <Button
-                icon="pi pi-lock"
-                rounded
-                text
-                disabled
-                className="text-gray-600 opacity-40 flex-shrink-0 ml-1 sm:ml-2 cursor-default"
-                title="Nur der Ersteller kann den Annahmeschluss bearbeiten"
-              />
-            )}
-          </div>
-
-          {/* Standardpunkte (Begrüßung, Neuer Termin, Location) */}
-          <div
-            data-testid="standard-items-setting"
-            className={`comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full ${isCreator && !agenda.liveMeetingActive ? 'cursor-pointer' : ''}`}
-            onClick={toggleStandardItems}
-            title={
-              agenda.liveMeetingActive
-                ? 'Während einer laufenden Sitzung nicht änderbar'
-                : 'Begrüßung, Neuer Termin und Location als erste Punkte der Agenda'
-            }
-          >
-            <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
-              <i className="pi pi-list text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
-              <span className="text-white font-bold text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
-                Standardpunkte: {agenda.includeStandardItems ? 'An' : 'Aus'}
-              </span>
             </div>
-            {isCreator ? (
-              <InputSwitch
-                checked={!!agenda.includeStandardItems}
-                disabled={!!agenda.liveMeetingActive}
-                onChange={() => {}}
-                className="flex-shrink-0 ml-1 sm:ml-2"
-                aria-label="Standardpunkte umschalten"
-              />
-            ) : (
+
+            {/* Speisekarte */}
+            <div
+              className="comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full cursor-pointer"
+              onClick={() => {
+                if (agenda.menuUrl) {
+                  window.open(agenda.menuUrl, '_blank');
+                } else {
+                  openEdit('menuUrl', agenda.menuUrl);
+                }
+              }}
+            >
+              <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+                <i className="pi pi-book text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+                <span className={`text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis font-bold ${agenda.menuUrl ? 'text-white' : 'text-white-alpha-60'}`}>
+                  {agenda.menuUrl ? 'Speisekarte öffnen' : 'Speisekarte hinzufügen...'}
+                </span>
+              </div>
               <Button
-                icon="pi pi-lock"
+                icon="pi pi-pencil"
                 rounded
                 text
-                disabled
-                className="text-gray-600 opacity-40 flex-shrink-0 ml-1 sm:ml-2 cursor-default"
-                title="Nur der Ersteller kann die Standardpunkte ändern"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEdit('menuUrl', agenda.menuUrl);
+                }}
+                className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
               />
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Unten/Rechts: Karte */}
-        <div className="comic-panel-dark p-2 sm:p-3 w-full md:flex-1 md:min-w-18rem md:max-w-lg">
-          {(agenda.location?.lat && agenda.location?.lng) || userCoords ? (
-            <div className="mb-2 sm:mb-3 border-round-lg overflow-hidden relative" style={{ height: '350px' }}>
-              <MapContainer
-                center={[
-                  agenda.location?.lat ?? userCoords?.lat ?? 51.1657,
-                  agenda.location?.lng ?? userCoords?.lng ?? 10.4515
-                ]}
-                zoom={14}
-                scrollWheelZoom={false}
-                style={{ height: '100%', width: '100%' }}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            {/* Annahmeschluss */}
+            <div
+              className={`comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full ${isCreator ? 'cursor-pointer' : ''}`}
+              onClick={() => isCreator && openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12)}
+            >
+              <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+                <i className="pi pi-lock text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+                <span className="text-white font-bold text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+                  Schluss: {agenda.closeBeforeHours !== undefined ? agenda.closeBeforeHours : 12}h vorher
+                </span>
+              </div>
+              {isCreator ? (
+                <Button
+                  icon="pi pi-pencil"
+                  rounded
+                  text
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEdit('closeBeforeHours', agenda.closeBeforeHours ?? 12);
+                  }}
+                  className="text-gray-400 hover:text-yellow-400 flex-shrink-0 ml-1 sm:ml-2"
                 />
-                {agenda.location?.lat && agenda.location?.lng && (
-                  <Marker position={[agenda.location.lat, agenda.location.lng]} />
-                )}
-                {userCoords && (
-                  <Marker
-                    position={[userCoords.lat, userCoords.lng]}
-                    icon={userLocationIcon}
+              ) : (
+                <Button
+                  icon="pi pi-lock"
+                  rounded
+                  text
+                  disabled
+                  className="text-gray-600 opacity-40 flex-shrink-0 ml-1 sm:ml-2 cursor-default"
+                  title="Nur der Ersteller kann den Annahmeschluss bearbeiten"
+                />
+              )}
+            </div>
+
+            {/* Standardpunkte (Begrüßung, Neuer Termin, Location) */}
+            <div
+              data-testid="standard-items-setting"
+              className={`comic-panel-dark px-3 sm:px-4 py-2 flex align-items-center justify-content-between min-h-4rem h-auto w-full ${isCreator && !agenda.liveMeetingActive ? 'cursor-pointer' : ''}`}
+              onClick={toggleStandardItems}
+              title={
+                agenda.liveMeetingActive
+                  ? 'Während einer laufenden Sitzung nicht änderbar'
+                  : 'Begrüßung, Neuer Termin und Location als erste Punkte der Agenda'
+              }
+            >
+              <div className="flex align-items-center gap-2 sm:gap-3 flex-1 overflow-hidden min-w-0">
+                <i className="pi pi-list text-yellow-500 text-xl sm:text-2xl flex-shrink-0" />
+                <span className="text-white font-bold text-sm sm:text-xl white-space-nowrap overflow-hidden text-overflow-ellipsis">
+                  Standardpunkte: {agenda.includeStandardItems ? 'An' : 'Aus'}
+                </span>
+              </div>
+              {isCreator ? (
+                <InputSwitch
+                  checked={!!agenda.includeStandardItems}
+                  disabled={!!agenda.liveMeetingActive}
+                  onChange={() => {}}
+                  className="flex-shrink-0 ml-1 sm:ml-2"
+                  aria-label="Standardpunkte umschalten"
+                />
+              ) : (
+                <Button
+                  icon="pi pi-lock"
+                  rounded
+                  text
+                  disabled
+                  className="text-gray-600 opacity-40 flex-shrink-0 ml-1 sm:ml-2 cursor-default"
+                  title="Nur der Ersteller kann die Standardpunkte ändern"
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Unten/Rechts: Karte */}
+          <div className="comic-panel-dark p-2 sm:p-3 w-full md:flex-1 md:min-w-18rem md:max-w-lg">
+            {(agenda.location?.lat && agenda.location?.lng) || userCoords ? (
+              <div className="mb-2 sm:mb-3 border-round-lg overflow-hidden relative" style={{ height: '350px' }}>
+                <MapContainer
+                  center={[
+                    agenda.location?.lat ?? userCoords?.lat ?? 51.1657,
+                    agenda.location?.lng ?? userCoords?.lng ?? 10.4515
+                  ]}
+                  zoom={14}
+                  scrollWheelZoom={false}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
-                )}
-                <MapControls
-                  venueCoords={agenda.location?.lat && agenda.location?.lng ? { lat: agenda.location.lat, lng: agenda.location.lng } : undefined}
-                  userCoords={userCoords}
-                  onLocateUser={handleGetMyLocation}
-                  isLocating={isLocating}
+                  {agenda.location?.lat && agenda.location?.lng && (
+                    <Marker position={[agenda.location.lat, agenda.location.lng]} />
+                  )}
+                  {userCoords && (
+                    <Marker
+                      position={[userCoords.lat, userCoords.lng]}
+                      icon={userLocationIcon}
+                    />
+                  )}
+                  <MapControls
+                    venueCoords={agenda.location?.lat && agenda.location?.lng ? { lat: agenda.location.lat, lng: agenda.location.lng } : undefined}
+                    userCoords={userCoords}
+                    onLocateUser={handleGetMyLocation}
+                    isLocating={isLocating}
+                  />
+                </MapContainer>
+              </div>
+            ) : (
+              <div className="bg-gray-700 border-round-lg mb-2 sm:mb-3 p-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold gap-2 text-center" style={{ height: '350px' }}>
+                <i className="pi pi-map-marker text-yellow-500 text-3xl mb-1" />
+                <span className="block text-sm text-white font-bold">Kein Ort hinterlegt</span>
+                <Button
+                  label="Meinen Standort anzeigen"
+                  icon={isLocating ? 'pi pi-spin pi-spinner' : 'pi pi-compass'}
+                  size="small"
+                  className="comic-button text-xs py-2 px-3 mt-1"
+                  onClick={handleGetMyLocation}
                 />
-              </MapContainer>
-            </div>
-          ) : (
-            <div className="bg-gray-700 border-round-lg mb-2 sm:mb-3 p-3 flex flex-column align-items-center justify-content-center text-gray-400 font-bold gap-2 text-center" style={{ height: '350px' }}>
-              <i className="pi pi-map-marker text-yellow-500 text-3xl mb-1" />
-              <span className="block text-sm text-white font-bold">Kein Ort hinterlegt</span>
-              <Button
-                label="Meinen Standort anzeigen"
-                icon={isLocating ? 'pi pi-spin pi-spinner' : 'pi pi-compass'}
-                size="small"
-                className="comic-button text-xs py-2 px-3 mt-1"
-                onClick={handleGetMyLocation}
-              />
-            </div>
-          )}
-          {agenda.location?.name && (
-            <div className="flex flex-row gap-2">
-              <Button
-                label="Google Maps"
-                icon="pi pi-google"
-                size="small"
-                className="p-button-outlined p-button-secondary flex-1 text-xs justify-content-center gap-2 px-2 py-2 font-bold"
-                onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')}
-              />
-              <Button
-                label="Apple Maps"
-                icon="pi pi-apple"
-                size="small"
-                className="p-button-outlined p-button-secondary flex-1 text-xs justify-content-center gap-2 px-2 py-2 font-bold"
-                onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')}
-              />
-            </div>
-          )}
+              </div>
+            )}
+            {agenda.location?.name && (
+              <div className="flex flex-row gap-2">
+                <Button
+                  label="Google Maps"
+                  icon="pi pi-google"
+                  size="small"
+                  className="p-button-outlined p-button-secondary flex-1 text-xs justify-content-center gap-2 px-2 py-2 font-bold"
+                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')}
+                />
+                <Button
+                  label="Apple Maps"
+                  icon="pi pi-apple"
+                  size="small"
+                  className="p-button-outlined p-button-secondary flex-1 text-xs justify-content-center gap-2 px-2 py-2 font-bold"
+                  onClick={() => window.open(`http://maps.apple.com/?q=${encodeURIComponent(agenda.location?.name || '')}`, '_blank')}
+                />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       {/* Edit Dialog */}
       <Dialog
         visible={!!editField}
