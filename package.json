@@ -8,7 +8,9 @@
     "test": "npm run test:backend && npm run test:e2e",
     "test:backend": "cd backend && npm test",
     "test:e2e": "cd frontend && npm run test:e2e",
-    "build": "cd frontend && npm run build"
+    "build": "cd frontend && npm run build",
+    "reset": "cd backend && npm run seed:reset --",
+    "links": "cd backend && npm run seed:links"
   },
   "devDependencies": {
     "@inquirer/prompts": "^8.5.2"
