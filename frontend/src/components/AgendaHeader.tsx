@@ -11,6 +11,7 @@ import CreateFollowUpAgendaDialog from './CreateFollowUpAgendaDialog';
 import SectionCollapseToggle from './SectionCollapseToggle';
 import SectionSummary from './SectionSummary';
 import { useCollapsedSection } from '../hooks/useCollapsedSection';
+import { toComicCaps } from '../utils/textUtils';
 import { getNotificationPermissionState, requestNotificationPermission } from '../services/notificationService';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -606,10 +607,10 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
         <img src="/favicon.svg" alt="FlashAgenda" className="flex-shrink-0" style={{ width: 'clamp(2.5rem, 8vw, 5rem)', height: 'clamp(2.5rem, 8vw, 5rem)', filter: 'drop-shadow(3px 3px 0 #000)' }} />
         <div className="flex align-items-center gap-2 flex-wrap flex-1 min-w-0">
           <h1
-            className="text-3xl sm:text-4xl md:text-6xl font-bold m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 line-height-2 word-break-break-word"
+            className="comic-font text-3xl sm:text-4xl md:text-6xl m-0 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600 line-height-2 word-break-break-word"
             style={{ filter: 'drop-shadow(3px 3px 0px #000)', paddingBottom: '0.15em' }}
           >
-            {agenda.title}
+            {toComicCaps(agenda.title)}
           </h1>
           <Button
             icon="pi pi-pencil"
@@ -669,8 +670,8 @@ export default function AgendaHeader({ agenda, onUpdate, currentUser, isCreator,
       {/* Details section (collapsible) */}
       <div className={`flex align-items-center justify-content-between gap-2 ${detailsCollapsed ? 'mb-0' : 'mb-3'}`}>
         <div className="flex align-items-center gap-2 cursor-pointer select-none flex-shrink-0" onClick={toggleDetails} data-testid="section-heading-details">
-          <i className="mdi mdi-card-text-outline text-yellow-500 text-xl sm:text-2xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
-          <h3 className="text-xl sm:text-2xl text-yellow-500 font-bold m-0" style={{ textShadow: '2px 2px 0px #000' }}>Details</h3>
+          <i className="mdi mdi-card-text-outline text-yellow-500 text-2xl sm:text-3xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
+          <h3 className="comic-font text-2xl sm:text-3xl text-yellow-500 m-0" style={{ textShadow: '2px 2px 0px #000' }}>Details</h3>
         </div>
         {detailsCollapsed && <SectionSummary sectionId="details" text={detailsSummary} />}
         <SectionCollapseToggle sectionId="details" label="Details" collapsed={detailsCollapsed} onToggle={toggleDetails} />

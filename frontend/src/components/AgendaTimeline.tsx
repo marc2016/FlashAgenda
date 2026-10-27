@@ -1615,8 +1615,8 @@ export default function AgendaTimeline({
         <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center gap-3 flex-1 min-w-0">
           <div className="flex align-items-center gap-2 flex-wrap">
             <div className="flex align-items-center gap-2 cursor-pointer select-none" onClick={toggleItems} data-testid="section-heading-items">
-              <i className="mdi mdi-format-list-checks text-yellow-500 text-2xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
-              <h3 className="text-2xl m-0 text-yellow-500 font-bold" style={{ textShadow: '2px 2px 0px #000' }}>Agendapunkte</h3>
+              <i className="mdi mdi-format-list-checks text-yellow-500 text-2xl sm:text-3xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
+              <h3 className="comic-font text-2xl sm:text-3xl m-0 text-yellow-500" style={{ textShadow: '2px 2px 0px #000' }}>Agendapunkte</h3>
             </div>
             
             <span

@@ -7,7 +7,7 @@ interface Props {
 export default function SectionSummary({ sectionId, text }: Props) {
   return (
     <span
-      className="text-xs sm:text-sm text-gray-400 font-normal white-space-nowrap overflow-hidden text-overflow-ellipsis flex-1"
+      className="text-xs sm:text-sm text-gray-400 font-normal white-space-nowrap overflow-hidden text-overflow-ellipsis flex-1 ml-2"
       style={{ minWidth: '5.5rem' }}
       title={text}
       data-testid={`section-summary-${sectionId}`}

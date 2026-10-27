@@ -388,8 +388,8 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
     <div className={attendeesCollapsed ? 'mb-0' : 'mb-4 sm:mb-6'}>
       <div className={`flex align-items-center justify-content-between gap-2 ${attendeesCollapsed ? 'mb-0' : 'mb-3'}`}>
         <div className="flex align-items-center gap-2 cursor-pointer select-none flex-shrink-0" onClick={toggleAttendees} data-testid="section-heading-attendees">
-          <i className="mdi mdi-account-group text-yellow-500 text-xl sm:text-2xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
-          <h3 className="text-xl sm:text-2xl text-yellow-500 font-bold m-0" style={{ textShadow: '2px 2px 0px #000' }}>Personen</h3>
+          <i className="mdi mdi-account-group text-yellow-500 text-2xl sm:text-3xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
+          <h3 className="comic-font text-2xl sm:text-3xl text-yellow-500 m-0" style={{ textShadow: '2px 2px 0px #000' }}>Personen</h3>
         </div>
         {attendeesCollapsed && (
           <SectionSummary sectionId="attendees" text={`${attendees.length} ${attendees.length === 1 ? 'Person' : 'Personen'}`} />

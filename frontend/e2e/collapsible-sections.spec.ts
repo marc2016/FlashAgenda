@@ -23,7 +23,8 @@ test.describe('FlashAgenda - Collapsible agenda sections', () => {
   const agendas: Record<string, any> = {
     'collapse-agenda-1': makeAgenda('collapse-agenda-1', 'Stammtisch Oktober'),
     'collapse-agenda-2': makeAgenda('collapse-agenda-2', 'Stammtisch November'),
-    'collapse-agenda-3': { ...makeAgenda('collapse-agenda-3', 'Ohne Details'), date: undefined, location: undefined }
+    'collapse-agenda-3': { ...makeAgenda('collapse-agenda-3', 'Ohne Details'), date: undefined, location: undefined },
+    'collapse-agenda-4': makeAgenda('collapse-agenda-4', 'Straßenfest')
   };
 
   const achievements = {
@@ -56,6 +57,7 @@ test.describe('FlashAgenda - Collapsible agenda sections', () => {
       localStorage.setItem('flashagenda_collapse-agenda-1_user', user);
       localStorage.setItem('flashagenda_collapse-agenda-2_user', user);
       localStorage.setItem('flashagenda_collapse-agenda-3_user', user);
+      localStorage.setItem('flashagenda_collapse-agenda-4_user', user);
     });
   });
 
@@ -251,6 +253,27 @@ test.describe('FlashAgenda - Collapsible agenda sections', () => {
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test('13. title and section headings use the Bangers comic font, other texts do not', async ({ page }) => {
+    await page.addInitScript((key) => localStorage.setItem(key, JSON.stringify({ details: true })), STORAGE_KEY);
+    await page.goto('/agenda/collapse-agenda-1');
+    const fontOf = (locator: any) => locator.evaluate((el: Element) => getComputedStyle(el).fontFamily);
+
+    expect(await fontOf(page.locator('h1', { hasText: 'Stammtisch Oktober' }))).toContain('Bangers');
+    for (const heading of Object.values(headings)) {
+      expect(await fontOf(page.locator('h3', { hasText: heading }))).toContain('Bangers');
+    }
+    expect(await fontOf(page.getByTestId('section-summary-details'))).not.toContain('Bangers');
+    expect(await fontOf(page.getByText('0/2 besprochen'))).not.toContain('Bangers');
+  });
+
+  test('14. ß in the title is shown as SS, the edit dialog keeps the original', async ({ page }) => {
+    await page.goto('/agenda/collapse-agenda-4');
+    await expect(page.locator('h1')).toHaveText('StraSSenfest');
+
+    await page.getByRole('button', { name: 'Edit Title' }).click();
+    await expect(page.locator('.p-dialog input').first()).toHaveValue('Straßenfest');
   });
 
   test('6. invalid stored data falls back to expanded sections', async ({ page }) => {

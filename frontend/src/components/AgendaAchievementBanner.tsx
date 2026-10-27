@@ -52,9 +52,9 @@ export default function AgendaAchievementBanner({
       {/* Banner Header */}
       <div className={`flex align-items-center justify-content-between gap-2 ${achievementsCollapsed ? 'mb-0' : 'mb-3'}`}>
         <div className="flex align-items-center gap-2 min-w-0 cursor-pointer select-none" onClick={toggleAchievements} data-testid="section-heading-achievements">
-          <i className="mdi mdi-trophy text-yellow-500 text-xl sm:text-2xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
+          <i className="mdi mdi-trophy text-yellow-500 text-2xl sm:text-3xl" style={{ textShadow: '2px 2px 0px #000' }} aria-hidden="true" />
           <h3
-            className="text-xl sm:text-2xl text-yellow-500 font-bold m-0"
+            className="comic-font text-2xl sm:text-3xl text-yellow-500 m-0"
             style={{ textShadow: '2px 2px 0px #000' }}
           >
             Agenda-Erfolge & Wanderpokale
