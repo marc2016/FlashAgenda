@@ -2,6 +2,7 @@
   "name": "flashagenda",
   "private": true,
   "version": "3.8.1",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "release": "node release.mjs",
