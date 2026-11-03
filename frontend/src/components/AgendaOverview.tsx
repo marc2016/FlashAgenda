@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import AgendaOverviewCard from './AgendaOverviewCard';
-import { type AgendaSummary, getAgendaStatus, sortAgendas } from '../utils/agendaOverview';
+import { type AgendaSummary, canManageAgenda, getAgendaStatus, sortAgendas } from '../utils/agendaOverview';
 
 type TabKey = 'all' | 'upcoming' | 'completed';
 
@@ -20,10 +20,12 @@ interface AgendaOverviewProps {
   agendas: AgendaSummary[];
   loading: boolean;
   userName?: string;
+  currentUser?: { id?: string; _id?: string; name?: string } | null;
   onOpen: (id: string) => void;
+  onToggleArchive?: (id: string, archived: boolean) => Promise<void>;
 }
 
-export default function AgendaOverview({ agendas, loading, userName, onOpen }: AgendaOverviewProps) {
+export default function AgendaOverview({ agendas, loading, userName, currentUser, onOpen, onToggleArchive }: AgendaOverviewProps) {
   const [tab, setTab] = useState<TabKey>('upcoming');
   // Fixed per render pass so status, sorting and relative times agree with each other.
   const now = useMemo(() => Date.now(), [agendas]);
@@ -97,7 +99,13 @@ export default function AgendaOverview({ agendas, loading, userName, onOpen }: A
           ) : (
             <div className="agenda-grid" data-testid="agenda-grid">
               {visible.map(agenda => (
-                <AgendaOverviewCard key={agenda._id} agenda={agenda} now={now} onOpen={onOpen} />
+                <AgendaOverviewCard
+                  key={agenda._id}
+                  agenda={agenda}
+                  now={now}
+                  onOpen={onOpen}
+                  onToggleArchive={onToggleArchive && canManageAgenda(agenda, currentUser) ? onToggleArchive : undefined}
+                />
               ))}
             </div>
           )}

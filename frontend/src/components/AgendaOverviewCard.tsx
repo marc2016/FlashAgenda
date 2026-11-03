@@ -1,3 +1,4 @@
+import { useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { format, formatDistanceToNow, parseISO, isValid } from 'date-fns';
 import { de } from 'date-fns/locale';
 import AgendaMiniMap from './AgendaMiniMap';
@@ -22,9 +23,12 @@ interface AgendaOverviewCardProps {
   agenda: AgendaSummary;
   now: number;
   onOpen: (id: string) => void;
+  /** Set only when the current person may archive this agenda; shows the archive toggle. */
+  onToggleArchive?: (id: string, archived: boolean) => Promise<void>;
 }
 
-export default function AgendaOverviewCard({ agenda, now, onOpen }: AgendaOverviewCardProps) {
+export default function AgendaOverviewCard({ agenda, now, onOpen, onToggleArchive }: AgendaOverviewCardProps) {
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const status = getAgendaStatus(agenda, now);
   const { done, total } = getItemProgress(agenda);
   const closed = isAgendaClosedForItems(agenda, now);
@@ -33,13 +37,35 @@ export default function AgendaOverviewCard({ agenda, now, onOpen }: AgendaOvervi
   const hasDate = !!date && isValid(date);
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const title = agenda.title || 'Unbenannte Agenda';
+  const archiveLabel = agenda.isArchived ? 'Wiederherstellen' : 'Archivieren';
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onOpen(agenda._id);
+    }
+  };
+
+  const handleArchiveClick = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (!onToggleArchive || archiveBusy) return;
+    setArchiveBusy(true);
+    try {
+      await onToggleArchive(agenda._id, !agenda.isArchived);
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
 
   return (
-    <button
-      type="button"
+    <div
+      role="link"
+      tabIndex={0}
       data-testid="agenda-card"
       data-status={status}
       onClick={() => onOpen(agenda._id)}
+      onKeyDown={handleKeyDown}
       className={`agenda-card agenda-card-${status}`}
       aria-label={`${title} öffnen`}
     >
@@ -54,6 +80,20 @@ export default function AgendaOverviewCard({ agenda, now, onOpen }: AgendaOvervi
             )}
             {closed && (
               <i className="pi pi-lock text-yellow-400" data-testid="agenda-card-lock" title="Keine neuen Punkte mehr möglich" />
+            )}
+            {onToggleArchive && (
+              <button
+                type="button"
+                className="agenda-card-archive-toggle"
+                data-testid="agenda-card-archive-toggle"
+                aria-label={`${title}: ${archiveLabel}`}
+                title={archiveLabel}
+                disabled={archiveBusy}
+                onClick={handleArchiveClick}
+                onKeyDown={e => e.stopPropagation()}
+              >
+                <i className={archiveBusy ? 'pi pi-spin pi-spinner' : agenda.isArchived ? 'pi pi-replay' : 'pi pi-inbox'} />
+              </button>
             )}
           </div>
         </div>
@@ -108,6 +148,6 @@ export default function AgendaOverviewCard({ agenda, now, onOpen }: AgendaOvervi
           </span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

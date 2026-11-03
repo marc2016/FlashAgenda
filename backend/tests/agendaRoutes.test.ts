@@ -302,6 +302,19 @@ describe('toAgendaSummary', () => {
     expect(summary.auditLogs).toBeUndefined();
   });
 
+  it('includes the creator without leaking attendee secrets', () => {
+    const summary: any = toAgendaSummary({
+      _id: 'a1',
+      title: 'T',
+      createdBy: 'creator-1',
+      attendees: [{ id: 'p1', name: 'Max', securityCode: '1234', secretGuid: 'guid-1' }]
+    });
+    expect(summary.createdBy).toBe('creator-1');
+    const body = JSON.stringify(summary);
+    expect(body).not.toContain('securityCode');
+    expect(body).not.toContain('secretGuid');
+  });
+
   it('keeps location only when coordinates are present', () => {
     expect(toAgendaSummary({ _id: 'a', title: 'T', location: { name: 'Hirsch', lat: 51.2, lng: 6.7 } }).location)
       .toEqual({ name: 'Hirsch', lat: 51.2, lng: 6.7 });

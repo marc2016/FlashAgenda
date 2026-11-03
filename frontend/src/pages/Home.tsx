@@ -113,6 +113,30 @@ export default function Home() {
     fetchUserAgendas();
   }, [currentUser]);
 
+  // Archive or restore an agenda from the overview. State only changes once the server confirmed it.
+  const handleToggleArchive = async (agendaId: string, archived: boolean): Promise<void> => {
+    if (!currentUser) return;
+    try {
+      const response = await fetch(`/api/agendas/${agendaId}/archive`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          archived,
+          userId: currentUser.id || currentUser._id,
+          userName: currentUser.name
+        })
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message || 'Fehler beim Ändern des Archiv-Status');
+      }
+      const updated = await response.json();
+      setMyAgendas(prev => prev.map(a => (a._id === updated._id ? { ...a, ...updated } : a)));
+    } catch (err: any) {
+      alert(err?.message || 'Fehler beim Ändern des Archiv-Status');
+    }
+  };
+
   const handleStartAgenda = async () => {
     setLoading(true);
     try {
@@ -218,7 +242,9 @@ export default function Home() {
             agendas={myAgendas}
             loading={agendasLoading}
             userName={currentUser.name}
+            currentUser={currentUser}
             onOpen={(id) => navigate(`/agenda/${id}`)}
+            onToggleArchive={handleToggleArchive}
           />
         )}
       </div>

@@ -20,6 +20,7 @@ export interface AgendaSummary {
   isArchived?: boolean;
   isManuallyClosed?: boolean;
   closeBeforeHours?: number;
+  createdBy?: string;
   liveMeetingActive?: boolean;
   liveMeetingStatus?: 'not_started' | 'in_progress' | 'completed';
   updatedAt?: string;
@@ -27,6 +28,25 @@ export interface AgendaSummary {
   completedCount?: number;
   items?: { completed?: boolean }[];
   attendees?: AgendaSummaryAttendee[];
+}
+
+/** Same rule as the server: the creator or the first attendee may manage (e.g. archive) an agenda. */
+export function canManageAgenda(
+  agenda: Pick<AgendaSummary, 'createdBy' | 'attendees'>,
+  user: { id?: string; _id?: string; name?: string } | null | undefined
+): boolean {
+  if (!user) return false;
+  const id = String(user.id || user._id || '').trim();
+  const name = (user.name || '').trim().toLowerCase();
+  if (!id && !name) return false;
+  const createdBy = (agenda.createdBy || '').trim();
+  const first = agenda.attendees?.[0];
+  const firstIds = [first?.id, first?._id].filter(Boolean).map(String);
+  const firstName = (first?.name || '').trim().toLowerCase();
+
+  if (id && ((createdBy && id === createdBy) || firstIds.includes(id))) return true;
+  if (name && ((createdBy && name === createdBy.toLowerCase()) || (firstName && name === firstName))) return true;
+  return false;
 }
 
 function parseTime(value?: string): number | null {

@@ -811,6 +811,39 @@ body.p-overflow-hidden {
 .agenda-card-completed {
   background-color: #2b3340;
 }
+/* Pressing the archive toggle must not "press" the whole card. */
+.agenda-card:has(.agenda-card-archive-toggle:active) {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 #000;
+}
+
+.agenda-card-archive-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.35rem -0.35rem 0 0;
+  padding: 0;
+  color: #d1d5db;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.agenda-card-archive-toggle:hover {
+  color: #000;
+  background-color: #facc15;
+  border-color: #000;
+}
+.agenda-card-archive-toggle:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 1px;
+}
+.agenda-card-archive-toggle:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 
 .agenda-card-map {
   position: relative;

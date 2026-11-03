@@ -273,3 +273,125 @@ test.describe('FlashAgenda - Home agenda overview grid', () => {
     await expect(page.getByTestId('agenda-tab-all')).toHaveCount(0);
   });
 });
+
+test.describe('FlashAgenda - Archive from the home overview', () => {
+  const NOW = new Date('2026-11-03T12:00:00.000Z');
+  const DAY = 864e5;
+  const iso = (offsetMs: number) => new Date(NOW.getTime() + offsetMs).toISOString();
+  const me = { id: 'me', name: 'Erika Ersteller', cardColor: '#0a4b7c' };
+  const other = { id: 'other', name: 'Gustav Gast', cardColor: '#0a4b7c' };
+
+  const AGENDAS = [
+    { _id: 'mine', title: 'Mein Stammtisch', date: iso(7 * DAY), createdBy: 'me', itemCount: 0, completedCount: 0, attendees: [me, other], liveMeetingStatus: 'not_started' },
+    { _id: 'mineArchived', title: 'Mein Archiv', date: iso(5 * DAY), createdBy: 'me', itemCount: 0, completedCount: 0, attendees: [me], liveMeetingStatus: 'not_started', isArchived: true },
+    { _id: 'theirs', title: 'Fremde Runde', date: iso(3 * DAY), createdBy: 'other', itemCount: 0, completedCount: 0, attendees: [other, me], liveMeetingStatus: 'not_started' }
+  ];
+
+  async function setup(page: any, { failArchive = false } = {}) {
+    await page.clock.setFixedTime(NOW);
+    await page.addInitScript(({ data, failArchive }: { data: any[]; failArchive: boolean }) => {
+      localStorage.setItem('flashagenda_last_user', JSON.stringify({ id: 'me', name: 'Erika Ersteller', isRegistered: true }));
+      localStorage.setItem('flashagenda_pwa_banner_dismissed', 'true');
+      localStorage.setItem('flashagenda_passkey_hint_dismissed', 'true');
+      (window as any).__archiveRequests = [];
+      const origFetch = window.fetch;
+      const json = (body: unknown, status = 200) =>
+        new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+      window.fetch = async (input: any, init?: any) => {
+        const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+        const archiveMatch = url.match(/\/api\/agendas\/([^/?]+)\/archive$/);
+        if (archiveMatch) {
+          const body = JSON.parse(init?.body || '{}');
+          (window as any).__archiveRequests.push({ id: archiveMatch[1], ...body });
+          if (failArchive) return json({ message: 'Archivieren fehlgeschlagen' }, 500);
+          const agenda = data.find(a => a._id === archiveMatch[1]);
+          return json({ ...agenda, isArchived: body.archived });
+        }
+        if (url.includes('/api/')) {
+          const body = url.includes('user-agendas')
+            ? data
+            : url.includes('/api/agendas/') && !url.includes('?')
+              ? { _id: 'mine', title: 'Mein Stammtisch', items: [], attendees: [] }
+              : [];
+          return json(body);
+        }
+        return origFetch(input, init);
+      };
+    }, { data: AGENDAS, failArchive });
+    await page.goto('/');
+    await expect(page.getByTestId('agenda-overview')).toBeVisible();
+  }
+
+  const card = (page: any, title: string) => page.getByTestId('agenda-card').filter({ hasText: title });
+  const cardTitles = (page: any) => page.locator('[data-testid="agenda-card"] .agenda-card-title').allTextContents();
+
+  test('creator archives an upcoming agenda without opening it', async ({ page }) => {
+    await setup(page);
+    await expect(page.getByTestId('agenda-tab-upcoming')).toContainText('2');
+    await expect(page.getByTestId('agenda-tab-completed')).toContainText('1');
+
+    const toggle = card(page, 'Mein Stammtisch').getByTestId('agenda-card-archive-toggle');
+    await expect(toggle).toHaveAttribute('title', 'Archivieren');
+    await toggle.click();
+
+    await expect(page).toHaveURL(/\/$/);
+    expect(await cardTitles(page)).toEqual(['Fremde Runde']);
+    await expect(page.getByTestId('agenda-tab-upcoming')).toContainText('1');
+    await expect(page.getByTestId('agenda-tab-completed')).toContainText('2');
+
+    const requests = await page.evaluate(() => (window as any).__archiveRequests);
+    expect(requests).toEqual([{ id: 'mine', archived: true, userId: 'me', userName: 'Erika Ersteller' }]);
+
+    await page.getByTestId('agenda-tab-completed').click();
+    const archived = card(page, 'Mein Stammtisch');
+    await expect(archived.getByTestId('agenda-status')).toHaveText('ABGESCHLOSSEN');
+    await expect(archived.getByTestId('agenda-card-archived')).toBeVisible();
+    await expect(archived.getByTestId('agenda-card-archive-toggle')).toHaveAttribute('title', 'Wiederherstellen');
+  });
+
+  test('restoring brings an archived agenda back to "Anstehend"', async ({ page }) => {
+    await setup(page);
+    await page.getByTestId('agenda-tab-completed').click();
+    await card(page, 'Mein Archiv').getByTestId('agenda-card-archive-toggle').click();
+
+    await expect(page.getByTestId('agenda-tab-completed')).toContainText('0');
+    await page.getByTestId('agenda-tab-upcoming').click();
+    const restored = card(page, 'Mein Archiv');
+    await expect(restored.getByTestId('agenda-status')).toHaveText('ANSTEHEND');
+    await expect(restored.getByTestId('agenda-card-archived')).toHaveCount(0);
+  });
+
+  test('no toggle on agendas the person may not manage', async ({ page }) => {
+    await setup(page);
+    await expect(card(page, 'Fremde Runde').getByTestId('agenda-card-archive-toggle')).toHaveCount(0);
+    await expect(card(page, 'Mein Stammtisch').getByTestId('agenda-card-archive-toggle')).toHaveCount(1);
+  });
+
+  test('a failed request keeps the card unchanged and shows an error', async ({ page }) => {
+    await setup(page, { failArchive: true });
+    // Handle the alert up front: WebKit does not finish the click while a dialog is open.
+    const messages: string[] = [];
+    page.on('dialog', async (d: any) => {
+      messages.push(d.message());
+      await d.dismiss();
+    });
+    await card(page, 'Mein Stammtisch').getByTestId('agenda-card-archive-toggle').click();
+    await expect.poll(() => messages).toEqual([expect.stringContaining('Archivieren fehlgeschlagen')]);
+
+    expect(await cardTitles(page)).toEqual(['Fremde Runde', 'Mein Stammtisch']);
+    await expect(card(page, 'Mein Stammtisch').getByTestId('agenda-status')).toHaveText('ANSTEHEND');
+    await expect(card(page, 'Mein Stammtisch').getByTestId('agenda-card-archive-toggle')).toBeEnabled();
+  });
+
+  test('keyboard: Enter on the card opens it, Enter on the toggle does not', async ({ page }) => {
+    await setup(page);
+    await card(page, 'Mein Stammtisch').getByTestId('agenda-card-archive-toggle').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('agenda-tab-completed')).toContainText('2');
+    await expect(page).toHaveURL(/\/$/);
+
+    await card(page, 'Fremde Runde').focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/agenda\/theirs$/);
+  });
+});

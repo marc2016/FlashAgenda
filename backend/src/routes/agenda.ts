@@ -231,6 +231,23 @@ export function mergeAttendeeSecrets(oldAttendees: any[], incoming: any[]): any[
   });
 }
 
+// Whether the requesting person may manage the agenda (close it, archive it): the creator or the
+// first attendee. Without a stored creator only the first attendee matches.
+export function canManageAgenda(agenda: any, userId?: unknown, userName?: unknown): boolean {
+  const id = typeof userId === 'string' ? userId.trim() : '';
+  const name = typeof userName === 'string' ? userName.trim().toLowerCase() : '';
+  if (!id && !name) return false;
+  const createdBy = typeof agenda?.createdBy === 'string' ? agenda.createdBy.trim() : '';
+  const first = agenda?.attendees?.[0];
+  const firstId = first ? String(first.id || '') : '';
+  const firstMongoId = first?._id ? String(first._id) : '';
+  const firstName = typeof first?.name === 'string' ? first.name.trim().toLowerCase() : '';
+
+  if (id && ((createdBy && id === createdBy) || (firstId && id === firstId) || (firstMongoId && id === firstMongoId))) return true;
+  if (name && ((createdBy && name === createdBy.toLowerCase()) || (firstName && name === firstName))) return true;
+  return false;
+}
+
 // Slim per-agenda summary for the home overview: no secrets, no comments, no audit logs, no item contents.
 export function toAgendaSummary(doc: any) {
   const a = typeof doc?.toObject === 'function' ? doc.toObject() : doc;
@@ -247,6 +264,7 @@ export function toAgendaSummary(doc: any) {
     isArchived: !!a.isArchived,
     isManuallyClosed: a.isManuallyClosed,
     closeBeforeHours: a.closeBeforeHours,
+    createdBy: a.createdBy,
     liveMeetingActive: !!a.liveMeetingActive,
     liveMeetingStatus: a.liveMeetingStatus || 'not_started',
     updatedAt: a.updatedAt,
@@ -688,6 +706,51 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 });
 
 // Update agenda details (title, date, location, time)
+// PUT /api/agendas/:id/archive - archive or restore an agenda (creator or first attendee only).
+// Sets the value explicitly so a retry never flips it back; also works on archived agendas.
+router.put('/:id/archive', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ message: 'Invalid agenda ID format' });
+      return;
+    }
+    const { archived, userId, userName } = req.body || {};
+    if (typeof archived !== 'boolean') {
+      res.status(400).json({ message: '"archived" muss true oder false sein.' });
+      return;
+    }
+
+    const agenda = await Agenda.findById(id);
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+
+    if (!canManageAgenda(agenda, userId, userName)) {
+      res.status(403).json({ message: 'Nur der Ersteller kann die Agenda archivieren oder wiederherstellen.' });
+      return;
+    }
+
+    if (!!agenda.isArchived !== archived) {
+      agenda.isArchived = archived;
+      const actor = (typeof userName === 'string' && userName.trim()) || (typeof userId === 'string' ? userId : undefined);
+      logAudit(
+        agenda,
+        archived ? 'AGENDA_ARCHIVED' : 'AGENDA_UNARCHIVED',
+        actor,
+        archived ? 'Agenda wurde archiviert' : 'Agenda wurde wiederhergestellt'
+      );
+      await agenda.save();
+    }
+
+    res.json(toAgendaSummary(agenda));
+  } catch (err) {
+    console.error('Failed to change archive status:', err);
+    res.status(500).json({ message: 'Fehler beim Ändern des Archiv-Status' });
+  }
+});
+
 router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string;
@@ -713,17 +776,7 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       req.body.isManuallyClosed !== undefined ||
       req.body.includeStandardItems !== undefined;
     if (isClosingSettingUpdate && existingAgenda.createdBy) {
-      const requestingUserId = req.body.userId;
-      const requestingUserName = req.body.userName;
-      const createdBy = existingAgenda.createdBy;
-      const firstAttendee = existingAgenda.attendees?.[0];
-
-      const isMatch = (
-        (requestingUserId && (requestingUserId === createdBy || (firstAttendee && (requestingUserId === firstAttendee.id || requestingUserId === (firstAttendee as any)._id?.toString())))) ||
-        (requestingUserName && (requestingUserName.trim().toLowerCase() === createdBy.trim().toLowerCase() || (firstAttendee && requestingUserName.trim().toLowerCase() === firstAttendee.name.trim().toLowerCase())))
-      );
-
-      if (!isMatch) {
+      if (!canManageAgenda(existingAgenda, req.body.userId, req.body.userName)) {
         res.status(403).json({ message: 'Nur der Ersteller kann die Agenda schließen/öffnen oder die Einstellungen dafür ändern.' });
         return;
       }
