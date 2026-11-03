@@ -24,4 +24,4 @@
 ## 5. Abnahme
 
 - [ ] 5.1 `npm run build` im Frontend und komplette Playwright-Suite plus Backend-Tests grün (Playwright startet den Dev-Server selbst, kein eigener auf Port 5188)
-- [ ] 5.2 README-Screenshot der Startseite mit Seed-Daten aktualisieren (falls einer existiert), sonst neuen Screenshot `docs/images/home.png` ergänzen und im README verlinken. Prüfen: Bild ist im README sichtbar
+- [x] 5.2 README-Screenshot der Startseite mit Seed-Daten aktualisieren (falls einer existiert), sonst neuen Screenshot `docs/images/home.png` ergänzen und im README verlinken. Prüfen: Bild ist im README sichtbar
