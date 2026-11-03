@@ -211,8 +211,25 @@ FlashAgenda/
 | `ADMIN_JWT_SECRET` | Schlüssel zum Signieren der Admin-Sitzungen | fester Entwicklungswert |
 | `FRONTEND_URL` | Basis-URL für die Links, die die Dev-Skripte ausgeben | `http://localhost:5188` |
 | `SEED_FORCE` | `1` erlaubt den Dev-Skripten eine nicht-lokale Datenbank | – |
+| `TRUST_PROXY` | Anzahl der Proxys vor dem Backend (siehe unten) | `1` |
+| `WEBAUTHN_RP_ID` | Domain der App für Passkeys, z. B. `agenda.example.org` | `localhost` |
+| `WEBAUTHN_ORIGIN` | Erlaubte Origins für Passkeys, kommagetrennt, z. B. `https://agenda.example.org` | `http://localhost:5188,http://localhost:3188` |
+| `WEBAUTHN_RP_NAME` | Anzeigename beim Anlegen eines Passkeys | `FlashAgenda` |
 
 > ⚠️ Für den Betrieb unbedingt `ADMIN_PASSWORD` und `ADMIN_JWT_SECRET` setzen. Die Standardwerte sind nur für die Entwicklung gedacht.
+
+### Passkeys & Reverse Proxy
+
+Passkeys (Anmeldung per Fingerabdruck oder Face ID) funktionieren nur über **HTTPS** (Ausnahme: `localhost`). Setze dafür `WEBAUTHN_RP_ID` auf die Domain, unter der die App erreichbar ist, und `WEBAUTHN_ORIGIN` auf die vollständige URL. Beide Werte müssen zur Adresse im Browser passen, sonst lehnt der Browser das Anlegen ab.
+
+Das Backend begrenzt Anmeldeversuche pro IP-Adresse. Damit es hinter Proxys die Adresse des Clients sieht, muss `TRUST_PROXY` der Zahl der Proxys entsprechen:
+
+| Aufbau | `TRUST_PROXY` |
+|---|---|
+| Nur `docker-compose` (Browser → Frontend-nginx → Backend) | `1` |
+| Reverse Proxy mit TLS davor (Browser → Traefik/Caddy/nginx → Frontend-nginx → Backend) | `2` |
+
+Der Reverse Proxy muss `X-Forwarded-For` weiterreichen (bei Traefik und Caddy Standard). Ein zu hoher Wert erlaubt Clients, ihre Adresse zu fälschen; ein zu niedriger sperrt alle Besucher gemeinsam.
 
 ---
 

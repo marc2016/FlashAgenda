@@ -2,8 +2,8 @@
 
 ## 1. Client-IP hinter Proxys
 
-- [ ] 1.1 `frontend/nginx.conf`: `Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto` im `/api/`-Block (und Socket-Block) setzen. Prüfen: `nginx -t` mit der Datei im offiziellen nginx-Image oder Review der Datei; Docker-Build läuft
-- [ ] 1.2 `backend/src/app.ts`: `trust proxy` aus `TRUST_PROXY` (Default 1) setzen; `docker-compose.yml` und README dokumentieren die Variable. Prüfen: Backend-Test – zwei `login-by-code`-Fehlversuchsreihen mit unterschiedlichem `X-Forwarded-For` werden getrennt gezählt
+- [x] 1.1 `frontend/nginx.conf`: `Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto` im `/api/`-Block (und Socket-Block) setzen. Prüfen: `nginx -t` mit der Datei im offiziellen nginx-Image oder Review der Datei; Docker-Build läuft
+- [x] 1.2 `backend/src/app.ts`: `trust proxy` aus `TRUST_PROXY` (Default 1) setzen; `docker-compose.yml` und README dokumentieren die Variable. Prüfen: Backend-Test – zwei `login-by-code`-Fehlversuchsreihen mit unterschiedlichem `X-Forwarded-For` werden getrennt gezählt
 
 ## 2. Backend: Passkeys
 
