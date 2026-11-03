@@ -15,17 +15,17 @@
 
 ## 3. Frontend: Service und Anmeldung
 
-- [ ] 3.1 `@simplewebauthn/browser` (exakt gepinnt) installieren; `frontend/src/services/passkeyService.ts` mit `isPasskeySupported`, `registerPasskey`, `loginWithPasskey`, `listPasskeys`, `deletePasskey` und Fehlerklassen `cancelled | unsupported | failed`. Prüfen: `npx tsc --noEmit -p tsconfig.app.json` fehlerfrei
-- [ ] 3.2 `UserIdentificationModal.tsx`: Knopf „Mit Passkey anmelden“ (`data-testid="passkey-login"`, nur bei Support), Ergebnis über `handleUseRememberedUser`, Hinweis bei Abbruch/Fehler. Prüfen: Typecheck; E2E in 5.1
-- [ ] 3.3 `UserCodeLoginModal.tsx`: Knopf „Mit Passkey anmelden“, Erfolg wie Code-Login. Prüfen: Typecheck; E2E in 5.1
+- [x] 3.1 `@simplewebauthn/browser` (exakt gepinnt) installieren; `frontend/src/services/passkeyService.ts` mit `isPasskeySupported`, `registerPasskey`, `loginWithPasskey`, `listPasskeys`, `deletePasskey` und Fehlerklassen `cancelled | unsupported | failed`. Prüfen: `npx tsc --noEmit -p tsconfig.app.json` fehlerfrei
+- [x] 3.2 `UserIdentificationModal.tsx`: Knopf „Mit Passkey anmelden“ (`data-testid="passkey-login"`, nur bei Support), Ergebnis über `handleUseRememberedUser`, Hinweis bei Abbruch/Fehler. Prüfen: Typecheck; E2E in 5.1
+- [x] 3.3 `UserCodeLoginModal.tsx`: Knopf „Mit Passkey anmelden“, Erfolg wie Code-Login. Prüfen: Typecheck; E2E in 5.1
 
 ## 4. Frontend: Verwalten und Hinweis
 
-- [ ] 4.1 `UserProfileModal.tsx`: Abschnitt „Passkeys“ mit Liste (Bezeichnung, Datum), „Passkey einrichten“ (`data-testid="passkey-register"`) und Löschen; Nachweis-Code aus `currentUser`; Fehlermeldung bei falscher RP-ID. Prüfen: Typecheck; Screenshot
-- [ ] 4.2 `PasskeyHintBanner.tsx` auf der Agenda-Seite mit „Passkey einrichten“ und „Nicht mehr fragen“ (`flashagenda_passkey_hint_dismissed`); nach Einrichten kein Hinweis mehr. Prüfen: Typecheck; E2E in 5.1
+- [x] 4.1 `UserProfileModal.tsx`: Abschnitt „Passkeys“ mit Liste (Bezeichnung, Datum), „Passkey einrichten“ (`data-testid="passkey-register"`) und Löschen; Nachweis-Code aus `currentUser`; Fehlermeldung bei falscher RP-ID. Prüfen: Typecheck; Screenshot
+- [x] 4.2 `PasskeyHintBanner.tsx` auf der Agenda-Seite mit „Passkey einrichten“ und „Nicht mehr fragen“ (`flashagenda_passkey_hint_dismissed`); nach Einrichten kein Hinweis mehr. Prüfen: Typecheck; E2E in 5.1
 
 ## 5. E2E, Doku, Abnahme
 
-- [ ] 5.1 Neue Spec `frontend/e2e/passkeys.spec.ts` mit virtuellem Authenticator (CDP) und gemocktem Server: Knopf fehlt ohne Support, Einrichten im Profil, Anmelden im „Wer bist du?“-Dialog, Anmelden auf der Startseite, Person fehlt in Agenda → Beitreten, Abbruch-Hinweis, Hinweis-Banner erscheint/verschwindet, Löschen. In WebKit `test.skip`. Prüfen: Spec grün in chromium und mobile-chrome
-- [ ] 5.2 README: Abschnitt „Passkeys & Reverse Proxy“ mit `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `TRUST_PROXY` und Hinweis auf HTTPS. Prüfen: Abschnitt vorhanden und Variablen stimmen mit `docker-compose.yml` überein
-- [ ] 5.3 Abnahme: Backend-Tests, `npm run build` und komplette Playwright-Suite (chromium, mobile-chrome) grün
+- [x] 5.1 Neue Spec `frontend/e2e/passkeys.spec.ts` mit virtuellem Authenticator (CDP) und gemocktem Server: Knopf fehlt ohne Support, Einrichten im Profil, Anmelden im „Wer bist du?“-Dialog, Anmelden auf der Startseite, Person fehlt in Agenda → Beitreten, Abbruch-Hinweis, Hinweis-Banner erscheint/verschwindet, Löschen. In WebKit `test.skip`. Prüfen: Spec grün in chromium und mobile-chrome (Vermerk: 8 Tests grün in chromium und mobile-chrome; WebKit per test.skip)
+- [x] 5.2 README: Abschnitt „Passkeys & Reverse Proxy“ mit `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `TRUST_PROXY` und Hinweis auf HTTPS. Prüfen: Abschnitt vorhanden und Variablen stimmen mit `docker-compose.yml` überein
+- [x] 5.3 Abnahme: Backend-Tests, `npm run build` und komplette Playwright-Suite (chromium, mobile-chrome) grün (Vermerk: Backend 114/114, E2E 244/244 in chromium + mobile-chrome, Build ok; WebKit nicht geprüft)

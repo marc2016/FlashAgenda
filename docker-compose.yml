@@ -23,6 +23,7 @@ services:
       # Passkeys (WebAuthn): the public domain and origin(s) of the app, e.g. agenda.example.org / https://agenda.example.org
       - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-localhost}
       - WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN:-http://localhost:30301}
+      - WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME:-FlashAgenda}
     depends_on:
       - mongodb
     restart: unless-stopped

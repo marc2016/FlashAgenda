@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
+import { isPasskeySupported, loginWithPasskey, describePasskeyError } from '../services/passkeyService';
 
 interface Props {
   visible: boolean;
@@ -13,6 +14,8 @@ export default function UserCodeLoginModal({ visible, onHide, onLoginSuccess }: 
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const passkeysAvailable = isPasskeySupported();
 
   const handleReset = () => {
     setCode('');
@@ -60,6 +63,21 @@ export default function UserCodeLoginModal({ visible, onHide, onLoginSuccess }: 
       setErrorMsg(err.message || 'Anmeldung fehlgeschlagen.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    setErrorMsg('');
+    setPasskeyBusy(true);
+    try {
+      const user = await loginWithPasskey();
+      localStorage.setItem('flashagenda_last_user', JSON.stringify(user));
+      onLoginSuccess(user);
+      handleClose();
+    } catch (err) {
+      setErrorMsg(describePasskeyError(err));
+    } finally {
+      setPasskeyBusy(false);
     }
   };
 
@@ -115,6 +133,25 @@ export default function UserCodeLoginModal({ visible, onHide, onLoginSuccess }: 
             className="w-full p-button-warning p-button-sm font-bold comic-button"
           />
         </div>
+
+        {passkeysAvailable && (
+          <>
+            <div className="flex align-items-center my-1">
+              <div className="flex-grow-1 border-top-1 border-gray-600"></div>
+              <span className="mx-3 text-gray-400 text-xs">oder</span>
+              <div className="flex-grow-1 border-top-1 border-gray-600"></div>
+            </div>
+            <Button
+              type="button"
+              label="MIT PASSKEY ANMELDEN"
+              icon="pi pi-shield font-bold"
+              data-testid="passkey-login"
+              loading={passkeyBusy}
+              onClick={handlePasskeyLogin}
+              className="w-full p-button-sm font-bold comic-button bg-yellow-400 text-black border-black border-2"
+            />
+          </>
+        )}
       </form>
     </Dialog>
   );

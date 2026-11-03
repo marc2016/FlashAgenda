@@ -3,6 +3,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { getTotpCode } from '../services/totpService';
+import { isPasskeySupported, listPasskeys, registerPasskey, deletePasskey, describePasskeyError, type PasskeyInfo } from '../services/passkeyService';
 import { CARD_COLOR_PALETTE } from './AgendaAttendees';
 import SafeQRCode from './SafeQRCode';
 import { fetchGlobalAchievements, ACHIEVEMENT_CATEGORY_COLORS, type IGlobalAchievementsResult } from '../services/achievementService';
@@ -39,6 +40,52 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
   const [achievementsLoading, setAchievementsLoading] = useState(false);
 
   // TOTP state
+  // Passkeys of this person (loaded with the device's own code as proof)
+  const passkeysAvailable = isPasskeySupported();
+  const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
+  const [passkeysLoading, setPasskeysLoading] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible || !currentUser || !passkeysAvailable) return;
+    let cancelled = false;
+    setPasskeysLoading(true);
+    setPasskeyError(null);
+    listPasskeys(currentUser)
+      .then(list => { if (!cancelled) setPasskeys(list); })
+      .catch(err => { if (!cancelled) setPasskeyError(describePasskeyError(err)); })
+      .finally(() => { if (!cancelled) setPasskeysLoading(false); });
+    return () => { cancelled = true; };
+  }, [visible, currentUser, passkeysAvailable]);
+
+  const handleRegisterPasskey = async () => {
+    setPasskeyBusy(true);
+    setPasskeyError(null);
+    try {
+      const created = await registerPasskey(currentUser);
+      setPasskeys(prev => [...prev, created]);
+      try { localStorage.setItem('flashagenda_passkey_hint_dismissed', 'true'); } catch { /* ignore */ }
+    } catch (err) {
+      setPasskeyError(describePasskeyError(err));
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
+  const handleDeletePasskey = async (id: string) => {
+    setPasskeyBusy(true);
+    setPasskeyError(null);
+    try {
+      await deletePasskey(currentUser, id);
+      setPasskeys(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      setPasskeyError(describePasskeyError(err));
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
   const [totp, setTotp] = useState(() => {
     if (currentUser?.secretGuid) {
       return getTotpCode(currentUser.secretGuid, 300);
@@ -402,6 +449,64 @@ export default function UserProfileModal({ visible, onHide, currentUser, onUpdat
               </div>
             )}
           </div>
+
+          {/* Passkeys: sign in with fingerprint or face instead of the code */}
+          {passkeysAvailable && currentUser && (
+            <div className="w-full mt-3 p-2 sm:p-3 text-white relative" style={{ maxWidth: '1150px' }} data-testid="passkey-section">
+              <div className="flex align-items-center justify-content-between pb-2 mb-2 border-bottom-1 border-white-alpha-20 gap-2">
+                <div className="flex align-items-center gap-2">
+                  <i className="pi pi-shield text-xl text-yellow-400"></i>
+                  <h3 className="text-lg sm:text-xl font-bold text-yellow-500 m-0 uppercase tracking-wide" style={{ textShadow: '2px 2px 0px #000' }}>
+                    PASSKEYS
+                  </h3>
+                </div>
+                <Button
+                  label="Passkey einrichten"
+                  icon="pi pi-plus"
+                  data-testid="passkey-register"
+                  loading={passkeyBusy}
+                  onClick={handleRegisterPasskey}
+                  className="comic-button p-button-sm font-bold bg-yellow-400 text-black border-black border-2"
+                />
+              </div>
+              <p className="m-0 mb-2 text-xs text-gray-300">
+                Mit einem Passkey meldest du dich auf einem neuen Gerät per Fingerabdruck oder Gesicht an, statt deinen Code einzutippen.
+              </p>
+              {passkeyError && (
+                <p className="m-0 mb-2 text-xs text-red-300 font-bold flex align-items-center gap-1" data-testid="passkey-error">
+                  <i className="pi pi-exclamation-circle" />
+                  <span>{passkeyError}</span>
+                </p>
+              )}
+              {passkeysLoading ? (
+                <div className="text-xs text-yellow-400 font-bold"><i className="pi pi-spin pi-spinner mr-2" />Lade Passkeys...</div>
+              ) : passkeys.length === 0 ? (
+                <div className="text-xs text-gray-400 font-bold" data-testid="passkey-empty">Noch kein Passkey eingerichtet.</div>
+              ) : (
+                <ul className="list-none m-0 p-0 flex flex-column gap-2" data-testid="passkey-list">
+                  {passkeys.map(pk => (
+                    <li key={pk.id} className="flex align-items-center justify-content-between gap-2 bg-black-alpha-30 border-round p-2" data-testid="passkey-item">
+                      <div className="flex flex-column min-w-0">
+                        <span className="font-bold text-sm overflow-hidden text-overflow-ellipsis white-space-nowrap">{pk.label}</span>
+                        <span className="text-xs text-gray-400">
+                          Angelegt am {pk.createdAt ? new Date(pk.createdAt).toLocaleDateString('de-DE') : '–'}
+                          {pk.backedUp ? ' · synchronisiert' : ''}
+                        </span>
+                      </div>
+                      <Button
+                        icon="pi pi-trash"
+                        data-testid="passkey-delete"
+                        title="Passkey löschen"
+                        disabled={passkeyBusy}
+                        onClick={() => handleDeletePasskey(pk.id)}
+                        className="p-button-rounded p-button-text p-button-danger p-button-sm"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {/* Global Achievements Section (Gamification Showcase) */}
           <div

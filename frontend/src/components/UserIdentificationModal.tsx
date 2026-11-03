@@ -3,6 +3,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { v4 as uuidv4 } from 'uuid';
+import { isPasskeySupported, loginWithPasskey, describePasskeyError } from '../services/passkeyService';
 
 interface Attendee {
   _id?: string;
@@ -63,6 +64,11 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
   const [enteredCode, setEnteredCode] = useState('');
   const [codeError, setCodeError] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
+
+  // Passkey login (only offered when the browser supports WebAuthn)
+  const passkeysAvailable = useMemo(() => isPasskeySupported(), []);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const rememberedUser = useMemo(() => {
     const lastUserStr = localStorage.getItem('flashagenda_last_user');
@@ -230,6 +236,20 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
     }
   };
 
+  // A passkey proves who this device is; afterwards it joins exactly like a remembered identity.
+  const handlePasskeyLogin = async () => {
+    setPasskeyError(null);
+    setPasskeyBusy(true);
+    try {
+      const user = await loginWithPasskey();
+      await handleUseRememberedUser(user);
+    } catch (err) {
+      setPasskeyError(describePasskeyError(err));
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
   const handleSelectExisting = async (user: Attendee) => {
     // A code is required only once the person has been registered on a device
     if (user.isRegistered) {
@@ -294,6 +314,25 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
         onHide={() => {}}
       >
       <div className="flex flex-column gap-3 pt-3">
+
+        {passkeysAvailable && (
+          <div className="flex flex-column gap-2">
+            <Button
+              label="Mit Passkey anmelden"
+              icon="pi pi-shield"
+              data-testid="passkey-login"
+              className="comic-button font-bold bg-yellow-400 text-black border-black border-2 w-full"
+              loading={passkeyBusy}
+              onClick={handlePasskeyLogin}
+            />
+            {passkeyError && (
+              <p className="m-0 text-xs text-red-300 font-bold flex align-items-center justify-content-center gap-1" data-testid="passkey-error">
+                <i className="pi pi-exclamation-circle" />
+                <span>{passkeyError}</span>
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Prominent Highlighted Box for Global Remembered Identity */}
         {rememberedUser && rememberedUser.name && (
