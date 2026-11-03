@@ -35,7 +35,7 @@ Die Route behält die Suche, gibt aber jedes Dokument über eine Funktion `toAge
   attendees: [{ id, name, cardColor, avatarUrl }] }
 ```
 
-Dafür wird `.lean()` verwendet. Die TOTP-Suche braucht `secretGuid` weiterhin intern, das Mapping entfernt es erst vor der Antwort.
+Das Mapping nimmt Mongoose-Dokumente (über `toObject()`) und einfache Objekte gleichermaßen an, `.lean()` ist nicht nötig. Die TOTP-Suche braucht `secretGuid` weiterhin intern, das Mapping entfernt es erst vor der Antwort.
 *Alternative:* Mongo-Projektion (`select`). Verworfen, weil die Zähler (`completedCount`) ohnehin berechnet werden müssen und die TOTP-Prüfung die Geheimnisse braucht. Eine Aggregation wäre für ≤ 100 Dokumente unnötig komplex.
 
 ### 2. Reine Hilfsfunktionen im Frontend

@@ -59,13 +59,13 @@ export function isSafeImageUrl(url: any): boolean {
   return false;
 }
 
-export function isAgendaClosed(agenda: { isManuallyClosed?: boolean; date?: string; closeBeforeHours?: number }): boolean {
+export function isAgendaClosed(agenda: { isManuallyClosed?: boolean; date?: string; closeBeforeHours?: number }, now: number = Date.now()): boolean {
   if (agenda.isManuallyClosed === true) return true;
   if (agenda.date) {
     const agendaDate = new Date(agenda.date).getTime();
     if (!isNaN(agendaDate)) {
       const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
-      if (Date.now() > (agendaDate - offsetMs)) {
+      if (now > (agendaDate - offsetMs)) {
         return true;
       }
     }
@@ -108,6 +108,36 @@ export function applyStandardItems(agenda: any, enabled: boolean): void {
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Slim per-agenda summary for the home overview: no secrets, no comments, no audit logs, no item contents.
+export function toAgendaSummary(doc: any) {
+  const a = typeof doc?.toObject === 'function' ? doc.toObject() : doc;
+  const items: any[] = Array.isArray(a.items) ? a.items : [];
+  const location = a.location && typeof a.location.lat === 'number' && typeof a.location.lng === 'number'
+    ? { name: a.location.name, lat: a.location.lat, lng: a.location.lng }
+    : undefined;
+  return {
+    _id: a._id,
+    title: a.title,
+    date: a.date,
+    time: a.time,
+    location,
+    isArchived: !!a.isArchived,
+    isManuallyClosed: a.isManuallyClosed,
+    closeBeforeHours: a.closeBeforeHours,
+    liveMeetingActive: !!a.liveMeetingActive,
+    liveMeetingStatus: a.liveMeetingStatus || 'not_started',
+    updatedAt: a.updatedAt,
+    itemCount: items.length,
+    completedCount: items.filter(i => i?.completed).length,
+    attendees: (Array.isArray(a.attendees) ? a.attendees : []).map((att: any) => ({
+      id: att.id || (att._id ? String(att._id) : undefined),
+      name: att.name,
+      cardColor: att.cardColor,
+      avatarUrl: att.avatarUrl
+    }))
+  };
 }
 
 // Get agendas associated with a specific user (created, joined, or matched by security code)
@@ -153,7 +183,7 @@ router.get('/user-agendas', async (req: Request, res: Response): Promise<void> =
       }
     }
 
-    res.json(candidateAgendas);
+    res.json(candidateAgendas.map(toAgendaSummary));
   } catch (error) {
     console.error('Error GET /user-agendas:', error);
     res.status(500).json({ message: 'Failed to fetch user agendas' });

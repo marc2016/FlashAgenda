@@ -2,8 +2,8 @@
 
 ## 1. Backend: schlanke Zusammenfassung
 
-- [ ] 1.1 In `backend/src/routes/agenda.ts` eine Funktion `toAgendaSummary` anlegen und `GET /user-agendas` darauf umstellen (Suche inkl. TOTP unverändert, `.lean()`, Felder laut design.md). Prüfen: `cd backend && npm test` grün
-- [ ] 1.2 `backend/tests/agendaRoutes.test.ts` um drei Fälle ergänzen: keine `securityCode`/`secretGuid` in der Antwort, `itemCount`/`completedCount` stimmen, keine `items`/`auditLogs` in der Antwort. Bestehende Treffer-Tests bleiben unverändert grün. Prüfen: `cd backend && npm test` grün
+- [x] 1.1 In `backend/src/routes/agenda.ts` eine Funktion `toAgendaSummary` anlegen und `GET /user-agendas` darauf umstellen (Suche inkl. TOTP unverändert, `.lean()`, Felder laut design.md). Prüfen: `cd backend && npm test` grün
+- [x] 1.2 `backend/tests/agendaRoutes.test.ts` um drei Fälle ergänzen: keine `securityCode`/`secretGuid` in der Antwort, `itemCount`/`completedCount` stimmen, keine `items`/`auditLogs` in der Antwort. Bestehende Treffer-Tests bleiben unverändert grün. Prüfen: `cd backend && npm test` grün
 
 ## 2. Frontend: Logik
 
