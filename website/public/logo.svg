@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Rotes Quadrat mit abgerundeten Ecken und schwarzer Comic-Kontur -->
+  <rect x="3" y="3" width="58" height="58" rx="14" fill="#DC2626" stroke="#000000" stroke-width="4" />
+  
+  <!-- Innere rote Akzentlinie für Tiefe -->
+  <rect x="7" y="7" width="50" height="50" rx="10" fill="none" stroke="#EF4444" stroke-width="2" />
+  
+  <!-- Leuchtend gelber Blitz mit kräftigem schwarzem Rand -->
+  <path d="M37 6L17 34H31L23 58L47 28H33L37 6Z" 
+        fill="#FACC15" 
+        stroke="#000000" 
+        stroke-width="3.5" 
+        stroke-linejoin="round" 
+        stroke-linecap="round" />
+</svg>

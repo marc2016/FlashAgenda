@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/logo.png" alt="FlashAgenda" width="200">
+  <img src="website/public/images/logo.png" alt="FlashAgenda" width="200">
 </p>
 
 <p align="center">
@@ -28,20 +28,20 @@
 
 ### Agenda mit Details, Karte und Personen
 
-![Agenda-Ansicht mit Details, Karte und Personen](docs/images/agenda.png)
+![Agenda-Ansicht mit Details, Karte und Personen](website/public/images/agenda.png)
 
 ### Eingeklappte Abschnitte mit Zusammenfassung und Agendapunkte
 
-![Eingeklappte Abschnitte und Liste der Agendapunkte](docs/images/agenda-items.png)
+![Eingeklappte Abschnitte und Liste der Agendapunkte](website/public/images/agenda-items.png)
 
 ### Live-Sitzung (Präsentation)
 
-![Präsentationsansicht einer laufenden Sitzung](docs/images/presentation.png)
+![Präsentationsansicht einer laufenden Sitzung](website/public/images/presentation.png)
 
 ### Auf dem Handy
 
 <p>
-  <img src="docs/images/mobile.png" alt="Agenda-Ansicht auf dem Handy" width="300">
+  <img src="website/public/images/mobile.png" alt="Agenda-Ansicht auf dem Handy" width="300">
 </p>
 
 Die Screenshots zeigen die Beispieldaten aus `npm run reset` (siehe „Beispieldaten für die Entwicklung“).
@@ -156,6 +156,29 @@ Alle drei Befehle laufen ausschließlich gegen eine lokale Datenbank (`localhost
 
 ---
 
+## 🌐 Produktwebseite
+
+Die englische Produktwebseite (Startseite und kurze Dokumentation) liegt in `website/` und wird mit [VitePress](https://vitepress.dev) gebaut:
+
+```bash
+npm run website:dev     # lokale Vorschau
+npm run website:build   # statischer Build, schlägt bei kaputten internen Links fehl
+```
+
+Veröffentlicht wird sie als eigener Container `ghcr.io/marc2016/flashagenda-website` (nginx, Port 80). Der Workflow `website.yml` baut das Image bei Änderungen unter `website/` auf `main` (`latest`) und bei Release-Tags. Starten, z. B. hinter einem Reverse Proxy mit eigener Domain:
+
+```bash
+docker run -d -p 8080:80 ghcr.io/marc2016/flashagenda-website:latest
+```
+
+Lokal bauen (Kontext ist der Projektordner, weil die Seite die App-Version aus `frontend/package.json` liest):
+
+```bash
+docker build -f website/Dockerfile -t flashagenda-website .
+```
+
+---
+
 ## 📁 Projektstruktur
 
 ```
@@ -184,8 +207,9 @@ FlashAgenda/
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── package.json
+├── website/               # Produktwebseite (VitePress), Logo und Screenshots in public/images
 ├── openspec/              # Specs und archivierte Changes (OpenSpec)
-├── docs/                  # Dokumentation und Screenshots
+├── docs/                  # Weitere Dokumentation
 ├── docker-compose.yml     # Multi-Container-Setup
 ├── start.sh               # Lokales Dev-Startskript
 ├── LICENSE
@@ -218,6 +242,8 @@ FlashAgenda/
 - `npm run reset`: Löscht alle lokalen Agenden und legt die Beispiel-Agenden neu an.
 - `npm run links`: Listet alle lokalen Agenden mit Links.
 - `npm run build`: Baut das Frontend.
+- `npm run website:dev`: Startet die Produktwebseite lokal (VitePress).
+- `npm run website:build`: Baut die Produktwebseite nach `website/.vitepress/dist`.
 - `npm run release`: Erstellt ein neues Release.
 
 ### Backend

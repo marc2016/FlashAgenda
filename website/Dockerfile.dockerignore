@@ -1,0 +1,6 @@
+*
+!website
+!frontend/package.json
+website/node_modules
+website/.vitepress/dist
+website/.vitepress/cache

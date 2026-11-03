@@ -1,0 +1,151 @@
+/* FlashAgenda brand: comic red and yellow, Bangers for headings */
+:root {
+  --fa-red: #b71c1c;
+  --fa-red-dark: #8e1515;
+  --fa-yellow: #facc15;
+  --fa-yellow-dark: #eab308;
+
+  --vp-c-brand-1: var(--fa-red);
+  --vp-c-brand-2: #c62828;
+  --vp-c-brand-3: var(--fa-red);
+  --vp-c-brand-soft: rgba(183, 28, 28, 0.12);
+
+  --vp-button-brand-bg: var(--fa-red);
+  --vp-button-brand-hover-bg: #c62828;
+  --vp-button-brand-active-bg: var(--fa-red-dark);
+  --vp-button-brand-text: #ffffff;
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, var(--fa-red) 15%, var(--fa-yellow-dark));
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, var(--fa-red) 50%, var(--fa-yellow) 50%);
+  --vp-home-hero-image-filter: blur(56px);
+
+  --fa-heading-font: 'Bangers', 'Inter', system-ui, sans-serif;
+}
+
+.dark {
+  --vp-c-brand-1: var(--fa-yellow);
+  --vp-c-brand-2: var(--fa-yellow-dark);
+  --vp-c-brand-3: #ca8a04;
+  --vp-c-brand-soft: rgba(250, 204, 21, 0.14);
+
+  --vp-button-brand-bg: var(--fa-yellow);
+  --vp-button-brand-hover-bg: #fde047;
+  --vp-button-brand-active-bg: var(--fa-yellow-dark);
+  --vp-button-brand-text: #111827;
+
+  --vp-home-hero-name-background: linear-gradient(120deg, var(--fa-yellow) 20%, #f97316);
+}
+
+/* Comic headings */
+.VPHero .name,
+.vp-doc h1,
+.vp-doc h2,
+.VPFeature .title {
+  font-family: var(--fa-heading-font);
+  font-weight: 400;
+  letter-spacing: 1px;
+}
+
+.VPHero .name {
+  letter-spacing: 2px;
+}
+
+.vp-doc h1 {
+  font-size: 2.6rem;
+  line-height: 1.15;
+}
+
+.vp-doc h2 {
+  font-size: 1.9rem;
+  border-top-color: var(--vp-c-brand-soft);
+}
+
+.VPFeature .title {
+  font-size: 1.35rem;
+}
+
+/* Hero: big Bangers wordmark and logo with a hard comic shadow */
+.VPHero .name {
+  font-size: 56px;
+  line-height: 1.05;
+}
+
+@media (min-width: 640px) {
+  .VPHero .name {
+    font-size: 72px;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHero .name {
+    font-size: 88px;
+  }
+}
+
+.VPHero .image-src {
+  width: 160px;
+  height: 160px;
+  max-width: none;
+  filter: drop-shadow(6px 6px 0 rgba(0, 0, 0, 0.85));
+}
+
+@media (min-width: 960px) {
+  .VPHero .image-src {
+    width: 260px;
+    height: 260px;
+  }
+}
+
+/* Screenshot gallery on the landing page */
+.fa-screenshots {
+  display: grid;
+  gap: 24px;
+  margin: 8px 0 24px;
+}
+
+.fa-screenshots figure {
+  margin: 0;
+}
+
+.fa-screenshots img {
+  width: 100%;
+  border: 3px solid #000;
+  border-radius: 12px;
+  box-shadow: 6px 6px 0 #000;
+}
+
+.fa-screenshots figcaption {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: var(--vp-c-text-2);
+  text-align: center;
+}
+
+.fa-screenshots .fa-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .fa-screenshots .fa-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fa-home-section {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 48px 24px 24px;
+}
+
+.fa-home-section h2 {
+  font-family: var(--fa-heading-font);
+  font-weight: 400;
+  font-size: 2rem;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-bottom: 24px;
+}
