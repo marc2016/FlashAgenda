@@ -38,7 +38,7 @@ Will ein Gerät einer registrierten Person beitreten, MUSS es den eingegebenen C
 - **AND** das Gerät zeigt „Falscher Code“ und bleibt unangemeldet
 
 ### Requirement: Übernahme nicht registrierter Personen
-Eine Person, die noch nicht registriert ist (z. B. vom Ersteller angelegt), MUSS ohne Code übernommen werden können. Bei der Übernahme MUSS der Server die Person als registriert markieren, fehlende Geheimnisse erzeugen und sie diesem Gerät zurückgeben. Eine bereits registrierte Person DARF NICHT über diesen Weg übernommen werden.
+Eine Person, die noch nicht registriert ist (z. B. vom Ersteller angelegt), MUSS ohne Code übernommen werden können. Bei der Übernahme MUSS der Server die Person als registriert markieren und ihr Geheimnisse geben: die mitgebrachten eigenen Geheimnisse des Geräts, sonst neu erzeugte. Er MUSS sie diesem Gerät zurückgeben. Eine bereits registrierte Person DARF NICHT über diesen Weg übernommen werden.
 
 #### Scenario: Tom übernehmen
 - **GIVEN** die nicht registrierte Person „Tom“
@@ -46,13 +46,18 @@ Eine Person, die noch nicht registriert ist (z. B. vom Ersteller angelegt), MUSS
 - **THEN** ist Tom danach registriert
 - **AND** das Gerät erhält Toms vom Server erzeugten Code und GUID
 
+#### Scenario: Vorab angelegte Person mit eigenem Code übernehmen
+- **GIVEN** ein Gerät ist als „Max“ mit Code 1111 angemeldet und eine neue Agenda enthält die nicht registrierte Person „Max“
+- **WHEN** das Gerät „Als Max beitreten“ wählt
+- **THEN** ist Max dort registriert und hat Code 1111
+
 #### Scenario: Registrierte Person übernehmen
 - **GIVEN** die registrierte Person „Anna“
 - **WHEN** ein Gerät versucht, Anna ohne Code zu übernehmen
 - **THEN** lehnt der Server ab und verlangt die Code-Prüfung
 
 ### Requirement: Herkunft der Geheimnisse
-Code und GUID einer Person MÜSSEN vom Server erzeugt werden. Einzige Ausnahme: Ein Gerät, das sich selbst als neue Person einträgt, DARF seine eigenen bestehenden Geheimnisse mitbringen, damit eine Person über mehrere Agenden denselben Code behält. Bestehende Geheimnisse einer Person DÜRFEN NICHT durch Anfragen überschrieben werden. Fehlen einer registrierten Person Geheimnisse, MUSS der Server sie ergänzen.
+Code und GUID einer Person MÜSSEN vom Server erzeugt werden. Ausnahme: Ein Gerät, das sich selbst als neue Person einträgt oder eine nicht registrierte Person übernimmt, DARF seine eigenen bestehenden Geheimnisse mitbringen, damit eine Person über mehrere Agenden denselben Code behält. Bestehende Geheimnisse einer Person DÜRFEN NICHT durch Anfragen überschrieben werden. Fehlen einer registrierten Person Geheimnisse, MUSS der Server sie ergänzen.
 
 #### Scenario: Person für jemand anderen anlegen
 - **WHEN** der Ersteller die Person „Lena“ anlegt und dabei einen Code mitschickt

@@ -1088,9 +1088,12 @@ router.post('/:id/attendees/:attendeeId/claim', async (req: Request, res: Respon
       return;
     }
 
+    // A device may bring its own secrets so a person keeps one code across agendas
+    const ownCode = typeof req.body?.securityCode === 'string' ? req.body.securityCode.trim() : '';
+    const ownGuid = typeof req.body?.secretGuid === 'string' ? req.body.secretGuid.trim() : '';
     attendee.isRegistered = true;
-    if (!attendee.securityCode) attendee.securityCode = generateSecurityCode();
-    if (!attendee.secretGuid) attendee.secretGuid = randomUUID();
+    attendee.securityCode = /^\d{4}$/.test(ownCode) ? ownCode : (attendee.securityCode || generateSecurityCode());
+    attendee.secretGuid = ownGuid || attendee.secretGuid || randomUUID();
     attendee.lastSeen = new Date();
     agenda.markModified('attendees');
     logAudit(agenda, 'Person übernommen', attendee.name, `Teilnehmer "${attendee.name}" wurde auf einem Gerät übernommen.`);

@@ -230,3 +230,13 @@ describe('login-by-code rate limit', () => {
     expect((await request(app).post('/api/agendas/login-by-code').send({ code: '9999' })).status).toBe(429);
   });
 });
+
+describe('Claim with own secrets', () => {
+  it('keeps the device code when taking over a pre-added person', async () => {
+    const res = await request(app).post(`/api/agendas/${AGENDA_ID}/attendees/tom/claim`)
+      .send({ securityCode: '1111', secretGuid: 'guid-max' });
+    expect(res.status).toBe(200);
+    expect(res.body.user).toMatchObject({ securityCode: '1111', secretGuid: 'guid-max' });
+    expect(doc.toObject().attendees.find((a: any) => a.id === 'tom')).toMatchObject({ isRegistered: true, securityCode: '1111' });
+  });
+});

@@ -39,7 +39,7 @@ Eine Hilfsfunktion `mergeAttendeeSecrets(oldAttendees, incoming)` wird in `PUT /
 
 ### 3. Neue Endpoints
 - `POST /:id/attendees/:attendeeId/verify` mit `{ code }`. Gibt `200 { user }` zurück, wobei `user` die Geheimnisse enthält. Bei falschem Code `401`, bei Sperre `429`, wenn die Person fehlt `404`. Die Prüfung nimmt den festen Code und `verifyTotpCode` mit 300 s und 60 s (wie bisher im Browser). Gültige Codes setzen `lastSeen`.
-- `POST /:id/attendees/:attendeeId/claim`. Ist die Person registriert, gibt es `409`. Sonst setzt der Server `isRegistered = true`, erzeugt fehlende Geheimnisse (Code: 4 Ziffern, GUID: `crypto.randomUUID()`), speichert, sendet ein Socket-Update (ohne Geheimnisse) und gibt `200 { user }` zurück.
+- `POST /:id/attendees/:attendeeId/claim`. Ist die Person registriert, gibt es `409`. Sonst setzt der Server `isRegistered = true` und übernimmt mitgebrachte eigene Geheimnisse des Geräts (`securityCode` 4 Ziffern, `secretGuid`). Fehlende erzeugt er (Code: 4 Ziffern, GUID: `crypto.randomUUID()`). Dann speichert, sendet ein Socket-Update (ohne Geheimnisse) und gibt `200 { user }` zurück.
 
 `:attendeeId` wird wie im bestehenden Ping-Endpoint aufgelöst (`id`, sonst `_id`).
 
