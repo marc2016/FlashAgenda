@@ -3,7 +3,6 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { v4 as uuidv4 } from 'uuid';
-import { verifyTotpCode } from '../services/totpService';
 
 interface Attendee {
   _id?: string;
@@ -21,15 +20,40 @@ interface Props {
   attendees: Attendee[];
   currentUser?: any;
   onIdentified: (user: Attendee) => void;
-  onAddAttendee: (user: Attendee) => Promise<void>;
+  onAddAttendee: (user: Attendee) => Promise<any>;
+  /** @deprecated identity changes go through the server (verify/claim) */
   onUpdateAttendee?: (user: Attendee) => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
 
-const generateSecurityCode = () => Math.floor(1000 + Math.random() * 9000).toString();
+type IdentityResult = { ok: true; user: Attendee } | { ok: false; status: number };
 
-export default function UserIdentificationModal({ agendaId, attendees, currentUser, onIdentified, onAddAttendee, onUpdateAttendee, isOpen, onClose }: Props) {
+// Server-side identity endpoints: the only way this device receives a person's secrets.
+async function postIdentity(agendaId: string, attendeeId: string, action: 'verify' | 'claim', body: object): Promise<IdentityResult> {
+  try {
+    const res = await fetch(`/api/agendas/${agendaId}/attendees/${encodeURIComponent(attendeeId)}/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) return { ok: false, status: res.status };
+    const data = await res.json();
+    return data?.user ? { ok: true, user: data.user } : { ok: false, status: 500 };
+  } catch {
+    return { ok: false, status: 0 };
+  }
+}
+
+const attendeeKey = (a: Attendee) => (a.id || a._id || '') as string;
+
+const CODE_ERRORS: Record<string, string> = {
+  wrong: 'Falscher Sicherheitscode! Bitte prüfe den Code auf dem Erstgerät.',
+  locked: 'Zu viele Versuche. Bitte versuche es in 15 Minuten erneut.',
+  failed: 'Das hat nicht geklappt. Bitte prüfe deine Verbindung und versuche es erneut.'
+};
+
+export default function UserIdentificationModal({ agendaId, attendees, currentUser, onIdentified, onAddAttendee, isOpen, onClose }: Props) {
   const [visible, setVisible] = useState(false);
   const [newName, setNewName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,7 +61,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
   // Security Code verification state
   const [verifyingAttendee, setVerifyingAttendee] = useState<Attendee | null>(null);
   const [enteredCode, setEnteredCode] = useState('');
-  const [codeError, setCodeError] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
 
   const rememberedUser = useMemo(() => {
@@ -99,7 +123,9 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
                (a._id && parsed.id && a._id === parsed.id) ||
                (a.name && parsed.name && a.name.trim().toLowerCase() === parsed.name.trim().toLowerCase())
         );
-        const identified = match || parsed;
+        const identified = match
+          ? { ...match, securityCode: parsed.securityCode, secretGuid: parsed.secretGuid, isRegistered: true }
+          : parsed;
         const currentId = currentUser?.id || currentUser?._id;
         const newId = identified?.id || identified?._id;
         if (!currentUser || (newId && newId !== currentId) || (!newId && currentUser.name !== identified.name)) {
@@ -123,55 +149,94 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
     }
   };
 
-  const handleUseRememberedUser = async (user: Attendee) => {
-    setLoading(true);
-    const code = user.securityCode || generateSecurityCode();
-    const claimedUser = { ...user, isRegistered: true, securityCode: code };
-    localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(claimedUser));
-    localStorage.setItem('flashagenda_last_user', JSON.stringify(claimedUser));
-    
-    const existing = attendees.find(
-      a => (a.id && a.id === claimedUser.id) ||
-           (a._id && a._id === claimedUser._id) ||
-           (a._id && claimedUser.id && a._id === claimedUser.id) ||
-           (a.name && claimedUser.name && a.name.trim().toLowerCase() === claimedUser.name.trim().toLowerCase())
-    );
-
-    if (!existing) {
-      await onAddAttendee(claimedUser);
-    } else if (onUpdateAttendee) {
-      onUpdateAttendee(claimedUser);
-    }
-
+  const finishIdentification = (user: Attendee) => {
+    localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(user));
+    localStorage.setItem('flashagenda_last_user', JSON.stringify(user));
+    setVerifyingAttendee(null);
+    setEnteredCode('');
+    setCodeError(null);
+    setShowCode(false);
     setVisible(false);
     if (onClose) onClose();
-    onIdentified(claimedUser);
-    setLoading(false);
+    onIdentified(user);
   };
 
-  const handleSelectExisting = (user: Attendee) => {
-    // Require security code ONLY IF attendee has ALREADY registered/claimed on a device
-    if (user.isRegistered && (user.securityCode || user.secretGuid)) {
-      setVerifyingAttendee(user);
-      setEnteredCode('');
-      setCodeError(false);
-      setShowCode(false);
+  const openCodeDialog = (user: Attendee, error: string | null = null) => {
+    setVerifyingAttendee(user);
+    setEnteredCode('');
+    setCodeError(error);
+    setShowCode(false);
+  };
+
+  const findInAgenda = (user: Attendee) => attendees.find(
+    a => (a.id && a.id === user.id) ||
+         (a._id && a._id === user._id) ||
+         (a._id && user.id && a._id === user.id) ||
+         (a.name && user.name && a.name.trim().toLowerCase() === user.name.trim().toLowerCase())
+  );
+
+  // Claims an unregistered person; the device may bring its own secrets (same code across agendas).
+  const claimAttendee = async (att: Attendee, own?: Attendee) => {
+    const result = await postIdentity(agendaId, attendeeKey(att), 'claim', {
+      securityCode: own?.securityCode,
+      secretGuid: own?.secretGuid
+    });
+    if (result.ok) {
+      finishIdentification({ ...(own || {}), ...result.user });
+      return true;
+    }
+    if (result.status === 409) {
+      openCodeDialog(att);
+      return false;
+    }
+    openCodeDialog(att, 'failed');
+    return false;
+  };
+
+  const handleUseRememberedUser = async (user: Attendee) => {
+    setLoading(true);
+    try {
+      const existing = findInAgenda(user);
+      if (!existing) {
+        // Joining a new agenda as oneself: the device brings its own secrets
+        const added: any = await onAddAttendee({ ...user, isRegistered: true });
+        const serverId = added?.id || added?._id || user.id;
+        if (user.securityCode && user.secretGuid) {
+          finishIdentification({ ...user, id: serverId, isRegistered: true });
+        } else {
+          // Old device without secrets: let the server prove and hand them out
+          const result = await postIdentity(agendaId, serverId, 'verify', { code: user.securityCode || '' });
+          if (result.ok) finishIdentification({ ...user, ...result.user });
+          else finishIdentification({ ...user, id: serverId, isRegistered: true });
+        }
+        return;
+      }
+      if (!existing.isRegistered) {
+        await claimAttendee(existing, user);
+        return;
+      }
+      // Registered person in this agenda: prove it with the device's own code
+      const code = user.securityCode || '';
+      const result = code
+        ? await postIdentity(agendaId, attendeeKey(existing), 'verify', { code })
+        : { ok: false as const, status: 401 };
+      if (result.ok) {
+        finishIdentification({ ...user, ...result.user });
+      } else {
+        openCodeDialog(existing, result.status === 429 ? 'locked' : null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectExisting = async (user: Attendee) => {
+    // A code is required only once the person has been registered on a device
+    if (user.isRegistered) {
+      openCodeDialog(user);
       return;
     }
-
-    // First time claiming this person on a device! Mark as registered and generate code if missing
-    const code = user.securityCode || generateSecurityCode();
-    const updatedUser = { ...user, isRegistered: true, securityCode: code };
-    localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(updatedUser));
-    localStorage.setItem('flashagenda_last_user', JSON.stringify(updatedUser));
-    
-    if (onUpdateAttendee) {
-      onUpdateAttendee(updatedUser);
-    }
-
-    setVisible(false);
-    if (onClose) onClose();
-    onIdentified(updatedUser);
+    await claimAttendee(user);
   };
 
   const handleVerifyCode = async () => {
@@ -179,86 +244,33 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
     const clean = enteredCode.trim();
     if (!clean) return;
 
-    // 1. Local TOTP check (supporting both 300s standard and 60s fallback)
-    const isTotpValid = !!(
-      verifyingAttendee.secretGuid &&
-      (verifyTotpCode(clean, verifyingAttendee.secretGuid, 300) ||
-       verifyTotpCode(clean, verifyingAttendee.secretGuid, 60))
-    );
-
-    // 2. Local static securityCode check
-    const isStaticValid = !!(
-      verifyingAttendee.securityCode &&
-      clean === String(verifyingAttendee.securityCode).trim()
-    );
-
-    let isValid = isTotpValid || isStaticValid;
-
-    // 3. Backend fallback: verify against /api/agendas/login-by-code
-    if (!isValid) {
-      try {
-        const res = await fetch('/api/agendas/login-by-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: clean })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user) {
-            const matchName = data.user.name?.trim().toLowerCase() === verifyingAttendee.name?.trim().toLowerCase();
-            const matchId = data.user.id === verifyingAttendee.id || data.user._id === verifyingAttendee._id;
-            if (matchName || matchId) {
-              isValid = true;
-              Object.assign(verifyingAttendee, data.user);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Failed backend login-by-code fallback in verification modal:', err);
-      }
+    const result = await postIdentity(agendaId, attendeeKey(verifyingAttendee), 'verify', { code: clean });
+    if (result.ok) {
+      finishIdentification({ ...verifyingAttendee, ...result.user, isRegistered: true });
+      return;
     }
-
-    if (isValid) {
-      const confirmedUser = { ...verifyingAttendee, isRegistered: true };
-      localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(confirmedUser));
-      localStorage.setItem('flashagenda_last_user', JSON.stringify(confirmedUser));
-      setVerifyingAttendee(null);
-      setEnteredCode('');
-      setCodeError(false);
-      setShowCode(false);
-      setVisible(false);
-      if (onClose) onClose();
-      onIdentified(confirmedUser);
-    } else {
-      setCodeError(true);
-    }
+    setCodeError(result.status === 429 ? 'locked' : result.status === 401 ? 'wrong' : 'failed');
   };
 
   const handleCreateNew = async () => {
     if (!newName.trim()) return;
     setLoading(true);
-
-    const trimmed = newName.trim();
-    const existing = attendees.find(
-      a => a.name && a.name.trim().toLowerCase() === trimmed.toLowerCase()
-    );
-
-    if (existing) {
-      handleSelectExisting(existing);
+    try {
+      const trimmed = newName.trim();
+      const existing = attendees.find(
+        a => a.name && a.name.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      if (existing) {
+        await handleSelectExisting(existing);
+        return;
+      }
+      // Add unregistered, then claim: the server creates this person's secrets
+      const newUser: Attendee = { id: uuidv4(), name: trimmed };
+      const added: any = await onAddAttendee(newUser);
+      await claimAttendee({ ...newUser, ...(added || {}), id: added?.id || newUser.id });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const code = generateSecurityCode();
-    const guid = uuidv4();
-    const newUser = { id: uuidv4(), name: trimmed, securityCode: code, secretGuid: guid, isRegistered: true };
-    await onAddAttendee(newUser);
-    localStorage.setItem(`flashagenda_${agendaId}_user`, JSON.stringify(newUser));
-    localStorage.setItem('flashagenda_last_user', JSON.stringify(newUser));
-    setVisible(false);
-    if (onClose) onClose();
-    onIdentified(newUser);
-    setLoading(false);
   };
 
   return (
@@ -392,7 +404,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
         onHide={() => {
           setVerifyingAttendee(null);
           setEnteredCode('');
-          setCodeError(false);
+          setCodeError(null);
         }}
         className="glass-panel text-center"
         maskClassName="backdrop-blur-md bg-black-alpha-80"
@@ -415,7 +427,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
               value={enteredCode}
               onChange={(e) => {
                 setEnteredCode(e.target.value);
-                setCodeError(false);
+                setCodeError(null);
               }}
               onKeyDown={(e) => e.key === 'Enter' && handleVerifyCode()}
               maxLength={6}
@@ -434,7 +446,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
           {codeError && (
             <p className="m-0 text-xs text-red-400 font-bold flex align-items-center justify-content-center gap-1">
               <i className="pi pi-exclamation-circle" />
-              <span>Falscher Sicherheitscode! Bitte prüfe den Code auf dem Erstgerät.</span>
+              <span data-testid="code-error">{CODE_ERRORS[codeError]}</span>
             </p>
           )}
           <div className="flex gap-2">
@@ -444,7 +456,7 @@ export default function UserIdentificationModal({ agendaId, attendees, currentUs
               onClick={() => {
                 setVerifyingAttendee(null);
                 setEnteredCode('');
-                setCodeError(false);
+                setCodeError(null);
               }}
             />
             <Button

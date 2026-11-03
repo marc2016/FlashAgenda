@@ -13,8 +13,6 @@ test.describe('FlashAgenda - Attendees & TOTP / Identity Features', () => {
           name: 'Max Mustermann',
           email: 'max@beispiel.de',
           cardColor: '#0a4b7c',
-          securityCode: '1234',
-          secretGuid: '550e8400-e29b-41d4-a716-446655440000',
           isRegistered: true,
           lastSeen: new Date().toISOString()
         },
@@ -23,7 +21,7 @@ test.describe('FlashAgenda - Attendees & TOTP / Identity Features', () => {
           name: 'Erika Musterfrau',
           email: 'erika@beispiel.de',
           cardColor: '#8b0000',
-          securityCode: '5678',
+          isRegistered: true,
           lastSeen: new Date().toISOString()
         }
       ],
@@ -91,6 +89,13 @@ test.describe('FlashAgenda - Attendees & TOTP / Identity Features', () => {
     await expect(totpBadge).toBeVisible();
     await expect(totpBadge.locator('text=/Code: \\d{4}/')).toBeVisible();
     await expect(totpBadge.locator('text=/⏱️/')).toBeVisible();
+  });
+
+  test('shows a code only on the own card, never on other people', async ({ page }) => {
+    await page.goto('/agenda/mock-agenda-attendees-99');
+    await expect(page.locator('text=Erika Musterfrau').first()).toBeVisible();
+    await expect(page.locator('[title="Dynamischer Einmalcode (TOTP)"]')).toHaveCount(1);
+    await expect(page.locator('text=/Code: \\d{4}/')).toHaveCount(1);
   });
 
   test('should allow editing own attendee data and card color', async ({ page }) => {

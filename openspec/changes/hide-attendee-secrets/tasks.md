@@ -21,11 +21,11 @@
 
 ## 4. Frontend
 
-- [ ] 4.1 `UserIdentificationModal.tsx`: Code-Pflicht nur nach `isRegistered`; Prüfen über verify, Übernehmen über claim; Hinweis bei 429; lokale TOTP-Prüfung und Code-Erzeugung entfernen; `handleUseRememberedUser` schickt eigene Geheimnisse mit `isRegistered: true`. Prüfen: `npx tsc --noEmit -p tsconfig.app.json` fehlerfrei
-- [ ] 4.2 `AgendaAttendees.tsx`: Ergänzung fehlender Codes entfernen; neue Personen ohne Code anlegen; `RotatingTotpBadge` und QR-Transfer aus `currentUser`. Prüfen: Typecheck fehlerfrei, `grep -n "att.securityCode\|att.secretGuid\|qrUser.securityCode\|qrUser.secretGuid"` ohne Treffer
-- [ ] 4.3 Wo `currentUser` aus Teilnehmerdaten neu gebaut wird (`AgendaDetail.tsx`), bleiben lokale `securityCode`/`secretGuid` erhalten. Prüfen: E2E „eigener Code bleibt nach Socket-Update sichtbar“ (siehe 5.1)
+- [x] 4.1 `UserIdentificationModal.tsx`: Code-Pflicht nur nach `isRegistered`; Prüfen über verify, Übernehmen über claim; Hinweis bei 429; lokale TOTP-Prüfung und Code-Erzeugung entfernen; `handleUseRememberedUser` schickt eigene Geheimnisse mit `isRegistered: true`. Prüfen: `npx tsc --noEmit -p tsconfig.app.json` fehlerfrei
+- [x] 4.2 `AgendaAttendees.tsx`: Ergänzung fehlender Codes entfernen; neue Personen ohne Code anlegen; `RotatingTotpBadge` und QR-Transfer aus `currentUser`. Prüfen: Typecheck fehlerfrei, `grep -n "att.securityCode\|att.secretGuid\|qrUser.securityCode\|qrUser.secretGuid"` ohne Treffer
+- [x] 4.3 Wo `currentUser` aus Teilnehmerdaten neu gebaut wird (`AgendaDetail.tsx`), bleiben lokale `securityCode`/`secretGuid` erhalten. Prüfen: E2E „eigener Code bleibt nach Socket-Update sichtbar“ (siehe 5.1)
 
 ## 5. E2E und Abnahme
 
-- [ ] 5.1 E2E-Mocks in `attendees-totp`, `agenda-detail`, `user-profile` auf Agenden ohne fremde Geheimnisse umstellen und neue Fälle ergänzen: Beitreten mit richtigem/falschem Code über verify, Übernehmen über claim, 429-Hinweis, kein Code auf fremden Karten, eigener Code im Profil und auf eigener Karte. Prüfen: Specs grün in chromium und mobile-chrome
+- [x] 5.1 E2E-Mocks in `attendees-totp`, `agenda-detail`, `user-profile` auf Agenden ohne fremde Geheimnisse umstellen und neue Fälle ergänzen: Beitreten mit richtigem/falschem Code über verify, Übernehmen über claim, 429-Hinweis, kein Code auf fremden Karten, eigener Code im Profil und auf eigener Karte. Prüfen: Specs grün in chromium und mobile-chrome
 - [ ] 5.2 Abnahme: Backend-Tests, `npm run build` und komplette Playwright-Suite (chromium, mobile-chrome) grün; zusätzlich manuell per Skript: `GET /api/agendas/<seed-id>` gegen den Dev-Server (gemockte DB) enthält kein `securityCode`/`secretGuid`
