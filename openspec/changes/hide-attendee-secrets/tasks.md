@@ -14,10 +14,10 @@
 
 ## 3. Backend: Prüfen, Übernehmen, Begrenzen
 
-- [ ] 3.1 `POST /:id/attendees/:attendeeId/verify` (fester Code + TOTP 300 s/60 s; 200/401/404). Prüfen: Tests für richtigen festen Code, richtigen TOTP-Code, falschen Code (ohne Geheimnisse in der Antwort)
-- [ ] 3.2 Fehlversuchs-Zähler pro Person (5 in 15 Minuten → 429, auch bei richtigem Code). Prüfen: Test mit 5 falschen und danach einem richtigen Code → 429
-- [ ] 3.3 `POST /:id/attendees/:attendeeId/claim` (409 bei registrierter Person; sonst registrieren, Geheimnisse erzeugen, Socket-Update ohne Geheimnisse, 200 mit eigenen Geheimnissen). Prüfen: Tests für beide Fälle
-- [ ] 3.4 Rate-Limit am `POST /login-by-code` (5 Fehlversuche pro IP in 15 Minuten, Erfolge zählen nicht). Prüfen: Test mit 5 falschen Codes → 6. Anfrage 429
+- [x] 3.1 `POST /:id/attendees/:attendeeId/verify` (fester Code + TOTP 300 s/60 s; 200/401/404). Prüfen: Tests für richtigen festen Code, richtigen TOTP-Code, falschen Code (ohne Geheimnisse in der Antwort)
+- [x] 3.2 Fehlversuchs-Zähler pro Person (5 in 15 Minuten → 429, auch bei richtigem Code). Prüfen: Test mit 5 falschen und danach einem richtigen Code → 429
+- [x] 3.3 `POST /:id/attendees/:attendeeId/claim` (409 bei registrierter Person; sonst registrieren, Geheimnisse erzeugen, Socket-Update ohne Geheimnisse, 200 mit eigenen Geheimnissen). Prüfen: Tests für beide Fälle
+- [x] 3.4 Rate-Limit am `POST /login-by-code` (5 Fehlversuche pro IP in 15 Minuten, Erfolge zählen nicht). Prüfen: Test mit 5 falschen Codes → 6. Anfrage 429
 
 ## 4. Frontend
 

@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import mongoose from 'mongoose';
 import { randomInt, randomUUID } from 'crypto';
+import rateLimit from 'express-rate-limit';
 import Agenda from '../models/Agenda';
 import { broadcastAgendaEvent } from '../services/socketService';
 import { verifyTotpCode } from '../services/totpService';
@@ -133,6 +134,63 @@ export function fillMissingSecrets(agenda: any): boolean {
   return changed;
 }
 
+// The only shape in which a device receives a person's secrets (its own, after proving it).
+function ownUserResponse(att: any) {
+  return {
+    id: att.id || att._id?.toString(),
+    _id: att._id?.toString() || att.id,
+    name: att.name,
+    email: att.email || '',
+    avatarUrl: att.avatarUrl || '',
+    cardColor: att.cardColor,
+    securityCode: att.securityCode || '',
+    secretGuid: att.secretGuid || '',
+    isRegistered: true
+  };
+}
+
+function findAttendeeByParam(agenda: any, targetId: string): any {
+  return (agenda?.attendees || []).find((a: any) =>
+    (a.id && a.id.toString() === targetId) ||
+    (a._id && a._id.toString() === targetId)
+  );
+}
+
+// Failed code checks per person: at most VERIFY_MAX_FAILURES within VERIFY_WINDOW_MS.
+export const VERIFY_MAX_FAILURES = 5;
+export const VERIFY_WINDOW_MS = 15 * 60 * 1000;
+const verifyFailures = new Map<string, { count: number; firstAt: number }>();
+
+function currentFailures(key: string, now: number): number {
+  const entry = verifyFailures.get(key);
+  if (!entry) return 0;
+  if (now - entry.firstAt > VERIFY_WINDOW_MS) {
+    verifyFailures.delete(key);
+    return 0;
+  }
+  return entry.count;
+}
+
+function recordFailure(key: string, now: number): void {
+  const entry = verifyFailures.get(key);
+  if (!entry || now - entry.firstAt > VERIFY_WINDOW_MS) {
+    verifyFailures.set(key, { count: 1, firstAt: now });
+  } else {
+    entry.count += 1;
+  }
+}
+
+export function resetVerifyFailures(): void {
+  verifyFailures.clear();
+}
+
+export function isCodeValidFor(att: any, code: string): boolean {
+  const clean = (code || '').toString().trim();
+  if (!clean) return false;
+  if (att.securityCode && String(att.securityCode).trim() === clean) return true;
+  return !!(att.secretGuid && (verifyTotpCode(clean, att.secretGuid, 300) || verifyTotpCode(clean, att.secretGuid, 60)));
+}
+
 function findMatchingAttendee(list: any[], person: any): any {
   if (!person) return undefined;
   const pid = person.id;
@@ -243,7 +301,17 @@ router.get('/user-agendas', async (req: Request, res: Response): Promise<void> =
 });
 
 // Login user by 4-digit code (securityCode or live TOTP)
-router.post('/login-by-code', async (req: Request, res: Response): Promise<void> => {
+// Logging in by code alone is guessable (4 digits across all people): 5 failed attempts per IP per 15 minutes.
+const loginByCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Zu viele Versuche. Bitte versuche es in 15 Minuten erneut.' }
+});
+
+router.post('/login-by-code', loginByCodeLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const { code } = req.body;
     const cleanCode = (code || '').toString().trim();
@@ -959,6 +1027,82 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
 });
 
 // Ping to update lastSeen for an attendee
+// A device proves it is a registered person by sending that person's code; on success it gets their secrets.
+router.post('/:id/attendees/:attendeeId/verify', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const agenda = mongoose.Types.ObjectId.isValid(id) ? await Agenda.findById(id) : null;
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    const attendee = findAttendeeByParam(agenda, req.params.attendeeId as string);
+    if (!attendee) {
+      res.status(404).json({ message: 'Person nicht gefunden' });
+      return;
+    }
+
+    const key = `${id}:${attendee.id || attendee._id?.toString()}`;
+    const now = Date.now();
+    if (currentFailures(key, now) >= VERIFY_MAX_FAILURES) {
+      res.status(429).json({ message: 'Zu viele Versuche. Bitte versuche es in 15 Minuten erneut.' });
+      return;
+    }
+
+    if (!isCodeValidFor(attendee, req.body?.code)) {
+      recordFailure(key, now);
+      res.status(401).json({ message: 'Falscher Code' });
+      return;
+    }
+
+    attendee.lastSeen = new Date();
+    agenda.markModified('attendees');
+    await agenda.save();
+    res.json({ success: true, user: ownUserResponse(attendee) });
+  } catch (error) {
+    console.error('Error POST /:id/attendees/:attendeeId/verify:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// A device takes over a person who has not been registered on any device yet.
+router.post('/:id/attendees/:attendeeId/claim', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const agenda = mongoose.Types.ObjectId.isValid(id) ? await Agenda.findById(id) : null;
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    if (agenda.isArchived) {
+      res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
+      return;
+    }
+    const attendee = findAttendeeByParam(agenda, req.params.attendeeId as string);
+    if (!attendee) {
+      res.status(404).json({ message: 'Person nicht gefunden' });
+      return;
+    }
+    if (attendee.isRegistered) {
+      res.status(409).json({ message: 'Diese Person ist bereits registriert. Bitte gib ihren Code ein.' });
+      return;
+    }
+
+    attendee.isRegistered = true;
+    if (!attendee.securityCode) attendee.securityCode = generateSecurityCode();
+    if (!attendee.secretGuid) attendee.secretGuid = randomUUID();
+    attendee.lastSeen = new Date();
+    agenda.markModified('attendees');
+    logAudit(agenda, 'Person übernommen', attendee.name, `Teilnehmer "${attendee.name}" wurde auf einem Gerät übernommen.`);
+    const savedAgenda = await agenda.save();
+    broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });
+    res.json({ success: true, user: ownUserResponse(attendee) });
+  } catch (error) {
+    console.error('Error POST /:id/attendees/:attendeeId/claim:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.put('/:id/attendees/:attendeeId/ping', async (req: Request, res: Response): Promise<void> => {
   try {
     const agenda = await Agenda.findById(req.params.id);

@@ -161,3 +161,72 @@ describe('Legacy attendees without secrets', () => {
     expect(doc.save).toHaveBeenCalledTimes(1);
   });
 });
+
+import { getTotpCode } from '../src/services/totpService';
+import { resetVerifyFailures } from '../src/routes/agenda';
+
+describe('Verify and claim', () => {
+  beforeEach(() => resetVerifyFailures());
+  const verify = (code: string, who = 'anna') =>
+    request(app).post(`/api/agendas/${AGENDA_ID}/attendees/${who}/verify`).send({ code });
+
+  it('accepts the static code and returns own secrets', async () => {
+    const res = await verify('4711');
+    expect(res.status).toBe(200);
+    expect(res.body.user).toMatchObject({ id: 'anna', securityCode: '4711', secretGuid: 'guid-anna', isRegistered: true });
+  });
+
+  it('accepts the current rotating code', async () => {
+    const res = await verify(getTotpCode('guid-anna', 300).code);
+    expect(res.status).toBe(200);
+    expect(res.body.user.secretGuid).toBe('guid-anna');
+  });
+
+  it('rejects a wrong code without secrets', async () => {
+    const wrong = ['0000', '0001'].find(c => c !== getTotpCode('guid-anna', 300).code && c !== getTotpCode('guid-anna', 60).code)!;
+    const res = await verify(wrong);
+    expect(res.status).toBe(401);
+    noSecrets(res.body);
+  });
+
+  it('locks a person after 5 failed attempts, even for the right code', async () => {
+    const totp = [getTotpCode('guid-anna', 300).code, getTotpCode('guid-anna', 60).code];
+    const wrongCodes = ['1000', '1001', '1002', '1003', '1004', '1005', '1006', '1007'].filter(c => !totp.includes(c)).slice(0, 5);
+    for (const c of wrongCodes) expect((await verify(c)).status).toBe(401);
+    const res = await verify('4711');
+    expect(res.status).toBe(429);
+    noSecrets(res.body);
+  });
+
+  it('returns 404 for an unknown person', async () => {
+    expect((await verify('4711', 'nobody')).status).toBe(404);
+  });
+
+  it('claims an unregistered person with server-generated secrets', async () => {
+    const res = await request(app).post(`/api/agendas/${AGENDA_ID}/attendees/tom/claim`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.user.securityCode).toMatch(/^\d{4}$/);
+    expect(res.body.user.secretGuid).toBeTruthy();
+    const tom = doc.toObject().attendees.find((a: any) => a.id === 'tom');
+    expect(tom).toMatchObject({ isRegistered: true, securityCode: res.body.user.securityCode });
+    for (const call of broadcast.mock.calls) noSecrets(call[2]);
+  });
+
+  it('refuses to claim a registered person', async () => {
+    const res = await request(app).post(`/api/agendas/${AGENDA_ID}/attendees/anna/claim`).send({});
+    expect(res.status).toBe(409);
+    noSecrets(res.body);
+  });
+});
+
+describe('login-by-code rate limit', () => {
+  it('blocks the 6th failed attempt from the same IP', async () => {
+    vi.spyOn(Agenda, 'findOne').mockImplementation((async () => null) as any);
+    vi.spyOn(Agenda, 'find').mockImplementation((() => ({ sort: () => ({ limit: async () => [] }) })) as any);
+    // the earlier successful login in this file does not count
+    for (let i = 0; i < 5; i++) {
+      expect((await request(app).post('/api/agendas/login-by-code').send({ code: '9999' })).status).toBe(404);
+    }
+    expect((await request(app).post('/api/agendas/login-by-code').send({ code: '9999' })).status).toBe(429);
+  });
+});
