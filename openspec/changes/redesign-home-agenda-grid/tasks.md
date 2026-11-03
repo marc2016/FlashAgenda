@@ -13,12 +13,12 @@
 
 ## 3. Frontend: Kachel und Mini-Karte
 
-- [ ] 3.1 `frontend/src/components/AgendaMiniMap.tsx`: nicht interaktive Leaflet-Karte (Zoom 15, alle Handler aus, `pointer-events: none`, Attribution klein sichtbar), Lazy-Mount per `IntersectionObserver`, Platzhalter gleicher Höhe ohne Ort. Prüfen: Typecheck fehlerfrei und Screenshot mit Seed-Daten (`npm run reset`)
-- [ ] 3.2 `frontend/src/components/AgendaOverviewCard.tsx`: Karte als Banner, Titel, Datum/Uhrzeit, Relativzeit (`date-fns`, `de`), Ort, Fortschrittsbalken „x/y“, bis zu 5 `PersonChip` plus „+N“, Status-Badge, Schloss- und Archiv-Icon, `data-testid`s laut design.md. Prüfen: Screenshot einer vollständigen und einer leeren Agenda
+- [x] 3.1 `frontend/src/components/AgendaMiniMap.tsx`: nicht interaktive Leaflet-Karte (Zoom 15, alle Handler aus, `pointer-events: none`, Attribution klein sichtbar), Lazy-Mount per `IntersectionObserver`, Platzhalter gleicher Höhe ohne Ort. Prüfen: Typecheck fehlerfrei und Screenshot mit Seed-Daten (`npm run reset`)
+- [x] 3.2 `frontend/src/components/AgendaOverviewCard.tsx`: Karte als Banner, Titel, Datum/Uhrzeit, Relativzeit (`date-fns`, `de`), Ort, Fortschrittsbalken „x/y“, bis zu 5 `PersonChip` plus „+N“, Status-Badge, Schloss- und Archiv-Icon, `data-testid`s laut design.md. Prüfen: Screenshot einer vollständigen und einer leeren Agenda
 
 ## 4. Frontend: Startseite
 
-- [ ] 4.1 `Home.tsx`: alte Liste ersetzen durch Tabs (Alle/Anstehend/Abgeschlossen mit Anzahl, Start auf „Anstehend“), sortiertes Grid (1/2/3 Spalten bei <640/≥640/≥1024 px, kein interner Scroll), Leerhinweis mit Link zu „Alle“, Hinweis „Noch keine Agenden vorhanden.“ bei null Agenden. Prüfen: Screenshots bei 1440, 800 und 390 px
+- [x] 4.1 `Home.tsx`: alte Liste ersetzen durch Tabs (Alle/Anstehend/Abgeschlossen mit Anzahl, Start auf „Anstehend“), sortiertes Grid (1/2/3 Spalten bei <640/≥640/≥1024 px, kein interner Scroll), Leerhinweis mit Link zu „Alle“, Hinweis „Noch keine Agenden vorhanden.“ bei null Agenden. Prüfen: Screenshots bei 1440, 800 und 390 px
 - [ ] 4.2 `frontend/e2e/home.spec.ts` um Szenarien aus `specs/home-agenda-overview/spec.md` erweitern (Uhr fest per `page.clock`): Spaltenanzahl bei 1280/390 px, Status-Badges (LIVE vor vergangenem Datum, beendet vor Datum, archiviert), Sortierreihenfolge, Tabs und Leerhinweis, Schloss-Icon, Klick auf Karte öffnet Agenda, Karte verschiebt sich nicht bei Drag. Prüfen: Spec grün in allen Playwright-Projekten
 
 ## 5. Abnahme
