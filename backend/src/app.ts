@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import agendaRoutes from './routes/agenda';
 import adminRoutes from './routes/admin';
+import passkeyRoutes from './routes/passkeys';
 
 dotenv.config();
 
@@ -33,5 +34,6 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use('/api/agendas', agendaRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/passkeys', passkeyRoutes);
 
 export default app;

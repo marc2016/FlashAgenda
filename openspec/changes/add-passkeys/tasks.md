@@ -7,11 +7,11 @@
 
 ## 2. Backend: Passkeys
 
-- [ ] 2.1 `@simplewebauthn/server` (exakt gepinnt) installieren; `backend/src/config/webauthn.ts` mit `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `WEBAUTHN_RP_NAME` und Defaults. Prüfen: `npx tsc --noEmit -p .` fehlerfrei
-- [ ] 2.2 Modell `backend/src/models/PasskeyCredential.ts` laut design.md. Prüfen: Schema-Validierungstest grün
-- [ ] 2.3 In `agenda.ts`: `findAttendeeAcrossAgendas(personId)` ergänzen und `isCodeValidFor` exportieren; Fehlversuchs-Zähler für Schlüssel `passkey:<personId>` nutzbar machen. Prüfen: Unit-Tests grün
-- [ ] 2.4 Routen `backend/src/routes/passkeys.ts`: `register/options`, `register/verify`, `login/options`, `login/verify`, `list`, `DELETE /:credentialId`; Challenge-Speicher mit 5 Minuten TTL und Einmal-Verwendung; Rate-Limit 10/15 min für `login/verify`; in `app.ts` unter `/api/passkeys` mounten. Prüfen: Backend-Tests mit vorbereiteten WebAuthn-Antworten (Fixtures aus `@simplewebauthn/server`-Beispieldaten oder selbst erzeugt per Test-Authenticator) für: Registrieren mit/ohne Nachweis, Login gültig/ungültig, abgelaufene und doppelt verwendete Challenge, falsche Origin, Löschen eigen/fremd, Rate-Limit
-- [ ] 2.5 Test: `login/verify` liefert nur die eigene Person mit Geheimnissen (Ergänzung in `attendeeIdentityRoutes.test.ts`). Prüfen: `cd backend && npm test` grün
+- [x] 2.1 `@simplewebauthn/server` (exakt gepinnt) installieren; `backend/src/config/webauthn.ts` mit `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `WEBAUTHN_RP_NAME` und Defaults. Prüfen: `npx tsc --noEmit -p .` fehlerfrei
+- [x] 2.2 Modell `backend/src/models/PasskeyCredential.ts` laut design.md. Prüfen: Schema-Validierungstest grün
+- [x] 2.3 In `agenda.ts`: `findAttendeeAcrossAgendas(personId)` ergänzen und `isCodeValidFor` exportieren; Fehlversuchs-Zähler für Schlüssel `passkey:<personId>` nutzbar machen. Prüfen: Unit-Tests grün
+- [x] 2.4 Routen `backend/src/routes/passkeys.ts`: `register/options`, `register/verify`, `login/options`, `login/verify`, `list`, `DELETE /:credentialId`; Challenge-Speicher mit 5 Minuten TTL und Einmal-Verwendung; Rate-Limit 10/15 min für `login/verify`; in `app.ts` unter `/api/passkeys` mounten. Prüfen: Backend-Tests mit vorbereiteten WebAuthn-Antworten (Fixtures aus `@simplewebauthn/server`-Beispieldaten oder selbst erzeugt per Test-Authenticator) für: Registrieren mit/ohne Nachweis, Login gültig/ungültig, abgelaufene und doppelt verwendete Challenge, falsche Origin, Löschen eigen/fremd, Rate-Limit
+- [x] 2.5 Test: `login/verify` liefert nur die eigene Person mit Geheimnissen (Ergänzung in `attendeeIdentityRoutes.test.ts`). Prüfen: `cd backend && npm test` grün
 
 ## 3. Frontend: Service und Anmeldung
 

@@ -135,7 +135,7 @@ export function fillMissingSecrets(agenda: any): boolean {
 }
 
 // The only shape in which a device receives a person's secrets (its own, after proving it).
-function ownUserResponse(att: any) {
+export function ownUserResponse(att: any) {
   return {
     id: att.id || att._id?.toString(),
     _id: att._id?.toString() || att.id,
@@ -161,7 +161,7 @@ export const VERIFY_MAX_FAILURES = 5;
 export const VERIFY_WINDOW_MS = 15 * 60 * 1000;
 const verifyFailures = new Map<string, { count: number; firstAt: number }>();
 
-function currentFailures(key: string, now: number): number {
+export function currentFailures(key: string, now: number): number {
   const entry = verifyFailures.get(key);
   if (!entry) return 0;
   if (now - entry.firstAt > VERIFY_WINDOW_MS) {
@@ -171,7 +171,7 @@ function currentFailures(key: string, now: number): number {
   return entry.count;
 }
 
-function recordFailure(key: string, now: number): void {
+export function recordFailure(key: string, now: number): void {
   const entry = verifyFailures.get(key);
   if (!entry || now - entry.firstAt > VERIFY_WINDOW_MS) {
     verifyFailures.set(key, { count: 1, firstAt: now });
@@ -182,6 +182,17 @@ function recordFailure(key: string, now: number): void {
 
 export function resetVerifyFailures(): void {
   verifyFailures.clear();
+}
+
+// A person's stable id is the same in every agenda they joined; the most recently changed agenda wins.
+export async function findAttendeeAcrossAgendas(personId: string): Promise<any | null> {
+  if (!personId) return null;
+  const agendas = await Agenda.find({ 'attendees.id': personId }).sort({ updatedAt: -1 }).limit(1);
+  for (const ag of agendas || []) {
+    const att = (ag.attendees || []).find((a: any) => a.id === personId);
+    if (att) return att;
+  }
+  return null;
 }
 
 export function isCodeValidFor(att: any, code: string): boolean {

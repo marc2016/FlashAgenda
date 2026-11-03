@@ -25,7 +25,7 @@
 ## Decisions
 
 ### 1. Bibliothek: `@simplewebauthn/server` und `@simplewebauthn/browser`
-Aktuelle Major-Version (13.x), exakt gepinnt. Sie kapselt Challenge-Erzeugung, Attestation/Assertion-Prüfung, Zähler und Origin-/RP-Prüfung.
+Aktuelle Major-Version (14.x: Server 14.0.3, Browser 14.0.0), exakt gepinnt. Sie kapselt Challenge-Erzeugung, Attestation/Assertion-Prüfung, Zähler und Origin-/RP-Prüfung.
 *Alternative:* WebAuthn selbst parsen (CBOR, COSE). Verworfen, zu fehleranfällig.
 
 ### 2. Modell `PasskeyCredential` (`backend/src/models/PasskeyCredential.ts`)
