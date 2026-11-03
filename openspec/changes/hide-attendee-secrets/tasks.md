@@ -8,9 +8,9 @@
 
 ## 2. Backend: Geheimnisse beim Schreiben schützen
 
-- [ ] 2.1 `mergeAttendeeSecrets` in `agenda.ts` anlegen und in `PUT /:id` vor dem Übernehmen von `attendees` anwenden (Design, Entscheidung 2). Prüfen: Test „Liste ohne Geheimnisse speichern behält Codes“ und „Body-Code überschreibt nicht“ grün
-- [ ] 2.2 `POST /:id/attendees`: Geheimnisse nur für neue Person mit `isRegistered: true` übernehmen bzw. ergänzen; sonst ignorieren. Prüfen: Tests „Person für andere anlegen“ (nicht registriert, kein Code gespeichert) und „Selbst eintragen behält eigenen Code“ grün
-- [ ] 2.3 `GET /:id` ergänzt fehlende Geheimnisse registrierter Personen und speichert einmal. Prüfen: Test mit registrierter Person ohne Code → danach in DB-Mock gesetzt, nicht in der Antwort
+- [x] 2.1 `mergeAttendeeSecrets` in `agenda.ts` anlegen und in `PUT /:id` vor dem Übernehmen von `attendees` anwenden (Design, Entscheidung 2). Prüfen: Test „Liste ohne Geheimnisse speichern behält Codes“ und „Body-Code überschreibt nicht“ grün
+- [x] 2.2 `POST /:id/attendees`: Geheimnisse nur für neue Person mit `isRegistered: true` übernehmen bzw. ergänzen; sonst ignorieren. Prüfen: Tests „Person für andere anlegen“ (nicht registriert, kein Code gespeichert) und „Selbst eintragen behält eigenen Code“ grün
+- [x] 2.3 `GET /:id` ergänzt fehlende Geheimnisse registrierter Personen und speichert einmal. Prüfen: Test mit registrierter Person ohne Code → danach in DB-Mock gesetzt, nicht in der Antwort
 
 ## 3. Backend: Prüfen, Übernehmen, Begrenzen
 
