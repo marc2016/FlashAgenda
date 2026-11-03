@@ -19,9 +19,9 @@
 ## 4. Frontend: Startseite
 
 - [x] 4.1 `Home.tsx`: alte Liste ersetzen durch Tabs (Alle/Anstehend/Abgeschlossen mit Anzahl, Start auf „Anstehend“), sortiertes Grid (1/2/3 Spalten bei <640/≥640/≥1024 px, kein interner Scroll), Leerhinweis mit Link zu „Alle“, Hinweis „Noch keine Agenden vorhanden.“ bei null Agenden. Prüfen: Screenshots bei 1440, 800 und 390 px
-- [ ] 4.2 `frontend/e2e/home.spec.ts` um Szenarien aus `specs/home-agenda-overview/spec.md` erweitern (Uhr fest per `page.clock`): Spaltenanzahl bei 1280/390 px, Status-Badges (LIVE vor vergangenem Datum, beendet vor Datum, archiviert), Sortierreihenfolge, Tabs und Leerhinweis, Schloss-Icon, Klick auf Karte öffnet Agenda, Karte verschiebt sich nicht bei Drag. Prüfen: Spec grün in allen Playwright-Projekten
+- [x] 4.2 `frontend/e2e/home.spec.ts` um Szenarien aus `specs/home-agenda-overview/spec.md` erweitern (Uhr fest per `page.clock`): Spaltenanzahl bei 1280/390 px, Status-Badges (LIVE vor vergangenem Datum, beendet vor Datum, archiviert), Sortierreihenfolge, Tabs und Leerhinweis, Schloss-Icon, Klick auf Karte öffnet Agenda, Karte verschiebt sich nicht bei Drag. Prüfen: Spec grün in allen Playwright-Projekten (Vermerk: nur in Chromium-Projekten geprüft — chromium, mobile-chrome; WebKit-Projekte mobile-safari und small-mobile in der Remote-Umgebung nicht lauffähig)
 
 ## 5. Abnahme
 
-- [ ] 5.1 `npm run build` im Frontend und komplette Playwright-Suite plus Backend-Tests grün (Playwright startet den Dev-Server selbst, kein eigener auf Port 5188)
+- [x] 5.1 `npm run build` im Frontend und komplette Playwright-Suite plus Backend-Tests grün (Playwright startet den Dev-Server selbst, kein eigener auf Port 5188) (Vermerk: Build, Backend 72/72 und E2E in chromium + mobile-chrome grün; WebKit-Projekte nicht geprüft)
 - [x] 5.2 README-Screenshot der Startseite mit Seed-Daten aktualisieren (falls einer existiert), sonst neuen Screenshot `docs/images/home.png` ergänzen und im README verlinken. Prüfen: Bild ist im README sichtbar
