@@ -7,7 +7,7 @@ Legt fest, wer die Geheimnisse einer Person (fester Code und TOTP-GUID) sehen da
 ## Requirements
 
 ### Requirement: Keine fremden Geheimnisse in Antworten
-Antworten des Servers, die Teilnehmer enthalten, DÜRFEN KEINE `securityCode`- oder `secretGuid`-Werte enthalten. Das gilt für das Laden einer Agenda, für Antworten auf Änderungen, für Socket-Updates und für alle übrigen Endpoints. Ob eine Person registriert ist (`isRegistered`), MUSS weiterhin sichtbar sein. Ausgenommen sind nur die Antworten, mit denen ein Gerät die eigenen Geheimnisse erhält (Prüfen, Übernehmen, Login per Code).
+Antworten des Servers, die Teilnehmer enthalten, DÜRFEN KEINE `securityCode`- oder `secretGuid`-Werte enthalten. Das gilt für das Laden einer Agenda, für Antworten auf Änderungen, für Socket-Updates und für alle übrigen Endpoints. Ob eine Person registriert ist (`isRegistered`), MUSS weiterhin sichtbar sein. Ausgenommen sind nur die Antworten, mit denen ein Gerät die eigenen Geheimnisse erhält (Prüfen, Übernehmen, Login per Code, Login per Passkey).
 
 #### Scenario: Agenda laden
 - **GIVEN** eine Agenda mit drei registrierten Personen, jede mit Code und GUID
@@ -18,6 +18,10 @@ Antworten des Servers, die Teilnehmer enthalten, DÜRFEN KEINE `securityCode`- o
 #### Scenario: Socket-Update nach einer Änderung
 - **WHEN** ein Agendapunkt hinzugefügt wird und der Server ein Update an alle verbundenen Geräte sendet
 - **THEN** enthält das Update keine `securityCode`- oder `secretGuid`-Werte
+
+#### Scenario: Passkey-Login liefert nur die eigene Person
+- **WHEN** ein Gerät sich per Passkey als Anna anmeldet
+- **THEN** enthält die Antwort Annas Geheimnisse und keine anderer Personen
 
 ### Requirement: Beitreten mit Code wird auf dem Server geprüft
 Will ein Gerät einer registrierten Person beitreten, MUSS es den eingegebenen Code an den Server senden. Der Server MUSS ihn gegen den festen Code und den aktuellen TOTP-Code der Person prüfen (Zeitfenster 300 s und 60 s). Nur bei Erfolg MUSS er die Person samt Geheimnissen zurückgeben. Bei falschem Code MUSS er ablehnen, ohne Geheimnisse zu senden.
@@ -80,7 +84,7 @@ Code und GUID einer Person MÜSSEN vom Server erzeugt werden. Ausnahme: Ein Ger�
 - **THEN** behalten alle Personen ihre gespeicherten Codes und GUIDs
 
 ### Requirement: Begrenzung von Fehlversuchen
-Der Server MUSS pro Person höchstens 5 fehlgeschlagene Code-Prüfungen in 15 Minuten zulassen und danach weitere Prüfungen für diese Person mit einem verständlichen Hinweis ablehnen, auch wenn der Code stimmt. Der Login per Code (ohne Personenwahl) MUSS pro IP-Adresse ebenso begrenzt sein.
+Der Server MUSS pro Person höchstens 5 fehlgeschlagene Code-Prüfungen in 15 Minuten zulassen und danach weitere Prüfungen für diese Person mit einem verständlichen Hinweis ablehnen, auch wenn der Code stimmt. Der Login per Code (ohne Personenwahl) MUSS pro IP-Adresse ebenso begrenzt sein. Hinter Reverse Proxys MUSS dafür die IP-Adresse des Clients zählen, nicht die des Proxys.
 
 #### Scenario: Sperre nach fünf Fehlversuchen
 - **GIVEN** für Anna wurden in den letzten 15 Minuten 5 falsche Codes gesendet
@@ -91,6 +95,11 @@ Der Server MUSS pro Person höchstens 5 fehlgeschlagene Code-Prüfungen in 15 Mi
 - **GIVEN** von einer IP-Adresse kamen in 15 Minuten 5 fehlgeschlagene Logins per Code
 - **WHEN** von derselben IP ein weiterer Login per Code kommt
 - **THEN** lehnt der Server ab
+
+#### Scenario: Zwei Clients hinter demselben Proxy
+- **GIVEN** Client A hat hinter dem Reverse Proxy 5 fehlgeschlagene Logins per Code
+- **WHEN** Client B mit anderer IP hinter demselben Proxy einen Login per Code versucht
+- **THEN** wird Client B nicht gesperrt
 
 ### Requirement: Eigener Code bleibt auf dem eigenen Gerät nutzbar
 Ein angemeldetes Gerät MUSS den eigenen Code (fest und rotierend) im Profil und auf der eigenen Personenkarte anzeigen und den QR-Transfer auf ein anderes Gerät anbieten können. Diese Anzeigen MÜSSEN aus dem lokalen Speicher des Geräts kommen. Für andere Personen DARF KEIN Code angezeigt werden.
