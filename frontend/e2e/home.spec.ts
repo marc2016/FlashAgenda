@@ -134,6 +134,9 @@ test.describe('FlashAgenda - Home agenda overview grid', () => {
     await page.clock.setFixedTime(NOW);
     await page.addInitScript((data: any[]) => {
       localStorage.setItem('flashagenda_last_user', JSON.stringify({ id: 'p0', name: 'Person 1', isRegistered: true }));
+      // The iOS install hint is fixed to the bottom and would cover the cards
+      localStorage.setItem('flashagenda_pwa_banner_dismissed', 'true');
+      localStorage.setItem('flashagenda_passkey_hint_dismissed', 'true');
       const origFetch = window.fetch;
       window.fetch = async (input: any, init?: any) => {
         const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
@@ -240,7 +243,8 @@ test.describe('FlashAgenda - Home agenda overview grid', () => {
     expect(before).toContain('translate3d(0px, 0px, 0px)');
   });
 
-  test('map stays put on wheel and the card opens on click', async ({ page }) => {
+  test('map stays put on wheel and the card opens on click', async ({ page, browserName, isMobile }) => {
+    test.skip(browserName === 'webkit' && isMobile, 'Mobile WebKit has no mouse wheel');
     await setup(page, AGENDAS);
     const map = page.getByTestId('agenda-card').filter({ hasText: 'In zehn Tagen' }).getByTestId('agenda-card-map');
     await map.scrollIntoViewIfNeeded();
