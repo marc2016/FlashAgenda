@@ -7,6 +7,7 @@ import UserProfileModal from '../components/UserProfileModal';
 import UserCodeLoginModal from '../components/UserCodeLoginModal';
 import AchievementModal from '../components/AchievementModal';
 import PwaInstallBanner from '../components/PwaInstallBanner';
+import AgendaOverview from '../components/AgendaOverview';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -211,60 +212,14 @@ export default function Home() {
           style={{ marginTop: 'clamp(2rem, 6vh, 5rem)' }}
         />
 
-        {/* User Agendas List (only shown if logged in) */}
+        {/* User agenda overview (only shown if logged in) */}
         {currentUser && (currentUser.id || currentUser.name) && (
-          <div className="mt-5 w-full max-w-28rem flex flex-column gap-2 text-left z-2 px-3">
-            <div className="flex align-items-center justify-content-between px-1 mb-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-yellow-400 flex align-items-center gap-2">
-                <i className="pi pi-list text-xs" />
-                <span>Deine Agenden ({myAgendas.length})</span>
-              </span>
-              {currentUser.name && (
-                <span className="text-xs text-gray-300 font-bold opacity-80">
-                  {currentUser.name}
-                </span>
-              )}
-            </div>
-
-            {agendasLoading ? (
-              <div className="text-center p-3 text-gray-300 text-xs font-bold">
-                <i className="pi pi-spin pi-spinner text-yellow-400 mr-2" />
-                Lade deine Agenden...
-              </div>
-            ) : myAgendas.length === 0 ? (
-              <div className="text-center p-3 bg-black-alpha-30 border-round text-xs text-gray-400 font-bold">
-                Noch keine Agenden vorhanden.
-              </div>
-            ) : (
-              <div className="flex flex-column gap-2 max-h-18rem overflow-y-auto pr-1">
-                {myAgendas.map(agenda => (
-                  <div
-                    key={agenda._id}
-                    onClick={() => navigate(`/agenda/${agenda._id}`)}
-                    className="bg-black-alpha-50 hover:bg-black-alpha-80 border-1 border-yellow-400 border-round-lg p-3 flex align-items-center justify-content-between cursor-pointer transition-all shadow-3 group"
-                  >
-                    <div className="overflow-hidden mr-2">
-                      <div className="font-bold text-white text-sm sm:text-base overflow-hidden text-overflow-ellipsis white-space-nowrap group-hover:text-yellow-400 transition-colors">
-                        {agenda.title || 'Unbenannte Agenda'}
-                      </div>
-                      <div className="text-xs text-gray-300 flex align-items-center gap-3 mt-1 opacity-90">
-                        <span>
-                          <i className="pi pi-users text-xs text-yellow-400 mr-1" />
-                          {agenda.attendees?.length || 0} Personen
-                        </span>
-                        <span>
-                          <i className="pi pi-check-square text-xs text-yellow-400 mr-1" />
-                          {agenda.items?.length || 0} Punkte
-                        </span>
-                      </div>
-                    </div>
-
-                    <i className="pi pi-chevron-right text-yellow-400 text-sm group-hover:translate-x-1 transition-transform" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <AgendaOverview
+            agendas={myAgendas}
+            loading={agendasLoading}
+            userName={currentUser.name}
+            onOpen={(id) => navigate(`/agenda/${id}`)}
+          />
         )}
       </div>
 

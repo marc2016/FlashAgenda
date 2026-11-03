@@ -354,7 +354,7 @@ test.describe('FlashAgenda - Gamification & Achievements System', () => {
     await expect(page.getByText('Task-Titan').first()).toBeVisible();
 
     // Verify filter tabs work
-    const allFilter = page.locator('button:has-text("Alle")');
+    const allFilter = page.getByRole('dialog').getByRole('button', { name: 'Alle', exact: true });
     await allFilter.click();
     await expect(page.getByText('Pionier').first()).toBeVisible();
 

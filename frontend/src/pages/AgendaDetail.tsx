@@ -7,6 +7,7 @@ import AgendaTimeline from '../components/AgendaTimeline';
 import UserIdentificationModal from '../components/UserIdentificationModal';
 import AuditLogModal from '../components/AuditLogModal';
 import { PendingTransfersModal } from '../components/PendingTransfersModal';
+import PasskeyHintBanner from '../components/PasskeyHintBanner';
 import LiveMeetingModal from '../components/LiveMeetingModal';
 import { notifyNewItem } from '../services/notificationService';
 import AgendaAchievementBanner from '../components/AgendaAchievementBanner';
@@ -1067,6 +1068,8 @@ export default function AgendaDetail() {
         visible={showAuditModal}
         onHide={() => setShowAuditModal(false)}
       />
+
+      <PasskeyHintBanner currentUser={currentUser} />
 
       <PendingTransfersModal
         visible={showTransfersModal}

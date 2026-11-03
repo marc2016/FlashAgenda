@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
@@ -169,32 +169,12 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
     return calculateAttendeeItemCounts(items, attendees);
   }, [items, attendees]);
 
-  const generateSecurityCode = () => Math.floor(1000 + Math.random() * 9000).toString();
-  const hasMigratedRef = useRef(false);
-
-  // Auto-generate secretGuid & security code for any legacy attendee that lacks one
-  useEffect(() => {
-    if (hasMigratedRef.current || !onUpdateAgenda || !attendees || attendees.length === 0) return;
-    const hasMissingSecret = attendees.some(a => !a.securityCode || !a.secretGuid);
-    if (hasMissingSecret) {
-      hasMigratedRef.current = true;
-      const updated = attendees.map(a => {
-        return {
-          ...a,
-          securityCode: a.securityCode || generateSecurityCode(),
-          secretGuid: a.secretGuid || uuidv4()
-        };
-      });
-      onUpdateAgenda({ attendees: updated });
-    }
-  }, [attendees, onUpdateAgenda]);
+  // Secrets are created and kept by the server; this device only knows its own (currentUser).
 
   const handleAdd = useCallback(async () => {
     if (newName.trim()) {
-      const code = generateSecurityCode();
-      const guid = uuidv4();
       const randomColor = CARD_COLOR_PALETTE[Math.floor(Math.random() * CARD_COLOR_PALETTE.length)];
-      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined, securityCode: code, secretGuid: guid, cardColor: randomColor, isRegistered: false });
+      await onAdd({ id: uuidv4(), name: newName.trim(), email: newEmail.trim() || undefined, cardColor: randomColor, isRegistered: false });
       setNewName('');
       setNewEmail('');
       setVisible(false);
@@ -592,7 +572,7 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
                       })()}
                     </div>
                   {isSelf && (
-                    <RotatingTotpBadge secretGuid={att.secretGuid} fallbackCode={att.securityCode} />
+                    <RotatingTotpBadge secretGuid={currentUser?.secretGuid} fallbackCode={currentUser?.securityCode} />
                   )}
                 </div>
               </div>
@@ -842,8 +822,8 @@ export default function AgendaAttendees({ agendaId, attendees, items = [], curre
                   name: (qrUser.name || '').slice(0, 40), 
                   email: (qrUser.email || '').slice(0, 60), 
                   cardColor: qrUser.cardColor,
-                  securityCode: qrUser.securityCode,
-                  secretGuid: qrUser.secretGuid
+                  securityCode: currentUser?.securityCode,
+                  secretGuid: currentUser?.secretGuid
                 }))}`}
                 size={220}
                 bgColor="#ffffff"

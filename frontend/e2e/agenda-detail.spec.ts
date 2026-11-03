@@ -37,18 +37,44 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
           name: 'Max Mustermann',
           email: 'max@beispiel.de',
           cardColor: '#0a4b7c',
-          securityCode: '1234',
-          secretGuid: '550e8400-e29b-41d4-a716-446655440000',
           isRegistered: true
+        },
+        {
+          id: 'tom-1',
+          name: 'Tom Neu',
+          cardColor: '#2f6b2f',
+          isRegistered: false
         }
-      ]
+      ] as any[]
     };
+    const MAX_SECRETS = { securityCode: '1234', secretGuid: '550e8400-e29b-41d4-a716-446655440000' };
 
     // Catch all API requests
     await page.route('**/api/**', async (route) => {
       const url = route.request().url();
       const method = route.request().method();
 
+      if (url.includes('/attendees/') && url.endsWith('/verify')) {
+        const code = route.request().postDataJSON()?.code;
+        if (code === 'locked') {
+          await route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ message: 'Zu viele Versuche' }) });
+        } else if (url.includes('/test-user-123/') && code === MAX_SECRETS.securityCode) {
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, user: { id: 'test-user-123', name: 'Max Mustermann', isRegistered: true, ...MAX_SECRETS } }) });
+        } else {
+          await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ message: 'Falscher Code' }) });
+        }
+        return;
+      }
+      if (url.includes('/attendees/') && url.endsWith('/claim')) {
+        const tom = mockAgenda.attendees.find((a: any) => a.id === 'tom-1');
+        if (!tom || tom.isRegistered || !url.includes('/tom-1/')) {
+          await route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ message: 'registriert' }) });
+          return;
+        }
+        tom.isRegistered = true;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, user: { id: 'tom-1', name: 'Tom Neu', isRegistered: true, securityCode: '5555', secretGuid: 'guid-tom' } }) });
+        return;
+      }
       if (url.includes('/audits') || url.includes('/audit-log')) {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
       } else if (url.includes('/user-stats')) {
@@ -258,5 +284,81 @@ test.describe('FlashAgenda - Agenda Detail & Interactive Features', () => {
     // Both dialogs should close and user is identified
     await expect(verifyDialog).toBeHidden();
     await expect(page.locator('text=Wer bist du?')).toBeHidden();
+  });
+});
+
+test.describe('FlashAgenda - Identity on a new device (server-side codes)', () => {
+  const agenda = {
+    _id: 'mock-agenda-456',
+    title: 'Identitaet',
+    items: [],
+    attendees: [
+      { id: 'anna-1', name: 'Anna Schmidt', cardColor: '#8b0000', isRegistered: true },
+      { id: 'tom-1', name: 'Tom Neu', cardColor: '#2f6b2f', isRegistered: false }
+    ]
+  };
+  const ANNA = { securityCode: '4711', secretGuid: 'guid-anna' };
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.clear());
+    await page.route('**/api/**', async (route) => {
+      const url = route.request().url();
+      const json = (status: number, body: unknown) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+      if (url.endsWith('/verify')) {
+        const code = route.request().postDataJSON()?.code;
+        if (code === '0000') return json(429, { message: 'Zu viele Versuche' });
+        if (url.includes('/anna-1/') && code === ANNA.securityCode) {
+          return json(200, { success: true, user: { id: 'anna-1', name: 'Anna Schmidt', isRegistered: true, ...ANNA } });
+        }
+        return json(401, { message: 'Falscher Code' });
+      }
+      if (url.endsWith('/claim')) {
+        if (!url.includes('/tom-1/')) return json(409, { message: 'registriert' });
+        return json(200, { success: true, user: { id: 'tom-1', name: 'Tom Neu', isRegistered: true, securityCode: '5555', secretGuid: 'guid-tom' } });
+      }
+      if (url.includes('/achievements')) return json(200, { teamMilestones: [], personalAchievements: [], dynamicLeaders: [], milestonesUnlocked: 0, totalMilestones: 0 });
+      if (url.includes('/audits') || url.includes('/user-agendas')) return json(200, []);
+      if (url.includes('/user-stats')) return json(200, { agendasCount: 1, totalItemsContributed: 0 });
+      return json(200, agenda);
+    });
+    await page.goto('/agenda/mock-agenda-456');
+    await expect(page.locator('text=Wer bist du?')).toBeVisible();
+  });
+
+  const verifyDialog = (page: any) => page.locator('.p-dialog:has-text("Sicherheitscode bestätigen")');
+
+  test('wrong code shows an error and stays signed out', async ({ page }) => {
+    await page.locator('button:has-text("Anna Schmidt")').click();
+    await verifyDialog(page).locator('input').fill('9999');
+    await verifyDialog(page).locator('button:has-text("Bestätigen")').click();
+    await expect(page.getByTestId('code-error')).toContainText('Falscher Sicherheitscode');
+    await expect(page.locator('text=Wer bist du?')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('flashagenda_mock-agenda-456_user'))).toBeNull();
+  });
+
+  test('too many attempts show the lock hint', async ({ page }) => {
+    await page.locator('button:has-text("Anna Schmidt")').click();
+    await verifyDialog(page).locator('input').fill('0000');
+    await verifyDialog(page).locator('button:has-text("Bestätigen")').click();
+    await expect(page.getByTestId('code-error')).toContainText('Zu viele Versuche');
+  });
+
+  test('right code signs in and stores own secrets; own code is shown, others are not', async ({ page }) => {
+    await page.locator('button:has-text("Anna Schmidt")').click();
+    await verifyDialog(page).locator('input').fill('4711');
+    await verifyDialog(page).locator('button:has-text("Bestätigen")').click();
+    await expect(verifyDialog(page)).toBeHidden();
+    await expect(page.locator('text=Wer bist du?')).toBeHidden();
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('flashagenda_mock-agenda-456_user') || '{}'));
+    expect(stored).toMatchObject({ id: 'anna-1', securityCode: '4711', secretGuid: 'guid-anna' });
+    // Code badge only on own card (rotating TOTP from local secrets)
+    await expect(page.locator('text=Code:')).toHaveCount(1);
+  });
+
+  test('picking an unregistered person claims it through the server', async ({ page }) => {
+    await page.locator('button:has-text("Tom Neu")').click();
+    await expect(page.locator('text=Wer bist du?')).toBeHidden();
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('flashagenda_mock-agenda-456_user') || '{}'));
+    expect(stored).toMatchObject({ id: 'tom-1', securityCode: '5555', secretGuid: 'guid-tom', isRegistered: true });
   });
 });

@@ -22,7 +22,7 @@ describe('Dev seed data', () => {
 
     expect(stammtisch.includeStandardItems).toBe(true);
     expect(stammtisch.items.some((i: any) => i.poll)).toBe(true);
-    expect(isAgendaClosed(stammtisch)).toBe(false);
+    expect(isAgendaClosed(stammtisch, now)).toBe(false);
 
     expect(retro.liveMeetingStatus).toBe('completed');
     expect(retro.items.some((i: any) => i.comments?.some((c: any) => c.text.startsWith('📝')))).toBe(true);
@@ -30,7 +30,7 @@ describe('Dev seed data', () => {
     expect(streetFestival.liveMeetingActive).toBe(true);
     expect(streetFestival.title).toContain('ß');
 
-    expect(isAgendaClosed(grillabend)).toBe(true);
+    expect(isAgendaClosed(grillabend, now)).toBe(true);
     expect(grillabend.items.some((i: any) => i.transferredTo?.status === 'pending')).toBe(true);
   });
 

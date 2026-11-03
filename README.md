@@ -11,6 +11,7 @@
 ## 🚀 Features
 
 - **Agenden in Sekunden**: Agenda anlegen, Link oder QR-Code teilen, alle tragen ihre Punkte selbst ein. Kein Konto nötig, Wiedererkennung per Code.
+- **Startseite mit Überblick**: Deine Agenden als Kacheln mit Mini-Karte, Datum, Status (live, anstehend, abgeschlossen) und Fortschritt der abgehakten Punkte, filterbar per Tabs.
 - **Details auf einen Blick**: Datum, Ort mit Karte (Leaflet / OpenStreetMap), Speisekarte und Annahmeschluss für neue Punkte. Abschnitte lassen sich einklappen und zeigen dann eine kurze Zusammenfassung.
 - **Agendapunkte**: Beschreibungen mit Markdown, Bilder, Abstimmungen, Daumen hoch, Kommentare mit Reaktionen und PDF-Anhängen, Anpinnen, Sortieren, Übertragen an andere Personen.
 - **Standardpunkte**: Auf Wunsch stehen „Begrüßung“, „Neuer Termin“ und „Location“ automatisch oben.
@@ -25,6 +26,10 @@
 ---
 
 ## 📸 Screenshots
+
+### Startseite mit deinen Agenden
+
+![Startseite mit Kacheln, Mini-Karten, Status und Fortschritt](website/public/images/home.png)
 
 ### Agenda mit Details, Karte und Personen
 
@@ -230,8 +235,25 @@ FlashAgenda/
 | `ADMIN_JWT_SECRET` | Schlüssel zum Signieren der Admin-Sitzungen | fester Entwicklungswert |
 | `FRONTEND_URL` | Basis-URL für die Links, die die Dev-Skripte ausgeben | `http://localhost:5188` |
 | `SEED_FORCE` | `1` erlaubt den Dev-Skripten eine nicht-lokale Datenbank | – |
+| `TRUST_PROXY` | Anzahl der Proxys vor dem Backend (siehe unten) | `1` |
+| `WEBAUTHN_RP_ID` | Domain der App für Passkeys, z. B. `agenda.example.org` | `localhost` |
+| `WEBAUTHN_ORIGIN` | Erlaubte Origins für Passkeys, kommagetrennt, z. B. `https://agenda.example.org` | `http://localhost:5188,http://localhost:3188` |
+| `WEBAUTHN_RP_NAME` | Anzeigename beim Anlegen eines Passkeys | `FlashAgenda` |
 
 > ⚠️ Für den Betrieb unbedingt `ADMIN_PASSWORD` und `ADMIN_JWT_SECRET` setzen. Die Standardwerte sind nur für die Entwicklung gedacht.
+
+### Passkeys & Reverse Proxy
+
+Passkeys (Anmeldung per Fingerabdruck oder Face ID) funktionieren nur über **HTTPS** (Ausnahme: `localhost`). Setze dafür `WEBAUTHN_RP_ID` auf die Domain, unter der die App erreichbar ist, und `WEBAUTHN_ORIGIN` auf die vollständige URL. Beide Werte müssen zur Adresse im Browser passen, sonst lehnt der Browser das Anlegen ab.
+
+Das Backend begrenzt Anmeldeversuche pro IP-Adresse. Damit es hinter Proxys die Adresse des Clients sieht, muss `TRUST_PROXY` der Zahl der Proxys entsprechen:
+
+| Aufbau | `TRUST_PROXY` |
+|---|---|
+| Nur `docker-compose` (Browser → Frontend-nginx → Backend) | `1` |
+| Reverse Proxy mit TLS davor (Browser → Traefik/Caddy/nginx → Frontend-nginx → Backend) | `2` |
+
+Der Reverse Proxy muss `X-Forwarded-For` weiterreichen (bei Traefik und Caddy Standard). Ein zu hoher Wert erlaubt Clients, ihre Adresse zu fälschen; ein zu niedriger sperrt alle Besucher gemeinsam.
 
 ---
 

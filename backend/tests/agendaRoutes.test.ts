@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import app from '../src/app';
-import { isSafeImageUrl } from '../src/routes/agenda';
+import { isSafeImageUrl, toAgendaSummary } from '../src/routes/agenda';
 import { getTotpCode } from '../src/services/totpService';
 
 vi.mock('../src/models/Agenda', () => {
@@ -103,6 +103,33 @@ describe('Agenda API Routes Unit Tests', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('should not leak attendee secrets in user agendas', async () => {
+    const res = await request(app)
+      .get('/api/agendas/user-agendas?user=test-user-123');
+
+    expect(res.status).toBe(200);
+    const body = JSON.stringify(res.body);
+    expect(body).not.toContain('securityCode');
+    expect(body).not.toContain('secretGuid');
+    expect(body).not.toContain('1234');
+    expect(res.body[0].attendees[0]).toEqual({
+      id: 'test-user-123',
+      name: 'Max Mustermann',
+      cardColor: '#0a4b7c'
+    });
+  });
+
+  it('should return item counters instead of items in user agendas', async () => {
+    const res = await request(app)
+      .get('/api/agendas/user-agendas?user=test-user-123');
+
+    expect(res.status).toBe(200);
+    expect(res.body[0].itemCount).toBe(1);
+    expect(res.body[0].completedCount).toBe(0);
+    expect(res.body[0].items).toBeUndefined();
+    expect(res.body[0].auditLogs).toBeUndefined();
   });
 
   it('should return user stats for valid user queries', async () => {
@@ -262,5 +289,22 @@ describe('Agenda API Routes Unit Tests', () => {
       });
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe('toAgendaSummary', () => {
+  it('counts total and completed items', () => {
+    const items = Array.from({ length: 8 }, (_, i) => ({ title: `P${i}`, completed: i < 5, comments: [{ text: 'x' }] }));
+    const summary: any = toAgendaSummary({ _id: 'a1', title: 'T', items, attendees: [], auditLogs: [{ action: 'x' }] });
+    expect(summary.itemCount).toBe(8);
+    expect(summary.completedCount).toBe(5);
+    expect(summary.items).toBeUndefined();
+    expect(summary.auditLogs).toBeUndefined();
+  });
+
+  it('keeps location only when coordinates are present', () => {
+    expect(toAgendaSummary({ _id: 'a', title: 'T', location: { name: 'Hirsch', lat: 51.2, lng: 6.7 } }).location)
+      .toEqual({ name: 'Hirsch', lat: 51.2, lng: 6.7 });
+    expect(toAgendaSummary({ _id: 'a', title: 'T', location: { name: 'Nur Name' } }).location).toBeUndefined();
   });
 });

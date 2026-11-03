@@ -1,5 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import mongoose from 'mongoose';
+import { randomInt, randomUUID } from 'crypto';
+import rateLimit from 'express-rate-limit';
 import Agenda from '../models/Agenda';
 import { broadcastAgendaEvent } from '../services/socketService';
 import { verifyTotpCode } from '../services/totpService';
@@ -59,13 +61,13 @@ export function isSafeImageUrl(url: any): boolean {
   return false;
 }
 
-export function isAgendaClosed(agenda: { isManuallyClosed?: boolean; date?: string; closeBeforeHours?: number }): boolean {
+export function isAgendaClosed(agenda: { isManuallyClosed?: boolean; date?: string; closeBeforeHours?: number }, now: number = Date.now()): boolean {
   if (agenda.isManuallyClosed === true) return true;
   if (agenda.date) {
     const agendaDate = new Date(agenda.date).getTime();
     if (!isNaN(agendaDate)) {
       const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
-      if (Date.now() > (agendaDate - offsetMs)) {
+      if (now > (agendaDate - offsetMs)) {
         return true;
       }
     }
@@ -108,6 +110,155 @@ export function applyStandardItems(agenda: any, enabled: boolean): void {
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function generateSecurityCode(): string {
+  return String(randomInt(0, 10000)).padStart(4, '0');
+}
+
+// Gives every registered attendee a code and GUID if one is missing. Returns true if anything changed.
+export function fillMissingSecrets(agenda: any): boolean {
+  let changed = false;
+  for (const att of agenda?.attendees || []) {
+    if (!att.isRegistered) continue;
+    if (!att.securityCode) {
+      att.securityCode = generateSecurityCode();
+      changed = true;
+    }
+    if (!att.secretGuid) {
+      att.secretGuid = randomUUID();
+      changed = true;
+    }
+  }
+  if (changed && typeof agenda.markModified === 'function') agenda.markModified('attendees');
+  return changed;
+}
+
+// The only shape in which a device receives a person's secrets (its own, after proving it).
+export function ownUserResponse(att: any) {
+  return {
+    id: att.id || att._id?.toString(),
+    _id: att._id?.toString() || att.id,
+    name: att.name,
+    email: att.email || '',
+    avatarUrl: att.avatarUrl || '',
+    cardColor: att.cardColor,
+    securityCode: att.securityCode || '',
+    secretGuid: att.secretGuid || '',
+    isRegistered: true
+  };
+}
+
+function findAttendeeByParam(agenda: any, targetId: string): any {
+  return (agenda?.attendees || []).find((a: any) =>
+    (a.id && a.id.toString() === targetId) ||
+    (a._id && a._id.toString() === targetId)
+  );
+}
+
+// Failed code checks per person: at most VERIFY_MAX_FAILURES within VERIFY_WINDOW_MS.
+export const VERIFY_MAX_FAILURES = 5;
+export const VERIFY_WINDOW_MS = 15 * 60 * 1000;
+const verifyFailures = new Map<string, { count: number; firstAt: number }>();
+
+export function currentFailures(key: string, now: number): number {
+  const entry = verifyFailures.get(key);
+  if (!entry) return 0;
+  if (now - entry.firstAt > VERIFY_WINDOW_MS) {
+    verifyFailures.delete(key);
+    return 0;
+  }
+  return entry.count;
+}
+
+export function recordFailure(key: string, now: number): void {
+  const entry = verifyFailures.get(key);
+  if (!entry || now - entry.firstAt > VERIFY_WINDOW_MS) {
+    verifyFailures.set(key, { count: 1, firstAt: now });
+  } else {
+    entry.count += 1;
+  }
+}
+
+export function resetVerifyFailures(): void {
+  verifyFailures.clear();
+}
+
+// A person's stable id is the same in every agenda they joined; the most recently changed agenda wins.
+export async function findAttendeeAcrossAgendas(personId: string): Promise<any | null> {
+  if (!personId) return null;
+  const agendas = await Agenda.find({ 'attendees.id': personId }).sort({ updatedAt: -1 }).limit(1);
+  for (const ag of agendas || []) {
+    const att = (ag.attendees || []).find((a: any) => a.id === personId);
+    if (att) return att;
+  }
+  return null;
+}
+
+export function isCodeValidFor(att: any, code: string): boolean {
+  const clean = (code || '').toString().trim();
+  if (!clean) return false;
+  if (att.securityCode && String(att.securityCode).trim() === clean) return true;
+  return !!(att.secretGuid && (verifyTotpCode(clean, att.secretGuid, 300) || verifyTotpCode(clean, att.secretGuid, 60)));
+}
+
+function findMatchingAttendee(list: any[], person: any): any {
+  if (!person) return undefined;
+  const pid = person.id;
+  const p_id = person._id ? String(person._id) : undefined;
+  const pname = (person.name || '').trim().toLowerCase();
+  return (list || []).find((a: any) => pid && a.id === pid)
+    || (list || []).find((a: any) => a._id && (String(a._id) === p_id || String(a._id) === pid))
+    || (list || []).find((a: any) => pname && (a.name || '').trim().toLowerCase() === pname);
+}
+
+// Attendee lists sent by clients never carry (or change) secrets: keep the stored secrets and
+// registration state of known people; new people from such a list start unregistered without secrets.
+export function mergeAttendeeSecrets(oldAttendees: any[], incoming: any[]): any[] {
+  return (incoming || []).map((raw: any) => {
+    const na = typeof raw?.toObject === 'function' ? raw.toObject() : { ...raw };
+    delete na.securityCode;
+    delete na.secretGuid;
+    const oa = findMatchingAttendee(oldAttendees, na);
+    if (oa) {
+      if (oa.securityCode) na.securityCode = oa.securityCode;
+      if (oa.secretGuid) na.secretGuid = oa.secretGuid;
+      na.isRegistered = !!oa.isRegistered;
+    } else {
+      na.isRegistered = false;
+    }
+    return na;
+  });
+}
+
+// Slim per-agenda summary for the home overview: no secrets, no comments, no audit logs, no item contents.
+export function toAgendaSummary(doc: any) {
+  const a = typeof doc?.toObject === 'function' ? doc.toObject() : doc;
+  const items: any[] = Array.isArray(a.items) ? a.items : [];
+  const location = a.location && typeof a.location.lat === 'number' && typeof a.location.lng === 'number'
+    ? { name: a.location.name, lat: a.location.lat, lng: a.location.lng }
+    : undefined;
+  return {
+    _id: a._id,
+    title: a.title,
+    date: a.date,
+    time: a.time,
+    location,
+    isArchived: !!a.isArchived,
+    isManuallyClosed: a.isManuallyClosed,
+    closeBeforeHours: a.closeBeforeHours,
+    liveMeetingActive: !!a.liveMeetingActive,
+    liveMeetingStatus: a.liveMeetingStatus || 'not_started',
+    updatedAt: a.updatedAt,
+    itemCount: items.length,
+    completedCount: items.filter(i => i?.completed).length,
+    attendees: (Array.isArray(a.attendees) ? a.attendees : []).map((att: any) => ({
+      id: att.id || (att._id ? String(att._id) : undefined),
+      name: att.name,
+      cardColor: att.cardColor,
+      avatarUrl: att.avatarUrl
+    }))
+  };
 }
 
 // Get agendas associated with a specific user (created, joined, or matched by security code)
@@ -153,7 +304,7 @@ router.get('/user-agendas', async (req: Request, res: Response): Promise<void> =
       }
     }
 
-    res.json(candidateAgendas);
+    res.json(candidateAgendas.map(toAgendaSummary));
   } catch (error) {
     console.error('Error GET /user-agendas:', error);
     res.status(500).json({ message: 'Failed to fetch user agendas' });
@@ -161,7 +312,17 @@ router.get('/user-agendas', async (req: Request, res: Response): Promise<void> =
 });
 
 // Login user by 4-digit code (securityCode or live TOTP)
-router.post('/login-by-code', async (req: Request, res: Response): Promise<void> => {
+// Logging in by code alone is guessable (4 digits across all people): 5 failed attempts per IP per 15 minutes.
+const loginByCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Zu viele Versuche. Bitte versuche es in 15 Minuten erneut.' }
+});
+
+router.post('/login-by-code', loginByCodeLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const { code } = req.body;
     const cleanCode = (code || '').toString().trim();
@@ -432,6 +593,14 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     if (!agenda) {
       res.status(404).json({ message: 'Agenda not found' });
       return;
+    }
+    // Legacy data: registered people without secrets get server-generated ones (saved once)
+    if (fillMissingSecrets(agenda)) {
+      try {
+        await agenda.save();
+      } catch (saveError) {
+        console.error('Failed to store generated attendee secrets:', saveError);
+      }
     }
     res.json(agenda);
   } catch (error) {
@@ -727,6 +896,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Snapshot before body fields are applied, so stored secrets survive client-sent attendee lists
+    const previousAttendees = (existingAgenda.attendees || []).map((a: any) => (typeof a?.toObject === 'function' ? a.toObject() : a));
+
     const allowedFields = [
       'title', 'date', 'time', 'location', 'menuUrl', 'closeBeforeHours', 'isManuallyClosed',
       'items', 'attendees', 'createdBy', 'sortMode', 'sortOrder', 'auditLogs', 'includeStandardItems',
@@ -739,6 +911,9 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
       if (req.body[field] !== undefined) {
         (existingAgenda as any)[field] = req.body[field];
       }
+    }
+    if (Array.isArray(req.body.attendees)) {
+      (existingAgenda as any).attendees = mergeAttendeeSecrets(previousAttendees, req.body.attendees);
     }
     // Explicitly mark array fields as modified so Mongoose persists all nested
     // changes (e.g. imageUrls inside AgendaItemSchema) to MongoDB.
@@ -756,10 +931,14 @@ router.put('/:id', async (req: Request, res: Response): Promise<void> => {
         console.warn('Version error encountered, re-fetching agenda and retrying save...');
         const freshAgenda = await Agenda.findById(id);
         if (freshAgenda) {
+          const freshPrevious = (freshAgenda.attendees || []).map((a: any) => (typeof a?.toObject === 'function' ? a.toObject() : a));
           for (const field of allowedFields) {
             if (req.body[field] !== undefined) {
               (freshAgenda as any)[field] = req.body[field];
             }
+          }
+          if (Array.isArray(req.body.attendees)) {
+            (freshAgenda as any).attendees = mergeAttendeeSecrets(freshPrevious, req.body.attendees);
           }
           if (req.body.items !== undefined) freshAgenda.markModified('items');
           if (req.body.includeStandardItems !== undefined) applyStandardItems(freshAgenda, !!req.body.includeStandardItems);
@@ -809,15 +988,7 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
       if (req.body?.avatarUrl) {
         existingAttendee.avatarUrl = req.body.avatarUrl;
       }
-      if (req.body?.securityCode && !existingAttendee.securityCode) {
-        existingAttendee.securityCode = req.body.securityCode;
-      }
-      if (req.body?.secretGuid && !existingAttendee.secretGuid) {
-        existingAttendee.secretGuid = req.body.secretGuid;
-      }
-      if (req.body?.isRegistered !== undefined) {
-        existingAttendee.isRegistered = req.body.isRegistered;
-      }
+      // Secrets and registration of an existing person never change here (see /verify and /claim)
       agenda.markModified('attendees');
       logAudit(agenda, 'Person wieder beigetreten', name, `Teilnehmer "${name}" ist der Agenda erneut beigetreten.`);
       const savedAgenda = await agenda.save();
@@ -837,14 +1008,16 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
     if (req.body?.avatarUrl) {
       newAttendee.avatarUrl = req.body.avatarUrl;
     }
-    if (req.body?.securityCode) {
-      newAttendee.securityCode = req.body.securityCode;
-    }
-    if (req.body?.secretGuid) {
-      newAttendee.secretGuid = req.body.secretGuid;
-    }
-    if (req.body?.isRegistered !== undefined) {
-      newAttendee.isRegistered = req.body.isRegistered;
+    // Only a device registering itself may bring its own existing secrets (same person across agendas).
+    // People added for someone else start unregistered; their secrets are created when they are claimed.
+    if (req.body?.isRegistered === true) {
+      const ownCode = typeof req.body.securityCode === 'string' ? req.body.securityCode.trim() : '';
+      const ownGuid = typeof req.body.secretGuid === 'string' ? req.body.secretGuid.trim() : '';
+      newAttendee.isRegistered = true;
+      newAttendee.securityCode = /^\d{4}$/.test(ownCode) ? ownCode : generateSecurityCode();
+      newAttendee.secretGuid = ownGuid || randomUUID();
+    } else {
+      newAttendee.isRegistered = false;
     }
     if (req.body?.email) {
       newAttendee.email = req.body.email;
@@ -865,6 +1038,85 @@ router.post('/:id/attendees', async (req: Request, res: Response): Promise<void>
 });
 
 // Ping to update lastSeen for an attendee
+// A device proves it is a registered person by sending that person's code; on success it gets their secrets.
+router.post('/:id/attendees/:attendeeId/verify', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const agenda = mongoose.Types.ObjectId.isValid(id) ? await Agenda.findById(id) : null;
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    const attendee = findAttendeeByParam(agenda, req.params.attendeeId as string);
+    if (!attendee) {
+      res.status(404).json({ message: 'Person nicht gefunden' });
+      return;
+    }
+
+    const key = `${id}:${attendee.id || attendee._id?.toString()}`;
+    const now = Date.now();
+    if (currentFailures(key, now) >= VERIFY_MAX_FAILURES) {
+      res.status(429).json({ message: 'Zu viele Versuche. Bitte versuche es in 15 Minuten erneut.' });
+      return;
+    }
+
+    if (!isCodeValidFor(attendee, req.body?.code)) {
+      recordFailure(key, now);
+      res.status(401).json({ message: 'Falscher Code' });
+      return;
+    }
+
+    attendee.lastSeen = new Date();
+    agenda.markModified('attendees');
+    await agenda.save();
+    res.json({ success: true, user: ownUserResponse(attendee) });
+  } catch (error) {
+    console.error('Error POST /:id/attendees/:attendeeId/verify:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// A device takes over a person who has not been registered on any device yet.
+router.post('/:id/attendees/:attendeeId/claim', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const agenda = mongoose.Types.ObjectId.isValid(id) ? await Agenda.findById(id) : null;
+    if (!agenda) {
+      res.status(404).json({ message: 'Agenda not found' });
+      return;
+    }
+    if (agenda.isArchived) {
+      res.status(403).json({ message: 'Diese Agenda ist archiviert und schreibgeschützt.' });
+      return;
+    }
+    const attendee = findAttendeeByParam(agenda, req.params.attendeeId as string);
+    if (!attendee) {
+      res.status(404).json({ message: 'Person nicht gefunden' });
+      return;
+    }
+    if (attendee.isRegistered) {
+      res.status(409).json({ message: 'Diese Person ist bereits registriert. Bitte gib ihren Code ein.' });
+      return;
+    }
+
+    // A device may bring its own secrets so a person keeps one code across agendas
+    const ownCode = typeof req.body?.securityCode === 'string' ? req.body.securityCode.trim() : '';
+    const ownGuid = typeof req.body?.secretGuid === 'string' ? req.body.secretGuid.trim() : '';
+    attendee.isRegistered = true;
+    attendee.securityCode = /^\d{4}$/.test(ownCode) ? ownCode : (attendee.securityCode || generateSecurityCode());
+    attendee.secretGuid = ownGuid || attendee.secretGuid || randomUUID();
+    attendee.lastSeen = new Date();
+    agenda.markModified('attendees');
+    logAudit(agenda, 'Person übernommen', attendee.name, `Teilnehmer "${attendee.name}" wurde auf einem Gerät übernommen.`);
+    const savedAgenda = await agenda.save();
+    broadcastAgendaEvent(id, 'agenda_updated', { agenda: savedAgenda });
+    res.json({ success: true, user: ownUserResponse(attendee) });
+  } catch (error) {
+    console.error('Error POST /:id/attendees/:attendeeId/claim:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.put('/:id/attendees/:attendeeId/ping', async (req: Request, res: Response): Promise<void> => {
   try {
     const agenda = await Agenda.findById(req.params.id);

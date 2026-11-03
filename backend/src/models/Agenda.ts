@@ -144,6 +144,16 @@ const AttendeeSchema = new Schema<IAttendee>({
   pinnedAchievements: { type: [String], default: [] }
 });
 
+// Never serialize attendee secrets (res.json, socket payloads). Endpoints that hand a device its own
+// secrets build that response explicitly.
+AttendeeSchema.set('toJSON', {
+  transform: (_doc: any, ret: any) => {
+    delete ret.securityCode;
+    delete ret.secretGuid;
+    return ret;
+  }
+});
+
 const LocationSchema = new Schema<ILocation>({
   name: { type: String, required: true },
   lat: { type: Number, required: true },
