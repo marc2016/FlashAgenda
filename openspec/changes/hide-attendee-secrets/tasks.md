@@ -2,9 +2,9 @@
 
 ## 1. Backend: Geheimnisse nicht mehr ausliefern
 
-- [ ] 1.1 `toJSON`-Transform am `AttendeeSchema` (`backend/src/models/Agenda.ts`) entfernt `securityCode` und `secretGuid`. Prüfen: neuer Test in `backend/tests/` – `JSON.stringify(new Agenda({...}))` enthält keine Geheimnisse, `isRegistered` bleibt; `cd backend && npm test` grün
-- [ ] 1.2 Test: `GET /api/agendas/:id` und das an `broadcastAgendaEvent` übergebene Payload enthalten keine Geheimnisse (Socket-Service gemockt). Prüfen: `npm test` grün
-- [ ] 1.3 `POST /login-by-code` baut sein `user`-Objekt weiterhin ausdrücklich mit den eigenen Geheimnissen (unverändert lauffähig nach 1.1). Prüfen: bestehender Login-Test grün
+- [x] 1.1 `toJSON`-Transform am `AttendeeSchema` (`backend/src/models/Agenda.ts`) entfernt `securityCode` und `secretGuid`. Prüfen: neuer Test in `backend/tests/` – `JSON.stringify(new Agenda({...}))` enthält keine Geheimnisse, `isRegistered` bleibt; `cd backend && npm test` grün
+- [x] 1.2 Test: `GET /api/agendas/:id` und das an `broadcastAgendaEvent` übergebene Payload enthalten keine Geheimnisse (Socket-Service gemockt). Prüfen: `npm test` grün
+- [x] 1.3 `POST /login-by-code` baut sein `user`-Objekt weiterhin ausdrücklich mit den eigenen Geheimnissen (unverändert lauffähig nach 1.1). Prüfen: bestehender Login-Test grün
 
 ## 2. Backend: Geheimnisse beim Schreiben schützen
 
