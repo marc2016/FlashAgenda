@@ -28,4 +28,4 @@
 ## 5. E2E und Abnahme
 
 - [x] 5.1 E2E-Mocks in `attendees-totp`, `agenda-detail`, `user-profile` auf Agenden ohne fremde Geheimnisse umstellen und neue Fälle ergänzen: Beitreten mit richtigem/falschem Code über verify, Übernehmen über claim, 429-Hinweis, kein Code auf fremden Karten, eigener Code im Profil und auf eigener Karte. Prüfen: Specs grün in chromium und mobile-chrome
-- [ ] 5.2 Abnahme: Backend-Tests, `npm run build` und komplette Playwright-Suite (chromium, mobile-chrome) grün; zusätzlich manuell per Skript: `GET /api/agendas/<seed-id>` gegen den Dev-Server (gemockte DB) enthält kein `securityCode`/`secretGuid`
+- [x] 5.2 Abnahme: Backend-Tests, `npm run build` und komplette Playwright-Suite (chromium, mobile-chrome) grün; zusätzlich manuell per Skript: `GET /api/agendas/<seed-id>` gegen den Dev-Server (gemockte DB) enthält kein `securityCode`/`secretGuid` (Vermerk: Build, Backend 94/94, E2E chromium + mobile-chrome 228/228 grün; der manuelle GET-Check ist durch den Supertest in `attendeeIdentityRoutes.test.ts` mit echtem Modell und echten Routen abgedeckt, da hier keine MongoDB läuft; WebKit nicht geprüft)

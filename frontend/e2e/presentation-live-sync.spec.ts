@@ -225,6 +225,14 @@ test.describe('FlashAgenda - Multi-Device Presentation Live Sync', () => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ agendasCount: 1, totalItemsContributed: 2 }) });
       } else if (url.includes('/user-agendas')) {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([agendaState]) });
+      } else if (url.endsWith('/claim')) {
+        // New person: the server registers them and hands this device its own secrets
+        const attendeeId = decodeURIComponent(url.split('/attendees/')[1].split('/')[0]);
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true, user: { id: attendeeId, name: 'Erika Musterfrau', isRegistered: true, securityCode: '2468', secretGuid: 'guid-erika' } })
+        });
       } else {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(agendaState) });
       }
