@@ -7,9 +7,9 @@
 
 ## 2. Frontend: Logik
 
-- [ ] 2.1 `frontend/src/utils/agendaOverview.ts` mit `getAgendaStatus`, `sortAgendas` und `isAgendaClosedForItems` anlegen (mit `now`-Parameter; Fallback auf `items`, wenn Zähler fehlen). Prüfen: `npx tsc --noEmit -p tsconfig.app.json` fehlerfrei
-- [ ] 2.2 `AgendaTimeline.tsx` auf `isAgendaClosedForItems` umstellen. Prüfen: `e2e/agenda-interactions.spec.ts` und `e2e/standard-items.spec.ts` grün
-- [ ] 2.3 Den Leaflet-Marker-Fix aus `AgendaHeader.tsx` nach `frontend/src/utils/leafletSetup.ts` verschieben und dort importieren. Prüfen: Die Karte auf der Agenda-Seite zeigt weiterhin den Marker (`e2e/agenda-detail.spec.ts` grün, Screenshot)
+- [x] 2.1 `frontend/src/utils/agendaOverview.ts` mit `getAgendaStatus`, `sortAgendas` und `isAgendaClosedForItems` anlegen (mit `now`-Parameter; Fallback auf `items`, wenn Zähler fehlen). Prüfen: `npx tsc --noEmit -p tsconfig.app.json` fehlerfrei
+- [x] 2.2 `AgendaTimeline.tsx` auf `isAgendaClosedForItems` umstellen. Prüfen: `e2e/agenda-interactions.spec.ts` und `e2e/standard-items.spec.ts` grün
+- [x] 2.3 Den Leaflet-Marker-Fix aus `AgendaHeader.tsx` nach `frontend/src/utils/leafletSetup.ts` verschieben und dort importieren. Prüfen: Die Karte auf der Agenda-Seite zeigt weiterhin den Marker (`e2e/agenda-detail.spec.ts` grün, Screenshot)
 
 ## 3. Frontend: Kachel und Mini-Karte
 

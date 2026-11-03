@@ -57,6 +57,7 @@ import { PollVoteModal, type IPoll } from './PollVoteModal';
 import { TransferItemModal } from './TransferItemModal';
 import { PersonChip, getAttendeeColor } from './PersonChip';
 import { formatTimer } from '../utils/attendeeUtils';
+import { isAgendaClosedForItems } from '../utils/agendaOverview';
 
 export interface IAttachment {
   name: string;
@@ -1040,20 +1041,7 @@ export default function AgendaTimeline({
     [currentUser]
   );
 
-  const isClosed = useMemo(() => {
-    if (agenda?.isManuallyClosed === true) return true;
-    if (agenda?.date) {
-      const agendaDate = new Date(agenda.date).getTime();
-      if (!isNaN(agendaDate)) {
-        const offsetMs = (agenda.closeBeforeHours ?? 12) * 60 * 60 * 1000;
-        if (Date.now() > agendaDate - offsetMs) {
-          return true;
-        }
-      }
-    }
-    if (agenda?.isManuallyClosed === false) return false;
-    return false;
-  }, [agenda]);
+  const isClosed = useMemo(() => isAgendaClosedForItems(agenda), [agenda]);
 
   const isMeetingTimeReached = useMemo(() => {
     if (!agenda?.date) return true;
