@@ -1,0 +1,23 @@
+{
+  "name": "flashagenda-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "aufnehmen": "node aufnahme/aufnehmen.mjs",
+    "aufnehmen:details": "node aufnahme/details.mjs",
+    "vertonen": "node ton/vertonen.mjs",
+    "studio": "remotion studio src/index.ts",
+    "rendern": "remotion render src/index.ts Produktvideo out/flashagenda.mp4",
+    "rendern:details": "remotion render src/index.ts Details out/flashagenda-details.mp4"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.364",
+    "@remotion/google-fonts": "4.0.364",
+    "@types/react": "^19.1.13",
+    "playwright": "^1.64.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "remotion": "4.0.364",
+    "typescript": "^5.9.3"
+  }
+}

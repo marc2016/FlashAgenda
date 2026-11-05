@@ -1,0 +1,6 @@
+node_modules/
+out/
+public/aufnahmen/
+public/ton/
+public/*/aufnahmen/
+public/*/ton/
